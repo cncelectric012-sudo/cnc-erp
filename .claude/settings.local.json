@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(///192.168.1.90/CNC-Bot//**)",
+      "Read(///192.168.1.90/CNC-Bot/dashboard/**)",
+      "Bash(rm \"//192.168.1.90/CNC-Bot/CNC-Bot.gitignore\")",
+      "Bash(mv \"//192.168.1.90/CNC-Bot/dot-env.example\" \"//192.168.1.90/CNC-Bot/.env.example\")",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(firebase projects:list)",
+      "Bash(mkdir -p \"//192.168.1.90/CNC-Bot/scripts\")",
+      "Bash(mkdir -p \"//192.168.1.90/CNC-Bot/credentials\")",
+      "Bash(mv \"//192.168.1.90/CNC-Bot/fix_filenames.js\" \"//192.168.1.90/CNC-Bot/scripts/\")",
+      "Bash(mv \"//192.168.1.90/CNC-Bot/mark_all_processed.js\" \"//192.168.1.90/CNC-Bot/scripts/\")"
+    ]
+  }
+}

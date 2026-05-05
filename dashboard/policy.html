@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Policy Settings · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.policy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.knob {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.knob label {
+  font-size: 10px; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  display: block; margin-bottom: 6px;
+}
+.knob input {
+  width: 100%; background: transparent;
+  border: none; outline: none;
+  font-family: var(--font-mono);
+  font-size: 16px; font-weight: 600;
+  color: var(--text);
+}
+</style>
+</head>
+<body data-page="policy">
+
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">⚙️ Policy Settings</div>
+        <div class="topbar-sub">Credit days, freeze gates, and discount tiers per zone</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="card mb-4">
+        <div class="card-header"><div class="card-title">Policy Parameters</div></div>
+        <div class="card-body">
+          <div class="policy-grid">
+            <div class="knob"><label>Credit Days</label><input type="number" id="p-creditDays"/></div>
+            <div class="knob"><label>Freeze Oldest (days)</label><input type="number" id="p-freezeDays"/></div>
+            <div class="knob"><label>Freeze Recovery %</label><input type="number" id="p-freezeRec"/></div>
+            <div class="knob"><label>Release Multiplier</label><input type="number" step="0.1" id="p-relMul"/></div>
+            <div class="knob"><label>Green Base %</label><input type="number" id="p-greenBase"/></div>
+            <div class="knob"><label>Green Max %</label><input type="number" id="p-greenMax"/></div>
+            <div class="knob"><label>Yellow Base %</label><input type="number" id="p-yellowBase"/></div>
+            <div class="knob"><label>Yellow Max %</label><input type="number" id="p-yellowMax"/></div>
+            <div class="knob"><label>Orange Base %</label><input type="number" id="p-orangeBase"/></div>
+            <div class="knob"><label>Orange Max %</label><input type="number" id="p-orangeMax"/></div>
+            <div class="knob"><label>Red Base %</label><input type="number" id="p-redBase"/></div>
+            <div class="knob"><label>Red Max %</label><input type="number" id="p-redMax"/></div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button class="btn btn-primary" onclick="savePolicy()">💾 Save & Apply</button>
+            <button class="btn btn-ghost" onclick="resetPolicy()">↺ Reset Defaults</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Grade Matrix (12 Grades)</div></div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Grade</th><th class="num">Risk</th><th class="num">Value</th>
+                <th>Zone</th><th>Credit Factor</th><th>Max Discount</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="gradeMatrix"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="shared/firebase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script src="shared/analysis.js"></script>
+<script>
+function fillPolicyKnobs() {
+  document.getElementById('p-creditDays').value = policy.creditDays;
+  document.getElementById('p-freezeDays').value = policy.freezeDays;
+  document.getElementById('p-freezeRec').value = policy.freezeRec;
+  document.getElementById('p-relMul').value = policy.relMul;
+  document.getElementById('p-greenBase').value = policy.greenBase;
+  document.getElementById('p-greenMax').value = policy.greenMax;
+  document.getElementById('p-yellowBase').value = policy.yellowBase;
+  document.getElementById('p-yellowMax').value = policy.yellowMax;
+  document.getElementById('p-orangeBase').value = policy.orangeBase;
+  document.getElementById('p-orangeMax').value = policy.orangeMax;
+  document.getElementById('p-redBase').value = policy.redBase;
+  document.getElementById('p-redMax').value = policy.redMax;
+}
+
+function savePolicy() {
+  policy = {
+    creditDays: num(document.getElementById('p-creditDays').value),
+    freezeDays: num(document.getElementById('p-freezeDays').value),
+    freezeRec:  num(document.getElementById('p-freezeRec').value),
+    relMul:     num(document.getElementById('p-relMul').value),
+    greenBase:  num(document.getElementById('p-greenBase').value),
+    greenMax:   num(document.getElementById('p-greenMax').value),
+    yellowBase: num(document.getElementById('p-yellowBase').value),
+    yellowMax:  num(document.getElementById('p-yellowMax').value),
+    orangeBase: num(document.getElementById('p-orangeBase').value),
+    orangeMax:  num(document.getElementById('p-orangeMax').value),
+    redBase:    num(document.getElementById('p-redBase').value),
+    redMax:     num(document.getElementById('p-redMax').value),
+    absoluteCap: 30
+  };
+  if (customers.length) {
+    computeCustomers();
+  }
+  saveAllState();
+  renderGradeMatrix();
+  showToast('Policy saved & applied', '💾');
+}
+
+function resetPolicy() {
+  policy = {
+    creditDays: 45, freezeDays: 60, freezeRec: 75, relMul: 0.5,
+    greenBase: 18, greenMax: 30,
+    yellowBase: 12, yellowMax: 20,
+    orangeBase: 7,  orangeMax: 15,
+    redBase: 0,     redMax: 5,
+    absoluteCap: 30
+  };
+  fillPolicyKnobs();
+  savePolicy();
+}
+
+function renderGradeMatrix() {
+  const p = policy;
+  const grades = [
+    { g: '1A', risk: '0-20',   val: '70+',   zone: 'Green',       factor: '100%',    disc: `${p.greenBase}-${p.greenMax}%`,   action: 'Full credit — best discount' },
+    { g: '1B', risk: '21-40',  val: '70+',   zone: 'Green',       factor: '100%',    disc: `${p.greenBase}-${p.greenMax}%`,   action: 'Full credit — good discount' },
+    { g: '1C', risk: '41-70',  val: '70+',   zone: 'Yellow',      factor: '75%',     disc: `${p.yellowBase}-${p.yellowMax}%`, action: 'Controlled credit' },
+    { g: '1D', risk: '71-100', val: '70+',   zone: 'Orange/Red',  factor: '50%/0%',  disc: `${p.orangeBase}-${p.orangeMax}%`, action: 'Restricted — payment first' },
+    { g: '2A', risk: '0-20',   val: '40-69', zone: 'Green',       factor: '100%',    disc: `${p.greenBase}-${p.greenMax}%`,   action: 'Full credit' },
+    { g: '2B', risk: '21-40',  val: '40-69', zone: 'Yellow',      factor: '75%',     disc: `${p.yellowBase}-${p.yellowMax}%`, action: 'Controlled' },
+    { g: '2C', risk: '41-70',  val: '40-69', zone: 'Orange',      factor: '50%',     disc: `${p.orangeBase}-${p.orangeMax}%`, action: 'Restricted' },
+    { g: '2D', risk: '71-100', val: '40-69', zone: 'Red',         factor: '0%',      disc: `${p.redBase}-${p.redMax}%`,       action: 'COD only' },
+    { g: '3A', risk: '0-20',   val: '<40',   zone: 'Yellow',      factor: '75%',     disc: `${p.yellowBase}-${p.yellowMax}%`, action: 'Controlled — small acct' },
+    { g: '3B', risk: '21-40',  val: '<40',   zone: 'Orange',      factor: '50%',     disc: `${p.orangeBase}-${p.orangeMax}%`, action: 'Restricted' },
+    { g: '3C', risk: '41-70',  val: '<40',   zone: 'Red',         factor: '0%',      disc: `${p.redBase}-${p.redMax}%`,       action: 'COD only' },
+    { g: '3D', risk: '71-100', val: '<40',   zone: 'Red',         factor: '0%',      disc: '0%',                              action: 'Block — recovery only' }
+  ];
+
+  document.getElementById('gradeMatrix').innerHTML = grades.map(g => `
+    <tr>
+      <td><span class="grade-pill grade-${g.g}">${g.g}</span></td>
+      <td class="num">${g.risk}</td>
+      <td class="num">${g.val}</td>
+      <td><span class="badge badge-${g.zone.toLowerCase().includes('green') ? 'green' : g.zone.toLowerCase().includes('yellow') ? 'yellow' : g.zone.toLowerCase().includes('orange') ? 'orange' : 'red'}">${g.zone}</span></td>
+      <td class="num">${g.factor}</td>
+      <td class="num" style="color:var(--green)">${g.disc}</td>
+      <td class="text-3" style="font-size:12px">${g.action}</td>
+    </tr>
+  `).join('');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  fillPolicyKnobs();
+  renderGradeMatrix();
+});
+</script>
+</body>
+</html>

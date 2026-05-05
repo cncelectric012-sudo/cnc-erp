@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Client Ledgers · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+/* ── Grid & Cards ── */
+.client-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; }
+.client-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; cursor:pointer; transition:all .15s; }
+.client-card:hover { border-color:var(--border-2); box-shadow:var(--shadow-md); transform:translateY(-1px); }
+.client-card-bar { height:3px; width:100%; }
+.client-card-bar.green  { background:var(--green); }
+.client-card-bar.yellow { background:var(--yellow); }
+.client-card-bar.orange { background:var(--orange); }
+.client-card-bar.red    { background:var(--red); }
+.client-card-body { padding:16px; }
+.client-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
+.client-name { font-size:15px; font-weight:700; margin-bottom:4px; word-break:break-word; }
+.client-tags { display:flex; flex-wrap:wrap; gap:4px; }
+.client-bal-block { text-align:right; flex-shrink:0; }
+.client-bal-num { font-size:18px; font-weight:700; font-family:var(--font-mono); }
+.client-bal-label { font-size:10px; color:var(--text-3); text-transform:uppercase; letter-spacing:.04em; margin-top:2px; }
+.client-contact-row { display:flex; flex-wrap:wrap; gap:8px 14px; font-size:12px; color:var(--text-3); padding:10px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); margin-bottom:12px; }
+.client-contact-item { display:flex; align-items:center; gap:4px; }
+.client-stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
+.client-stat { background:var(--surface-2); padding:8px 10px; border-radius:6px; text-align:center; }
+.client-stat-label { font-size:10px; color:var(--text-3); text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
+.client-stat-value { font-size:12px; font-weight:700; font-family:var(--font-mono); }
+.client-bar-wrap { height:4px; background:var(--surface-2); border-radius:2px; overflow:hidden; margin-bottom:10px; }
+.client-bar-fill { height:100%; border-radius:2px; }
+.client-footer { display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); padding-top:10px; font-size:11px; color:var(--text-3); }
+
+/* ── Export Bar ── */
+.export-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.btn-export { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:7px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; transition:all .15s; }
+.btn-export:hover { background:var(--surface-2); border-color:var(--border-2); }
+
+/* ── Toolbar ── */
+.toolbar-grid { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px; }
+.toolbar-search { flex:1; min-width:180px; }
+
+/* ── Modal ── */
+.modal-client-name { font-size:22px; font-weight:700; margin-bottom:6px; }
+.modal-tags { display:flex; flex-wrap:wrap; gap:6px; }
+.detail-kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:20px; }
+.detail-kpi { background:var(--surface-2); border-radius:8px; padding:12px; text-align:center; }
+.detail-kpi-num { font-size:18px; font-weight:700; font-family:var(--font-mono); margin-bottom:3px; }
+.detail-kpi-label { font-size:10px; color:var(--text-3); text-transform:uppercase; letter-spacing:.04em; }
+.contact-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; background:var(--surface-2); border-radius:10px; padding:16px; margin-bottom:20px; }
+.contact-field-label { font-size:10px; color:var(--text-3); text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+.contact-field-value { font-size:13px; font-weight:500; word-break:break-word; }
+.txn-table-wrap { border:1px solid var(--border); border-radius:8px; overflow:hidden; max-height:400px; overflow-y:auto; }
+.txn-table { width:100%; border-collapse:collapse; }
+.txn-table th { background:var(--surface-2); padding:9px 12px; font-size:10px; text-align:left; text-transform:uppercase; letter-spacing:.04em; color:var(--text-3); border-bottom:1px solid var(--border); white-space:nowrap; position:sticky; top:0; }
+.txn-table td { padding:8px 12px; font-size:12px; border-bottom:1px solid var(--border); font-family:var(--font-mono); white-space:nowrap; }
+.txn-table tr:last-child td { border-bottom:none; }
+.txn-row-payment { background:rgba(16,185,129,.05); }
+.tag { display:inline-flex; align-items:center; gap:3px; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; font-family:var(--font-mono); }
+.tag-invoice { background:var(--blue-50); color:var(--blue); }
+.tag-payment { background:var(--green-50); color:var(--green); }
+.modal-tabs { display:flex; gap:2px; background:var(--surface-2); border-radius:8px; padding:3px; margin-bottom:14px; border:1px solid var(--border); }
+.modal-tab-btn { flex:1; padding:7px 10px; border-radius:5px; border:none; background:transparent; cursor:pointer; font-size:12px; font-weight:500; color:var(--text-3); white-space:nowrap; }
+.modal-tab-btn.active { background:var(--surface); color:var(--text); box-shadow:var(--shadow-xs); font-weight:600; }
+
+/* ── Timeline ── */
+.timeline-item { display:flex; gap:12px; margin-bottom:8px; align-items:flex-start; }
+.timeline-dot { flex-shrink:0; width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-size:14px; }
+.timeline-card { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; }
+
+/* ── Loading ── */
+.loading-state { text-align:center; padding:60px 20px; color:var(--text-3); }
+.loading-spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 12px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* sort */
+.sort-btn { padding:5px 10px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text-3); font-size:11px; font-weight:500; cursor:pointer; }
+.sort-btn.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+</style>
+</head>
+<body data-page="ledgers">
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Client Ledgers</div>
+        <div class="topbar-sub" id="topbarSub">Loading from Firebase...</div>
+      </div>
+      <div class="topbar-actions export-bar">
+        <button class="btn-export" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn-export" onclick="exportExcel()">⬇ Excel</button>
+        <button class="btn-export" onclick="exportPDF()">⬇ PDF</button>
+        <button class="btn-export" onclick="exportImage()">⬇ Image</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- KPI Row -->
+      <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-label">Clients</div><div class="kpi-value" id="kv-clients">—</div></div>
+        <div class="kpi-card red"><div class="kpi-label">Outstanding</div><div class="kpi-value" id="kv-outstanding">—</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">Total Sales</div><div class="kpi-value" id="kv-sales">—</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Collected</div><div class="kpi-value" id="kv-paid">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" id="kv-pending">—</div></div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar-grid">
+        <div class="toolbar-search">
+          <input class="search-input" id="s-name" placeholder="Search client name, phone, address, city..." oninput="applyFilters()"/>
+        </div>
+        <select class="select" style="min-width:120px" id="s-risk" onchange="applyFilters()">
+          <option value="">Risk: All</option>
+          <option value="Low">🟢 Low</option>
+          <option value="Medium">🟡 Medium</option>
+          <option value="High">🔴 High</option>
+        </select>
+        <select class="select" style="min-width:140px" id="s-outstanding" onchange="applyFilters()">
+          <option value="">Outstanding: All</option>
+          <option value="0">Zero Balance</option>
+          <option value="1-50000">1 – 50K</option>
+          <option value="50000-200000">50K – 200K</option>
+          <option value="200000-500000">200K – 500K</option>
+          <option value="500000+">500K+</option>
+        </select>
+        <select class="select" style="min-width:140px" id="s-salesperson" onchange="applyFilters()">
+          <option value="">All Sales Reps</option>
+        </select>
+        <select class="select" style="min-width:120px" id="s-city" onchange="applyFilters()">
+          <option value="">All Cities</option>
+        </select>
+        <select class="select" style="min-width:120px" id="s-type" onchange="applyFilters()">
+          <option value="">Balance: All</option>
+          <option value="Dr">Dr (Owe Us)</option>
+          <option value="Cr">Cr (We Owe)</option>
+          <option value="Nil">Nil (Clear)</option>
+        </select>
+        <div class="toolbar-divider"></div>
+        <span style="font-size:11px;color:var(--text-3)">Sort:</span>
+        <button class="sort-btn active" id="sort-outstanding" onclick="setSort('outstanding')">Outstanding</button>
+        <button class="sort-btn" id="sort-sales" onclick="setSort('sales')">Total Sales</button>
+        <button class="sort-btn" id="sort-name" onclick="setSort('name')">Name</button>
+        <button class="sort-btn" id="sort-risk" onclick="setSort('risk')">Risk</button>
+      </div>
+
+      <!-- Grid -->
+      <div id="ledgerGrid" class="client-grid">
+        <div class="loading-state" style="grid-column:1/-1">
+          <div class="loading-spinner"></div>
+          <div>Loading clients from Firebase...</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay hidden" id="clientModal">
+  <div class="modal-box" style="max-width:900px">
+    <div class="modal-header">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Client Ledger</div>
+        <div class="modal-client-name" id="m-name">—</div>
+        <div class="modal-tags" id="m-badges"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <button class="btn-export" onclick="exportClientPDF()" style="font-size:11px;padding:5px 10px">⬇ PDF</button>
+        <button class="btn-export" onclick="exportClientCSV()" style="font-size:11px;padding:5px 10px">⬇ CSV</button>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+
+      <!-- Contact Info -->
+      <div class="contact-grid" id="m-contact"></div>
+
+      <!-- KPIs -->
+      <div class="detail-kpi-row" id="m-kpis"></div>
+
+      <!-- Tabs -->
+      <div class="modal-tabs">
+        <button class="modal-tab-btn active" onclick="switchTab('all')">All Transactions</button>
+        <button class="modal-tab-btn" onclick="switchTab('invoices')">Invoices</button>
+        <button class="modal-tab-btn" onclick="switchTab('payments')">Payments</button>
+        <button class="modal-tab-btn" onclick="switchTab('timeline')">Timeline</button>
+      </div>
+
+      <div id="m-txn-wrap">
+        <div class="txn-table-wrap">
+          <table class="txn-table">
+            <thead>
+              <tr>
+                <th>#</th><th>Date</th><th>Type</th><th>Voucher</th>
+                <th style="text-align:right">Amount</th><th style="text-align:right">Payment</th><th style="text-align:right">Balance</th>
+              </tr>
+            </thead>
+            <tbody id="m-txn-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="m-timeline" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SheetJS for Excel -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<!-- html2canvas for Image -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="shared/firebase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+let allClients = [];      // raw from Firestore
+let filtered   = [];      // after filters
+let currentSort = 'outstanding';
+let currentClient = null; // for modal
+let currentTab = 'all';
+
+// ── Formatters ─────────────────────────────────────────────────
+const num = v => { const n = parseFloat(String(v||0).replace(/,/g,'')); return isNaN(n)?0:n; };
+const fmt = n => new Intl.NumberFormat('en-PK',{maximumFractionDigits:0}).format(Math.round(n||0));
+const fmtK = n => {
+  if (n>=10000000) return (n/10000000).toFixed(1)+' Cr';
+  if (n>=100000)   return (n/100000).toFixed(1)+' L';
+  if (n>=1000)     return (n/1000).toFixed(1)+' K';
+  return Math.round(n).toString();
+};
+
+// ── Load from Firestore ────────────────────────────────────────
+async function loadClients() {
+  try {
+    const firebase = window.firebase;
+    const app  = firebase.apps[0] || firebase.initializeApp(window.FIREBASE_CONFIG);
+    const db   = firebase.firestore(app);
+
+    const snap = await db.collection('clients').get();
+    allClients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    populateDropdowns();
+    applyFilters();
+
+    document.getElementById('topbarSub').textContent =
+      `${allClients.length} clients loaded from Firebase`;
+  } catch (err) {
+    console.error('Firestore load error:', err);
+    document.getElementById('ledgerGrid').innerHTML =
+      `<div class="empty" style="grid-column:1/-1">
+        <div class="empty-icon">⚠️</div>
+        <div class="empty-title">Firebase load failed</div>
+        <div class="empty-desc">${err.message}</div>
+      </div>`;
+  }
+}
+
+// ── Populate dropdowns ─────────────────────────────────────────
+function populateDropdowns() {
+  const sps    = [...new Set(allClients.map(c=>c.salesperson).filter(Boolean))].sort();
+  const cities = [...new Set(allClients.map(c=>c.city).filter(Boolean))].sort();
+
+  const spSel = document.getElementById('s-salesperson');
+  spSel.innerHTML = '<option value="">All Sales Reps</option>' +
+    sps.map(s=>`<option value="${s}">${s}</option>`).join('');
+
+  const citySel = document.getElementById('s-city');
+  citySel.innerHTML = '<option value="">All Cities</option>' +
+    cities.map(c=>`<option value="${c}">${c}</option>`).join('');
+}
+
+// ── Apply Filters + Sort ───────────────────────────────────────
+function applyFilters() {
+  const search = (document.getElementById('s-name').value||'').toLowerCase();
+  const risk   = document.getElementById('s-risk').value;
+  const osRange= document.getElementById('s-outstanding').value;
+  const sp     = document.getElementById('s-salesperson').value;
+  const city   = document.getElementById('s-city').value;
+  const type   = document.getElementById('s-type').value;
+
+  filtered = allClients.filter(c => {
+    if (search) {
+      const h = [c.name,c.phone,c.address,c.city,c.contactPerson,c.salesperson].join(' ').toLowerCase();
+      if (!h.includes(search)) return false;
+    }
+    if (risk && c.riskLevel !== risk) return false;
+    if (type && c.outstandingType !== type) return false;
+    if (sp   && c.salesperson !== sp) return false;
+    if (city && c.city !== city) return false;
+    if (osRange) {
+      const os = num(c.outstandingAmount);
+      if (osRange === '0' && os !== 0) return false;
+      if (osRange === '1-50000' && (os <= 0 || os > 50000)) return false;
+      if (osRange === '50000-200000' && (os <= 50000 || os > 200000)) return false;
+      if (osRange === '200000-500000' && (os <= 200000 || os > 500000)) return false;
+      if (osRange === '500000+' && os <= 500000) return false;
+    }
+    return true;
+  });
+
+  // Sort
+  if (currentSort === 'outstanding') filtered.sort((a,b)=>num(b.outstandingAmount)-num(a.outstandingAmount));
+  else if (currentSort === 'sales')  filtered.sort((a,b)=>num(b.totalInvoiced)-num(a.totalInvoiced));
+  else if (currentSort === 'name')   filtered.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  else if (currentSort === 'risk')   {
+    const rl = {High:3,Medium:2,Low:1};
+    filtered.sort((a,b)=>(rl[b.riskLevel]||0)-(rl[a.riskLevel]||0));
+  }
+
+  updateKPIs();
+  renderGrid();
+}
+
+function setSort(key) {
+  currentSort = key;
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  const el = document.getElementById('sort-'+key);
+  if (el) el.classList.add('active');
+  applyFilters();
+}
+
+// ── Update KPIs ────────────────────────────────────────────────
+function updateKPIs() {
+  const totalOS    = filtered.reduce((s,c)=>s+num(c.outstandingAmount),0);
+  const totalSales = filtered.reduce((s,c)=>s+num(c.totalInvoiced),0);
+  const totalPaid  = filtered.reduce((s,c)=>s+num(c.totalPaid),0);
+  const totalPend  = filtered.reduce((s,c)=>s+(c.outstandingType==='Dr'?num(c.outstandingAmount):0),0);
+
+  document.getElementById('kv-clients').textContent     = filtered.length;
+  document.getElementById('kv-outstanding').textContent = 'PKR '+fmtK(totalOS);
+  document.getElementById('kv-sales').textContent       = 'PKR '+fmtK(totalSales);
+  document.getElementById('kv-paid').textContent        = 'PKR '+fmtK(totalPaid);
+  document.getElementById('kv-pending').textContent     = 'PKR '+fmtK(totalPend);
+}
+
+// ── Render Grid ────────────────────────────────────────────────
+function renderGrid() {
+  const grid = document.getElementById('ledgerGrid');
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-title">No matches</div>
+      <div class="empty-desc">Try changing your filters</div>
+    </div>`;
+    return;
+  }
+
+  const maxOS = Math.max(...filtered.map(c=>num(c.outstandingAmount)),1);
+
+  grid.innerHTML = filtered.map(c => {
+    const os   = num(c.outstandingAmount);
+    const paid = num(c.totalPaid);
+    const inv  = num(c.totalInvoiced);
+    const rec  = inv > 0 ? Math.round(paid/inv*100) : 100;
+    const pct  = Math.min(100,(os/maxOS)*100);
+    const risk = c.riskLevel || 'Medium';
+    const zc   = risk === 'High' ? 'red' : risk === 'Medium' ? 'yellow' : 'green';
+    const balColor = zc === 'red' ? 'var(--red)' : zc === 'yellow' ? 'var(--yellow)' : 'var(--green)';
+    const txnCount = (c.transactions||[]).length;
+    const invoiceCount = (c.transactions||[]).filter(t=>t.type==='Invoice').length;
+    const paymentCount = (c.transactions||[]).filter(t=>t.type==='Payment'||t.type==='Receipt').length;
+
+    return `
+    <div class="client-card" onclick="openModal('${c.id}')">
+      <div class="client-card-bar ${zc}"></div>
+      <div class="client-card-body">
+        <div class="client-card-top">
+          <div style="flex:1;min-width:0">
+            <div class="client-name">${c.name}</div>
+            <div class="client-tags">
+              <span class="badge badge-${zc}">${risk} Risk</span>
+              <span class="badge badge-gray">${c.outstandingType||'Dr'}</span>
+              ${c.salesperson?`<span class="badge badge-blue">👤 ${c.salesperson}</span>`:''}
+            </div>
+          </div>
+          <div class="client-bal-block">
+            <div class="client-bal-num" style="color:${balColor}">${fmtK(os)}</div>
+            <div class="client-bal-label">Outstanding</div>
+          </div>
+        </div>
+
+        <div class="client-contact-row">
+          ${c.phone   ?`<div class="client-contact-item">📞 ${c.phone}</div>`:''}
+          ${c.city    ?`<div class="client-contact-item">📍 ${c.city}</div>`:''}
+          ${c.address && !c.city?`<div class="client-contact-item">📍 ${c.address.length>35?c.address.substring(0,35)+'...':c.address}</div>`:''}
+          ${!c.phone && !c.city && !c.address?`<div style="font-style:italic;font-size:11px;color:var(--text-4)">No contact info</div>`:''}
+        </div>
+
+        <div class="client-stats-grid">
+          <div class="client-stat">
+            <div class="client-stat-label">Total Sales</div>
+            <div class="client-stat-value">${fmtK(inv)}</div>
+          </div>
+          <div class="client-stat">
+            <div class="client-stat-label">Paid</div>
+            <div class="client-stat-value" style="color:var(--green)">${fmtK(paid)}</div>
+          </div>
+          <div class="client-stat">
+            <div class="client-stat-label">Recovery</div>
+            <div class="client-stat-value" style="color:${rec>=90?'var(--green)':rec>=70?'var(--yellow)':'var(--red)'}">${rec}%</div>
+          </div>
+        </div>
+
+        <div class="client-bar-wrap">
+          <div class="client-bar-fill" style="width:${pct}%;background:${balColor}"></div>
+        </div>
+
+        <div class="client-footer">
+          <span>${invoiceCount} invoices · ${paymentCount} payments · ${txnCount} total</span>
+          <span>${c.avgPaymentDays && c.avgPaymentDays!=='N/A'?'Avg '+c.avgPaymentDays+'d':''}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Modal ──────────────────────────────────────────────────────
+function openModal(clientId) {
+  const c = allClients.find(x=>x.id===clientId);
+  if (!c) return;
+  currentClient = c;
+  currentTab = 'all';
+
+  const os   = num(c.outstandingAmount);
+  const paid = num(c.totalPaid);
+  const inv  = num(c.totalInvoiced);
+  const rec  = inv > 0 ? Math.round(paid/inv*100) : 100;
+  const risk = c.riskLevel || 'Medium';
+  const zc   = risk === 'High' ? 'red' : risk === 'Medium' ? 'yellow' : 'green';
+  const balColor = zc==='red'?'var(--red)':zc==='yellow'?'var(--yellow)':'var(--green)';
+
+  document.getElementById('m-name').textContent = c.name;
+
+  document.getElementById('m-badges').innerHTML = `
+    <span class="badge badge-${zc}">${risk} Risk</span>
+    <span class="badge badge-gray">${c.outstandingType||'Dr'}</span>
+    ${c.salesperson?`<span class="badge badge-blue">👤 ${c.salesperson}</span>`:''}
+    ${c.filename?`<span class="badge badge-gray">📄 ${c.filename}</span>`:''}
+  `;
+
+  document.getElementById('m-contact').innerHTML = `
+    <div><div class="contact-field-label">Phone</div><div class="contact-field-value">${c.phone||'—'}</div></div>
+    <div><div class="contact-field-label">Address</div><div class="contact-field-value">${c.address||'—'}</div></div>
+    <div><div class="contact-field-label">City</div><div class="contact-field-value">${c.city||'—'}</div></div>
+    <div><div class="contact-field-label">Contact Person</div><div class="contact-field-value">${c.contactPerson||'—'}</div></div>
+    <div><div class="contact-field-label">Sales Person</div><div class="contact-field-value">${c.salesperson||'—'}</div></div>
+    <div><div class="contact-field-label">Avg Payment Days</div><div class="contact-field-value">${c.avgPaymentDays||'N/A'}</div></div>
+  `;
+
+  document.getElementById('m-kpis').innerHTML = `
+    <div class="detail-kpi"><div class="detail-kpi-num" style="color:${balColor}">PKR ${fmtK(os)}</div><div class="detail-kpi-label">Outstanding</div></div>
+    <div class="detail-kpi"><div class="detail-kpi-num">PKR ${fmtK(inv)}</div><div class="detail-kpi-label">Total Invoiced</div></div>
+    <div class="detail-kpi"><div class="detail-kpi-num" style="color:var(--green)">PKR ${fmtK(paid)}</div><div class="detail-kpi-label">Total Paid</div></div>
+    <div class="detail-kpi"><div class="detail-kpi-num" style="color:${rec>=90?'var(--green)':rec>=70?'var(--yellow)':'var(--red)'}">${rec}%</div><div class="detail-kpi-label">Recovery</div></div>
+    <div class="detail-kpi"><div class="detail-kpi-num">${(c.transactions||[]).filter(t=>t.type==='Invoice').length}</div><div class="detail-kpi-label">Invoices</div></div>
+    <div class="detail-kpi"><div class="detail-kpi-num">${(c.transactions||[]).filter(t=>t.type==='Payment'||t.type==='Receipt').length}</div><div class="detail-kpi-label">Payments</div></div>
+  `;
+
+  document.querySelectorAll('.modal-tab-btn').forEach((b,i)=>{
+    b.classList.toggle('active', i===0);
+  });
+
+  renderTxnTable(c, 'all');
+  document.getElementById('m-txn-wrap').style.display='block';
+  document.getElementById('m-timeline').style.display='none';
+  document.getElementById('clientModal').classList.remove('hidden');
+  document.body.style.overflow='hidden';
+}
+
+function closeModal() {
+  document.getElementById('clientModal').classList.add('hidden');
+  document.body.style.overflow='';
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  const tabs = ['all','invoices','payments','timeline'];
+  document.querySelectorAll('.modal-tab-btn').forEach((b,i)=>b.classList.toggle('active',tabs[i]===tab));
+  if (tab==='timeline') {
+    document.getElementById('m-txn-wrap').style.display='none';
+    document.getElementById('m-timeline').style.display='block';
+    renderTimeline(currentClient);
+  } else {
+    document.getElementById('m-txn-wrap').style.display='block';
+    document.getElementById('m-timeline').style.display='none';
+    renderTxnTable(currentClient, tab);
+  }
+}
+
+function renderTxnTable(c, filter) {
+  let txns = (c.transactions||[]).slice().sort((a,b)=>sortDate(a.date)-sortDate(b.date));
+  if (filter==='invoices') txns = txns.filter(t=>t.type==='Invoice');
+  if (filter==='payments') txns = txns.filter(t=>t.type==='Payment'||t.type==='Receipt');
+
+  // Compute running balance
+  let bal = 0;
+  const rows = txns.map((t,i) => {
+    const amt  = num(t.amount);
+    const isInv = t.type==='Invoice';
+    const isPay = t.type==='Payment'||t.type==='Receipt';
+    if (isInv) bal += amt;
+    if (isPay) bal -= amt;
+    const balDisplay = bal;
+    return `
+    <tr class="${isPay?'txn-row-payment':''}">
+      <td style="color:var(--text-3)">${i+1}</td>
+      <td>${t.date||'—'}</td>
+      <td><span class="tag ${isPay?'tag-payment':'tag-invoice'}">${isPay?'💰 Payment':'📄 Invoice'}</span></td>
+      <td style="font-weight:600">${t.voucher||'—'}</td>
+      <td style="text-align:right">${isInv?'PKR '+fmt(amt):'—'}</td>
+      <td style="text-align:right;color:var(--green)">${isPay?'PKR '+fmt(amt):'—'}</td>
+      <td style="text-align:right;font-weight:600;color:${balDisplay>0?'var(--red)':'var(--green)'}">${balDisplay>0?'PKR '+fmt(balDisplay):balDisplay<0?'-PKR '+fmt(Math.abs(balDisplay)):'0'}</td>
+    </tr>`;
+  });
+
+  document.getElementById('m-txn-body').innerHTML = rows.join('') ||
+    '<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:20px">No transactions</td></tr>';
+}
+
+function sortDate(s) {
+  if (!s) return 0;
+  const parts = String(s).split(/[\/-]/);
+  if (parts.length===3 && parts[2].length===4) return new Date(+parts[2],+parts[1]-1,+parts[0]).getTime();
+  return new Date(s).getTime()||0;
+}
+
+function renderTimeline(c) {
+  const txns = (c.transactions||[]).slice().sort((a,b)=>sortDate(a.date)-sortDate(b.date));
+  if (!txns.length) {
+    document.getElementById('m-timeline').innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">No transactions</div></div>';
+    return;
+  }
+  document.getElementById('m-timeline').innerHTML = txns.map(t=>{
+    const isPay = t.type==='Payment'||t.type==='Receipt';
+    const amt = num(t.amount);
+    const color = isPay?'var(--green)':'var(--blue)';
+    const bg    = isPay?'rgba(16,185,129,.1)':'rgba(59,130,246,.1)';
+    const icon  = isPay?'💰':'📄';
+    const label = isPay?`PKR ${fmt(amt)} received`:`PKR ${fmt(amt)} invoiced`;
+    return `
+    <div class="timeline-item">
+      <div class="timeline-dot" style="background:${bg}">${icon}</div>
+      <div class="timeline-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-weight:600;font-size:13px;color:${color}">${label}</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-3)">${t.date||''}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:3px">${t.voucher||''} ${t.description?'· '+t.description:''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Export Functions ───────────────────────────────────────────
+function buildExportRows(clientList) {
+  const rows = [];
+  for (const c of clientList) {
+    const inv  = num(c.totalInvoiced);
+    const paid = num(c.totalPaid);
+    const os   = num(c.outstandingAmount);
+    const rec  = inv>0?Math.round(paid/inv*100):100;
+    rows.push({
+      'Client Name':    c.name||'',
+      'Phone':          c.phone||'',
+      'Address':        c.address||'',
+      'City':           c.city||'',
+      'Contact Person': c.contactPerson||'',
+      'Sales Person':   c.salesperson||'',
+      'Outstanding (PKR)': os,
+      'Balance Type':   c.outstandingType||'',
+      'Total Invoiced': inv,
+      'Total Paid':     paid,
+      'Recovery %':     rec,
+      'Risk Level':     c.riskLevel||'',
+      'Avg Payment Days': c.avgPaymentDays||'',
+      'Transactions':   (c.transactions||[]).length,
+      'Last Updated':   c.lastUpdated||''
+    });
+  }
+  return rows;
+}
+
+function exportCSV() {
+  const rows = buildExportRows(filtered);
+  if (!rows.length) return;
+  const headers = Object.keys(rows[0]);
+  const csv = [headers.join(','),
+    ...rows.map(r=>headers.map(h=>`"${String(r[h]||'').replace(/"/g,'""')}"`).join(','))
+  ].join('\n');
+  downloadFile('cnc_ledgers.csv','text/csv;charset=utf-8;',csv);
+  showToast('CSV exported','⬇');
+}
+
+function exportExcel() {
+  const rows = buildExportRows(filtered);
+  if (!rows.length) return;
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,'Ledgers',ws);
+
+  // Auto column width
+  const cols = Object.keys(rows[0]).map(k=>({ wch: Math.max(k.length, 14) }));
+  ws['!cols'] = cols;
+
+  XLSX.writeFile(wb,'cnc_ledgers.xlsx');
+  showToast('Excel exported','⬇');
+}
+
+function exportPDF() {
+  window.print();
+}
+
+function exportImage() {
+  const grid = document.getElementById('ledgerGrid');
+  html2canvas(grid,{scale:1.5,backgroundColor:'#ffffff'}).then(canvas=>{
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'cnc_ledgers.png';
+    a.click();
+    showToast('Image exported','⬇');
+  });
+}
+
+function exportClientCSV() {
+  const c = currentClient;
+  if (!c) return;
+  const txns = (c.transactions||[]).map(t=>({
+    'Date':t.date||'','Type':t.type||'','Voucher':t.voucher||'',
+    'Amount (PKR)':num(t.amount),'Description':t.description||''
+  }));
+  const headers = ['Date','Type','Voucher','Amount (PKR)','Description'];
+  const csv = [headers.join(','),
+    ...txns.map(r=>headers.map(h=>`"${String(r[h]||'').replace(/"/g,'""')}"`).join(','))
+  ].join('\n');
+  downloadFile(`${c.name}_ledger.csv`,'text/csv;charset=utf-8;',csv);
+  showToast('Client CSV exported','⬇');
+}
+
+function exportClientPDF() {
+  const c = currentClient;
+  if (!c) return;
+  const inv  = num(c.totalInvoiced);
+  const paid = num(c.totalPaid);
+  const os   = num(c.outstandingAmount);
+  const rec  = inv>0?Math.round(paid/inv*100):100;
+  const txns = (c.transactions||[]).sort((a,b)=>sortDate(a.date)-sortDate(b.date));
+
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>${c.name} — Ledger</title>
+  <style>
+    body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:20px;max-width:900px;margin:0 auto}
+    h1{font-size:18px;margin-bottom:4px}
+    .meta{color:#666;margin-bottom:16px;font-size:11px}
+    .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+    .kpi{border:1px solid #ddd;border-radius:6px;padding:10px;text-align:center}
+    .kpi-val{font-size:16px;font-weight:700;margin-bottom:2px}
+    .kpi-lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.05em}
+    .info{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:#f8f8f8;border-radius:6px;padding:14px;margin-bottom:20px}
+    .info-lbl{font-size:9px;color:#888;text-transform:uppercase;margin-bottom:2px}
+    .info-val{font-size:12px;font-weight:600}
+    table{width:100%;border-collapse:collapse}
+    th{background:#f0f0f0;padding:8px;text-align:left;font-size:10px;border-bottom:1px solid #ccc}
+    td{padding:7px 8px;border-bottom:1px solid #eee;font-size:11px}
+    .pay{background:#f0fdf4}
+    @media print{body{padding:10px}}
+  </style></head><body>
+  <h1>CNC Electric — Client Ledger</h1>
+  <div class="meta">Generated: ${new Date().toLocaleString('en-PK')}</div>
+  <div class="info">
+    <div><div class="info-lbl">Client</div><div class="info-val">${c.name}</div></div>
+    <div><div class="info-lbl">Phone</div><div class="info-val">${c.phone||'—'}</div></div>
+    <div><div class="info-lbl">Address</div><div class="info-val">${c.address||'—'}</div></div>
+    <div><div class="info-lbl">City</div><div class="info-val">${c.city||'—'}</div></div>
+    <div><div class="info-lbl">Sales Person</div><div class="info-val">${c.salesperson||'—'}</div></div>
+    <div><div class="info-lbl">Risk Level</div><div class="info-val">${c.riskLevel||'—'}</div></div>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-val">PKR ${fmt(os)}</div><div class="kpi-lbl">Outstanding</div></div>
+    <div class="kpi"><div class="kpi-val">PKR ${fmt(inv)}</div><div class="kpi-lbl">Total Invoiced</div></div>
+    <div class="kpi"><div class="kpi-val">PKR ${fmt(paid)}</div><div class="kpi-lbl">Total Paid</div></div>
+    <div class="kpi"><div class="kpi-val">${rec}%</div><div class="kpi-lbl">Recovery</div></div>
+  </div>
+  <table>
+    <thead><tr><th>#</th><th>Date</th><th>Type</th><th>Voucher</th><th>Amount (PKR)</th></tr></thead>
+    <tbody>${txns.map((t,i)=>`<tr class="${t.type==='Payment'||t.type==='Receipt'?'pay':''}">
+      <td>${i+1}</td><td>${t.date||'—'}</td><td>${t.type||'—'}</td>
+      <td>${t.voucher||'—'}</td><td>${fmt(num(t.amount))}</td>
+    </tr>`).join('')}</tbody>
+  </table>
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
+function downloadFile(name, type, content) {
+  const blob = new Blob([content],{type});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Toast ──────────────────────────────────────────────────────
+function showToast(msg, icon='✓') {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div'); t.id='toast'; t.className='toast';
+    t.innerHTML='<span id="toastIcon"></span><span id="toastMsg"></span>';
+    document.body.appendChild(t);
+  }
+  document.getElementById('toastMsg').textContent = msg;
+  document.getElementById('toastIcon').textContent = icon;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── Init ───────────────────────────────────────────────────────
+document.addEventListener('click', e => {
+  if (e.target.id==='clientModal') closeModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') closeModal();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderSidebar('ledgers');
+  loadClients();
+
+  // Auto-open if URL has ?open=
+  const p = new URLSearchParams(window.location.search);
+  if (p.has('open')) setTimeout(()=>{
+    const c = allClients.find(x=>x.name===p.get('open'));
+    if (c) openModal(c.id);
+  },1500);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Parameter Controls · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.toggle-wrap {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px;
+  transition: all 0.15s;
+}
+.toggle-wrap:hover { background: var(--surface-2); }
+.toggle-info { flex: 1; }
+.toggle-name { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+.toggle-desc { font-size: 11px; color: var(--text-3); line-height: 1.4; }
+.toggle-weight {
+  font-family: var(--font-mono);
+  font-size: 10px; color: var(--brand); margin-top: 4px;
+}
+.toggle-switch {
+  position: relative; width: 36px; height: 20px;
+  flex-shrink: 0; margin-left: 12px;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: var(--surface-3); border-radius: 20px;
+  transition: 0.2s;
+}
+.toggle-slider:before {
+  content: ''; position: absolute;
+  width: 14px; height: 14px;
+  left: 3px; bottom: 3px;
+  background: white; border-radius: 50%;
+  transition: 0.2s; box-shadow: var(--shadow-xs);
+}
+.toggle-switch input:checked + .toggle-slider { background: var(--green); }
+.toggle-switch input:checked + .toggle-slider:before { transform: translateX(16px); }
+.param-group { margin-bottom: 22px; }
+.param-group-title {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.06em; text-transform: uppercase;
+  margin-bottom: 10px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.param-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+@media (max-width: 600px) { .param-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body data-page="controls">
+
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">🎛️ Parameter Controls</div>
+        <div class="topbar-sub">Toggle scoring parameters on/off — affects all clients</div>
+      </div>
+      <div class="topbar-actions">
+        <span class="badge badge-green" id="activeParamCount">19 / 19 active</span>
+        <button class="btn btn-secondary btn-sm" onclick="toggleAll(true)">Enable All</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleAll(false)">Disable All</button>
+        <button class="btn btn-primary btn-sm" onclick="applyParams()">⚡ Apply</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="param-group">
+        <div class="param-group-title">Risk Score Parameters</div>
+        <div class="param-grid">
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P1 — Aging Severity</div><div class="toggle-desc">How much outstanding is in 30/60/90+ day buckets</div><div class="toggle-weight">25% of Risk Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-aging" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P2 — Oldest Invoice Age</div><div class="toggle-desc">Days since the oldest unpaid invoice</div><div class="toggle-weight">15% of Risk Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-oldest" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P3 — Payment Velocity (Wtd Days)</div><div class="toggle-desc">Weighted average days to pay</div><div class="toggle-weight">15% of Risk Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-velocity" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P4 — Balance Trajectory</div><div class="toggle-desc">90-day balance growth or shrink</div><div class="toggle-weight">15% of Risk Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-trajectory" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P5 — Lifetime Recovery</div><div class="toggle-desc">Total paid ÷ total invoiced</div><div class="toggle-weight">10% of Risk Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-recovery" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P6 — Recent Recovery (90d)</div><div class="toggle-desc">Recovery rate for last 90 days</div><div class="toggle-weight">10% of Risk Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-recrecent" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P7 — Peak Utilization</div><div class="toggle-desc">Current balance vs historical peak</div><div class="toggle-weight">5% of Risk Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-peak" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P8 — Dispute Frequency</div><div class="toggle-desc">Return / dispute history</div><div class="toggle-weight">5% of Risk Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-returns" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+        </div>
+      </div>
+
+      <div class="param-group">
+        <div class="param-group-title">Value Score Parameters</div>
+        <div class="param-grid">
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P9 — Annual Volume</div><div class="toggle-desc">Yearly purchase value</div><div class="toggle-weight">40% of Value Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-volume" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P10 — Tenure</div><div class="toggle-desc">Months as a CNC client</div><div class="toggle-weight">20% of Value Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-tenure" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P11 — Invoice Frequency</div><div class="toggle-desc">Invoices per month</div><div class="toggle-weight">20% of Value Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-frequency" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P12 — Payment Consistency</div><div class="toggle-desc">Clean-slate ratio</div><div class="toggle-weight">10% of Value Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-consistency" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P13 — Product Diversity</div><div class="toggle-desc">Avg products per invoice</div><div class="toggle-weight">10% of Value Score</div></div><label class="toggle-switch"><input type="checkbox" id="p-diversity" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+        </div>
+      </div>
+
+      <div class="param-group">
+        <div class="param-group-title">Behavioral & Audit Checks (15-point invoice audit)</div>
+        <div class="param-grid">
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P14 — Payment Pattern</div><div class="toggle-desc">Detects Rolling, Selective, Ghost, Clean</div><div class="toggle-weight">Audit #13</div></div><label class="toggle-switch"><input type="checkbox" id="p-pattern" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P15 — Payment Discipline (45d)</div><div class="toggle-desc">Within 45-day credit threshold</div><div class="toggle-weight">Audit #14</div></div><label class="toggle-switch"><input type="checkbox" id="p-discipline" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P16 — Min Recovery Threshold</div><div class="toggle-desc">≥75% recovery required</div><div class="toggle-weight">Audit #15</div></div><label class="toggle-switch"><input type="checkbox" id="p-minrecovery" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P17 — Credit Room Check</div><div class="toggle-desc">Fits in available credit limit</div><div class="toggle-weight">Audit #6 & #7</div></div><label class="toggle-switch"><input type="checkbox" id="p-creditroom" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P18 — Discount Zone Limit</div><div class="toggle-desc">Within zone maximum discount</div><div class="toggle-weight">Audit #10 & #11</div></div><label class="toggle-switch"><input type="checkbox" id="p-discountzone" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+          <div class="toggle-wrap"><div class="toggle-info"><div class="toggle-name">P19 — Balance Trend Warning</div><div class="toggle-desc">Alert when growing fast (50%+ in 90d)</div><div class="toggle-weight">Audit #8</div></div><label class="toggle-switch"><input type="checkbox" id="p-balancetrend" checked onchange="updateParamCount()"/><span class="toggle-slider"></span></label></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Active Parameters Summary</div></div>
+        <div class="card-body">
+          <div id="activeSummary" style="font-family:var(--font-mono);font-size:12px;line-height:2;color:var(--text-3)">
+            All 19 parameters active — full analysis mode
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="shared/firebase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script src="shared/analysis.js"></script>
+<script>
+const PARAMS = {
+  aging:       { label: 'Aging Severity',    group: 'risk',  weight: 0.25 },
+  oldest:      { label: 'Oldest Invoice',    group: 'risk',  weight: 0.15 },
+  velocity:    { label: 'Payment Velocity',  group: 'risk',  weight: 0.15 },
+  trajectory:  { label: 'Balance Trajectory', group: 'risk', weight: 0.15 },
+  recovery:    { label: 'Lifetime Recovery', group: 'risk',  weight: 0.10 },
+  recrecent:   { label: 'Recent Recovery',   group: 'risk',  weight: 0.10 },
+  peak:        { label: 'Peak Utilization',  group: 'risk',  weight: 0.05 },
+  returns:     { label: 'Dispute Frequency', group: 'risk',  weight: 0.05 },
+  volume:      { label: 'Annual Volume',     group: 'value', weight: 0.40 },
+  tenure:      { label: 'Tenure',            group: 'value', weight: 0.20 },
+  frequency:   { label: 'Invoice Frequency', group: 'value', weight: 0.20 },
+  consistency: { label: 'Consistency',       group: 'value', weight: 0.10 },
+  diversity:   { label: 'Product Diversity', group: 'value', weight: 0.10 },
+  pattern:     { label: 'Payment Pattern',   group: 'audit' },
+  discipline:  { label: '45-day Discipline', group: 'audit' },
+  minrecovery: { label: 'Min Recovery',      group: 'audit' },
+  creditroom:  { label: 'Credit Room',       group: 'audit' },
+  discountzone:{ label: 'Discount Zone',     group: 'audit' },
+  balancetrend:{ label: 'Balance Trend',     group: 'audit' }
+};
+
+function loadActiveParams() {
+  const saved = STORE.load('activeParams', {});
+  Object.keys(PARAMS).forEach(k => {
+    const el = document.getElementById('p-' + k);
+    if (el) el.checked = saved[k] !== false;
+  });
+}
+
+function getActiveParams() {
+  const active = {};
+  Object.keys(PARAMS).forEach(k => {
+    active[k] = document.getElementById('p-' + k)?.checked !== false;
+  });
+  return active;
+}
+
+function updateParamCount() {
+  const active = getActiveParams();
+  const count = Object.values(active).filter(Boolean).length;
+  const total = Object.keys(PARAMS).length;
+  document.getElementById('activeParamCount').textContent = count + ' / ' + total + ' active';
+
+  const riskActive  = Object.keys(PARAMS).filter(k => PARAMS[k].group === 'risk' && active[k]);
+  const valueActive = Object.keys(PARAMS).filter(k => PARAMS[k].group === 'value' && active[k]);
+  const auditActive = Object.keys(PARAMS).filter(k => PARAMS[k].group === 'audit' && active[k]);
+  const riskTotal  = riskActive.reduce((s, k) => s + (PARAMS[k].weight || 0), 0);
+  const valueTotal = valueActive.reduce((s, k) => s + (PARAMS[k].weight || 0), 0);
+
+  document.getElementById('activeSummary').innerHTML =
+    `<span style="color:var(--red)">Risk Score:</span> ${riskActive.map(k => PARAMS[k].label).join(', ') || 'None'} <span style="color:var(--text-3)">(weights: ${(riskTotal * 100).toFixed(0)}%)</span><br/>` +
+    `<span style="color:var(--green)">Value Score:</span> ${valueActive.map(k => PARAMS[k].label).join(', ') || 'None'} <span style="color:var(--text-3)">(weights: ${(valueTotal * 100).toFixed(0)}%)</span><br/>` +
+    `<span style="color:var(--yellow)">Audit Checks:</span> ${auditActive.map(k => PARAMS[k].label).join(', ') || 'None'}`;
+}
+
+function toggleAll(state) {
+  Object.keys(PARAMS).forEach(k => {
+    const el = document.getElementById('p-' + k);
+    if (el) el.checked = state;
+  });
+  updateParamCount();
+  showToast(state ? 'All enabled' : 'All disabled', state ? '✅' : '○');
+}
+
+function applyParams() {
+  STORE.save('activeParams', getActiveParams());
+  if (customers.length) {
+    computeCustomers();
+    saveAllState();
+    showToast('Parameters applied — portfolio reanalyzed', '⚡');
+  } else {
+    showToast('Saved — load data to see effect', '⚠️');
+  }
+  updateParamCount();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadActiveParams();
+  updateParamCount();
+});
+</script>
+</body>
+</html>

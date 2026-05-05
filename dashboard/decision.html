@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Invoice Decision · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.decision-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 18px; margin-top: 20px;
+}
+.verdict-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 22px;
+  position: relative; overflow: hidden;
+}
+.verdict-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+}
+.verdict-approve::before { background: var(--green); }
+.verdict-conditional::before { background: var(--yellow); }
+.verdict-hold::before { background: var(--orange); }
+.verdict-stop::before { background: var(--red); }
+.verdict-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 999px;
+  font-weight: 700; font-size: 14px; margin-bottom: 12px;
+}
+.vb-approve { background: var(--green-50); color: var(--green); }
+.vb-conditional { background: var(--yellow-50); color: var(--yellow); }
+.vb-hold { background: var(--orange-50); color: var(--orange); }
+.vb-stop { background: var(--red-50); color: var(--red); }
+.score-bar { margin: 14px 0; }
+.score-label {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--text-3);
+  margin-bottom: 4px; font-family: var(--font-mono);
+}
+.score-track {
+  height: 6px; background: var(--surface-2);
+  border-radius: 3px; overflow: hidden;
+}
+.score-fill { height: 100%; border-radius: 3px; transition: width 0.6s; }
+.audit-trail {
+  background: var(--surface-2); border-radius: 10px;
+  padding: 16px; font-family: var(--font-mono);
+  font-size: 11px; line-height: 1.7;
+  max-height: 480px; overflow-y: auto;
+}
+.audit-section {
+  font-size: 10px; color: var(--text-4);
+  letter-spacing: 0.1em; margin: 12px 0 6px; font-weight: 600;
+}
+.audit-check { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 4px; }
+.check-pass { color: var(--green); }
+.check-fail { color: var(--red); font-weight: 600; }
+.check-warn { color: var(--yellow); }
+.check-info { color: var(--text-3); }
+.wa-note {
+  background: #F0FDF4; border: 1px solid #BBF7D0;
+  border-radius: 10px; padding: 16px; margin-top: 14px;
+  font-family: var(--font-mono); font-size: 11px;
+  line-height: 1.7; white-space: pre-wrap;
+  color: var(--text-2); position: relative;
+}
+.wa-copy {
+  position: absolute; top: 10px; right: 10px;
+  background: white; border: 1px solid #BBF7D0;
+  color: var(--green); padding: 4px 10px;
+  border-radius: 5px; cursor: pointer;
+  font-size: 11px; font-weight: 600; font-family: var(--font-sans);
+}
+@media (max-width: 1100px) { .decision-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body data-page="decision">
+
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">⚡ Invoice Decision Engine</div>
+        <div class="topbar-sub">Run a 15-point audit on any invoice before issuing</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="card">
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+            <div class="field">
+              <label>Customer</label>
+              <select class="select" id="customerSel"><option value="">— Select —</option></select>
+            </div>
+            <div class="field">
+              <label>Invoice Amount (PKR)</label>
+              <input class="input mono" type="number" id="invAmt" value="50000"/>
+            </div>
+            <div class="field">
+              <label>Requested Discount %</label>
+              <input class="input mono" type="number" id="reqDisc" value="15" min="0" max="40" step="0.5"/>
+            </div>
+            <div class="field">
+              <label>Payment Offered Now</label>
+              <input class="input mono" type="number" id="payNow" value="0"/>
+            </div>
+          </div>
+          <div class="flex gap-2 flex-wrap mt-3">
+            <button class="btn btn-primary" onclick="runDecision()">⚡ Run 15-Point Audit</button>
+            <button class="btn btn-ghost" onclick="clearDecision()">✕ Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="decision-grid" id="decisionOutput" style="display:none">
+        <div class="verdict-card" id="verdictCard">
+          <div id="verdictBadge"></div>
+          <div id="verdictReason" style="font-size:13px;color:var(--text-3);line-height:1.6;margin-bottom:18px"></div>
+          <div class="score-bar">
+            <div class="score-label"><span>Risk Score</span><span id="riskScoreNum"></span></div>
+            <div class="score-track"><div class="score-fill" id="riskBar"></div></div>
+          </div>
+          <div class="score-bar">
+            <div class="score-label"><span>Value Score</span><span id="valScoreNum"></span></div>
+            <div class="score-track"><div class="score-fill" id="valBar" style="background:var(--green)"></div></div>
+          </div>
+          <div style="margin-top:16px" id="creditInfo"></div>
+        </div>
+        <div>
+          <div class="audit-trail" id="auditTrail"></div>
+        </div>
+      </div>
+      <div id="waNote"></div>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="shared/firebase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script src="shared/analysis.js"></script>
+<script>
+function populateCustomerSelect() {
+  const sel = document.getElementById('customerSel');
+  if (!customers.length) {
+    sel.innerHTML = '<option value="">No clients — load data first</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">— Select client —</option>' +
+    customers.map(c => `<option value="${c.name}">${c.name} [${c.grade}] — ${c.zone}</option>`).join('');
+}
+
+function runDecision() {
+  const selName = document.getElementById('customerSel').value;
+  if (!selName) { showToast('Select a client first', '⚠️'); return; }
+  const c = customers.find(x => x.name === selName);
+  if (!c) { showToast('Client not found', '❌'); return; }
+
+  const invAmt = num(document.getElementById('invAmt').value);
+  const reqDisc = num(document.getElementById('reqDisc').value);
+  const payNow = num(document.getElementById('payNow').value);
+  const p = policy;
+
+  const zoneDisc = {
+    Green: { base: p.greenBase, max: p.greenMax },
+    Yellow: { base: p.yellowBase, max: p.yellowMax },
+    Orange: { base: p.orangeBase, max: p.orangeMax },
+    Red: { base: p.redBase, max: p.redMax }
+  }[c.zone] || { base: 0, max: 5 };
+
+  const projBalance = c.currentBalance + invAmt - payNow;
+  const availRoom = Math.max(0, c.creditLimit - c.currentBalance);
+  const excess = Math.max(0, projBalance - c.creditLimit);
+  const oldOverdue = c.oldest > p.creditDays ? c.currentBalance * 0.3 : 0;
+  const reqPayment = Math.max(excess, oldOverdue);
+
+  const checks = [];
+  let verdict = 'APPROVE';
+  let reasons = [];
+
+  // A. HARD GATES
+  const gate1 = reqDisc <= p.absoluteCap;
+  checks.push({ pass: gate1, section: 'A', num: 1, label: `Discount ${reqDisc}% ≤ ${p.absoluteCap}% absolute cap`, critical: true });
+  if (!gate1) { verdict = 'STOP'; reasons.push(`Discount ${reqDisc}% exceeds absolute cap`); }
+
+  const gate2 = c.oldest <= p.freezeDays;
+  checks.push({ pass: gate2, section: 'A', num: 2, label: `Oldest unpaid ${c.oldest} days ≤ ${p.freezeDays}-day freeze`, critical: true });
+  if (!gate2 && verdict !== 'STOP') { verdict = 'STOP'; reasons.push(`Oldest invoice ${c.oldest}d exceeds ${p.freezeDays}d limit`); }
+
+  checks.push({ pass: true, section: 'A', num: 3, label: `Client not in blocklist` });
+
+  // B. GRADE
+  checks.push({ pass: true, section: 'B', num: 4, label: `Risk Score: ${c.riskScore}/100 → Grade ${c.riskGrade}`, info: true });
+  checks.push({ pass: true, section: 'B', num: 5, label: `Value Score: ${c.valueScore}/100 → Cat ${c.volCat} → Final: ${c.grade}`, info: true });
+
+  // C. EXPOSURE
+  const exp1 = projBalance <= c.creditLimit;
+  checks.push({ pass: exp1, section: 'C', num: 6, label: `Projected PKR ${fmt(projBalance)} ${exp1 ? '≤' : '>'} limit PKR ${fmt(c.creditLimit)}`, warn: !exp1 });
+  if (!exp1 && verdict === 'APPROVE') { verdict = 'CONDITIONAL'; reasons.push(`Payment of PKR ${fmt(reqPayment)} required`); }
+
+  const exp2 = c.currentBalance <= c.creditLimit * 0.8;
+  checks.push({ pass: exp2, section: 'C', num: 7, label: `Current ${exp2 ? '≤' : '>'}80% of limit (PKR ${fmt(c.creditLimit * 0.8)})`, warn: !exp2 });
+
+  checks.push({ pass: true, section: 'C', num: 8, label: `Balance trend (90d): ${c.balTrend90 > 0 ? '+' : ''}${Math.round(c.balTrend90)}% ${c.balTrend90 > 50 ? '⚠ Growing' : '✓ Stable'}`, warn: c.balTrend90 > 50 });
+
+  const exp4 = c.utilization <= 100;
+  checks.push({ pass: exp4, section: 'C', num: 9, label: `Utilization: ${c.utilization > 900 ? '∞' : fmtPct(c.utilization)} ${exp4 ? 'within' : 'exceeds'} limit`, warn: !exp4 });
+  if (!exp4 && verdict === 'APPROVE') verdict = 'CONDITIONAL';
+
+  // D. DISCOUNT
+  const disc1 = reqDisc <= zoneDisc.max;
+  checks.push({ pass: disc1, section: 'D', num: 10, label: `Requested ${reqDisc}% ≤ ${c.zone} max ${zoneDisc.max}%`, critical: !disc1 });
+  if (!disc1 && verdict === 'APPROVE') { verdict = 'HOLD'; reasons.push(`Discount ${reqDisc}% > ${c.zone} max ${zoneDisc.max}%`); }
+
+  checks.push({ pass: reqDisc <= p.absoluteCap, section: 'D', num: 11, label: `Requested ${reqDisc}% ≤ absolute cap ${p.absoluteCap}%`, critical: reqDisc > p.absoluteCap });
+  checks.push({ pass: true, section: 'D', num: 12, label: `${c.zone} base: ${zoneDisc.base}% | max: ${zoneDisc.max}%`, info: true });
+
+  // E. BEHAVIORAL
+  const beh1 = c.pattern !== 'Ghost' && c.pattern !== 'Selective';
+  checks.push({ pass: beh1, section: 'E', num: 13, label: `Pattern: ${c.pattern} ${beh1 ? '— ok' : '— ⚠ HIGH RISK'}`, warn: !beh1 });
+  if (!beh1 && verdict === 'APPROVE') { verdict = 'HOLD'; reasons.push(`${c.pattern} pattern — manual review`); }
+
+  checks.push({ pass: c.oldest <= 45, section: 'E', num: 14, label: `Oldest ${c.oldest}d ${c.oldest <= 45 ? '≤' : '>'} 45-day discipline`, warn: c.oldest > 45 });
+
+  const beh3 = c.recovery >= 75;
+  checks.push({ pass: beh3, section: 'E', num: 15, label: `Recovery ${fmtPct(c.recovery)} ${beh3 ? '≥' : '<'} 75% min`, warn: !beh3 });
+  if (!beh3 && verdict === 'APPROVE') { verdict = 'HOLD'; reasons.push(`Recovery ${fmtPct(c.recovery)} < 75%`); }
+
+  if (c.zone === 'Red' && verdict === 'APPROVE') { verdict = 'STOP'; reasons.push('Account frozen — COD only'); }
+
+  const opts = {
+    invAmt, reqDisc, payNow, projBalance, availRoom, reqPayment,
+    opt1CreditRoute: Math.min(invAmt, availRoom),
+    opt2PaymentNeeded: reqPayment,
+    opt3LinkedRelease: payNow * p.relMul,
+    opt4CodDisc: Math.min(zoneDisc.base + 2, zoneDisc.max),
+    zoneDisc
+  };
+
+  renderDecision(c, checks, verdict, reasons, opts);
+}
+
+function renderDecision(c, checks, verdict, reasons, opts) {
+  document.getElementById('decisionOutput').style.display = 'grid';
+
+  const card = document.getElementById('verdictCard');
+  card.className = 'verdict-card verdict-' + verdict.toLowerCase();
+
+  const badges = {
+    APPROVE: { cls: 'vb-approve', icon: '✓', label: 'APPROVED' },
+    CONDITIONAL: { cls: 'vb-conditional', icon: '⚡', label: 'CONDITIONAL' },
+    HOLD: { cls: 'vb-hold', icon: '⚠', label: 'ON HOLD' },
+    STOP: { cls: 'vb-stop', icon: '✕', label: 'STOP' }
+  };
+  const b = badges[verdict];
+
+  document.getElementById('verdictBadge').innerHTML = `
+    <div class="verdict-badge ${b.cls}">${b.icon} ${b.label}</div>
+    <div style="font-size:13px;color:var(--text-3);margin-bottom:6px">Grade ${c.grade} · ${c.zone} · ${c.pattern}</div>
+  `;
+
+  document.getElementById('verdictReason').textContent =
+    reasons.length ? reasons.join(' • ') : 'All checks passed — invoice within policy';
+
+  document.getElementById('riskScoreNum').textContent = `${c.riskScore}/100`;
+  const rb = document.getElementById('riskBar');
+  rb.style.width = c.riskScore + '%';
+  rb.style.background = c.riskScore > 70 ? 'var(--red)' : c.riskScore > 40 ? 'var(--orange)' : 'var(--green)';
+
+  document.getElementById('valScoreNum').textContent = `${c.valueScore}/100`;
+  document.getElementById('valBar').style.width = c.valueScore + '%';
+
+  document.getElementById('creditInfo').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:var(--font-mono);font-size:12px">
+      <div style="background:var(--surface-2);padding:10px;border-radius:6px">
+        <div style="color:var(--text-3);font-size:10px">CREDIT LIMIT</div>
+        <div style="font-weight:600;font-size:14px">PKR ${fmt(c.creditLimit)}</div>
+      </div>
+      <div style="background:var(--surface-2);padding:10px;border-radius:6px">
+        <div style="color:var(--text-3);font-size:10px">AVAILABLE</div>
+        <div style="font-weight:600;font-size:14px;color:${opts.availRoom > 0 ? 'var(--green)' : 'var(--red)'}">PKR ${fmt(opts.availRoom)}</div>
+      </div>
+      <div style="background:var(--surface-2);padding:10px;border-radius:6px">
+        <div style="color:var(--text-3);font-size:10px">PROJECTED</div>
+        <div style="font-weight:600;font-size:14px">PKR ${fmt(opts.projBalance)}</div>
+      </div>
+      <div style="background:var(--surface-2);padding:10px;border-radius:6px">
+        <div style="color:var(--text-3);font-size:10px">REQUIRED</div>
+        <div style="font-weight:600;font-size:14px;color:var(--yellow)">PKR ${fmt(opts.reqPayment)}</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;background:var(--surface-2);padding:12px;border-radius:6px;font-family:var(--font-mono);font-size:12px">
+      <div style="color:var(--text-3);margin-bottom:6px;font-size:10px">4 OPTIONS</div>
+      <div>① Credit route: <strong>PKR ${fmt(opts.opt1CreditRoute)}</strong> now</div>
+      <div>② Full release: Pay <strong>PKR ${fmt(opts.opt2PaymentNeeded)}</strong></div>
+      <div>③ Linked: <strong>PKR ${fmt(opts.opt3LinkedRelease)}</strong></div>
+      <div>④ COD discount: <strong>${opts.opt4CodDisc}%</strong></div>
+    </div>
+  `;
+
+  // Audit trail
+  const sectionLabels = { A: 'HARD GATES', B: 'GRADE', C: 'EXPOSURE', D: 'DISCOUNT', E: 'BEHAVIORAL' };
+  let lastSection = '', auditHtml = '';
+  checks.forEach(ch => {
+    if (ch.section !== lastSection) {
+      auditHtml += `<div class="audit-section">── ${sectionLabels[ch.section]} ──</div>`;
+      lastSection = ch.section;
+    }
+    let cls = ch.pass ? 'check-pass' : (ch.critical ? 'check-fail' : (ch.warn ? 'check-warn' : 'check-info'));
+    if (ch.info) cls = 'check-info';
+    const icon = ch.info ? '●' : (ch.pass ? '✓' : '✗');
+    auditHtml += `<div class="audit-check"><span class="${cls}">${icon}</span><span class="${cls}">${ch.num}.</span><span style="color:${ch.pass ? 'var(--text-2)' : 'var(--text-3)'}"> ${ch.label}</span></div>`;
+  });
+  document.getElementById('auditTrail').innerHTML = auditHtml;
+
+  // WhatsApp note
+  const waText = generateWANote(c, verdict, reasons, opts);
+  document.getElementById('waNote').innerHTML = `
+    <div class="wa-note">
+      <button class="wa-copy" onclick="copyWA()">Copy</button>
+      <div id="waText">${waText}</div>
+    </div>
+  `;
+}
+
+function generateWANote(c, verdict, reasons, opts) {
+  const icons = { APPROVE: '✓', CONDITIONAL: '⚡', HOLD: '⚠', STOP: '✕' };
+  const line = '─'.repeat(35);
+  return `${icons[verdict]} *CREDIT ENGINE — ${verdict}*
+${line}
+Client:    ${c.name}
+Grade:     ${c.grade}  |  Zone: ${c.zone}
+${line}
+Invoice:   PKR ${fmt(opts.invAmt)}
+Discount:  ${opts.reqDisc}%  (zone max: ${opts.zoneDisc.max}%)
+Payment:   PKR ${fmt(opts.payNow)} offered
+${line}
+Outstanding:  PKR ${fmt(c.currentBalance)}
+Credit Limit: PKR ${fmt(c.creditLimit)}
+Available:    PKR ${fmt(opts.availRoom)}
+${line}
+Risk: ${c.riskScore}/100  |  Recovery: ${Math.round(c.recovery)}%
+Pattern: ${c.pattern}  |  Oldest: ${c.oldest}d
+${line}
+${reasons.length ? 'Reason: ' + reasons.join(' | ') : 'All checks passed'}
+${opts.reqPayment > 0 ? '\nRequired payment: PKR ' + fmt(opts.reqPayment) : ''}
+Options:
+1. Credit route: PKR ${fmt(opts.opt1CreditRoute)}
+2. Full release: Pay PKR ${fmt(opts.opt2PaymentNeeded)}
+3. Linked: PKR ${fmt(opts.opt3LinkedRelease)}
+4. COD: ${opts.opt4CodDisc}%
+${line}
+CNC Electric Credit Engine v2.0`;
+}
+
+function copyWA() {
+  const text = document.getElementById('waText').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard', '📋'));
+}
+
+function clearDecision() {
+  document.getElementById('decisionOutput').style.display = 'none';
+  document.getElementById('waNote').innerHTML = '';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  populateCustomerSelect();
+  // Auto-select if URL has ?client=NAME
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('client')) {
+    document.getElementById('customerSel').value = params.get('client');
+    setTimeout(runDecision, 200);
+  }
+});
+</script>
+</body>
+</html>

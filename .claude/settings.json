@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(///192.168.1.90/CNC-Bot/**)",
+      "Edit(///192.168.1.90/CNC-Bot/**)",
+      "Write(///192.168.1.90/CNC-Bot/**)",
+      "Bash(ls //192.168.1.90/CNC-Bot/*)",
+      "Bash(ls -la //192.168.1.90/CNC-Bot/*)",
+      "Bash(npm install *)",
+      "Bash(node -e *)"
+    ]
+  }
+}

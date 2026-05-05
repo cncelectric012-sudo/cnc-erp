@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Approvals · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.approval-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+.approval-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.15s;
+}
+.approval-card:hover { box-shadow: var(--shadow-sm); }
+.approval-status-bar { height: 3px; width: 100%; }
+.approval-status-bar.pending { background: var(--yellow); }
+.approval-status-bar.approved { background: var(--green); }
+.approval-status-bar.rejected { background: var(--red); }
+.approval-card-body { padding: 16px; }
+.approval-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.approval-id {
+  font-family: var(--font-mono);
+  font-size: 11px; color: var(--text-3);
+}
+.approval-amount {
+  font-size: 24px; font-weight: 700;
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+}
+.approval-meta {
+  font-size: 12px; color: var(--text-3);
+  margin-bottom: 12px; line-height: 1.5;
+}
+.approval-row {
+  display: flex; justify-content: space-between;
+  font-size: 12px; padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.approval-row-label { color: var(--text-3); }
+.approval-row-value { color: var(--text); font-weight: 500; }
+.approval-actions {
+  display: flex; gap: 6px;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.approval-actions .btn { flex: 1; justify-content: center; }
+.bot-info-card {
+  background: var(--blue-50);
+  border: 1px solid var(--blue-100);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 22px;
+}
+.bot-info-card-inner {
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.bot-info-icon { font-size: 22px; flex-shrink: 0; }
+.bot-info-text { flex: 1; }
+.bot-info-title { font-weight: 600; margin-bottom: 4px; }
+.bot-info-desc { font-size: 12px; color: var(--text-2); line-height: 1.6; }
+.bot-info-desc code {
+  font-family: var(--font-mono); background: white;
+  padding: 1px 6px; border-radius: 3px;
+}
+</style>
+</head>
+<body data-page="approvals">
+
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">✓ Payment & Invoice Approvals</div>
+        <div class="topbar-sub">Bot processes screenshots → auto-approves below threshold → escalates above</div>
+      </div>
+      <div class="topbar-actions">
+        <a class="btn btn-primary btn-sm" href="upload.html">+ Load Data</a>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="kpi-row">
+        <div class="kpi-card yellow"><div class="kpi-label">Pending</div><div class="kpi-value" id="ap-pending">0</div><div class="kpi-sub">Awaiting decision</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Approved</div><div class="kpi-value" id="ap-approved">0</div><div class="kpi-sub">Released</div></div>
+        <div class="kpi-card red"><div class="kpi-label">Rejected</div><div class="kpi-value" id="ap-rejected">0</div><div class="kpi-sub">Declined</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">Auto-Approved</div><div class="kpi-value" id="ap-auto">0</div><div class="kpi-sub">By bot logic</div></div>
+      </div>
+
+      <div class="bot-info-card">
+        <div class="bot-info-card-inner">
+          <div class="bot-info-icon">🤖</div>
+          <div class="bot-info-text">
+            <div class="bot-info-title">Bot Auto-Approval Configuration</div>
+            <div class="bot-info-desc">
+              Bot at <code>C:\CNC-Bot</code> auto-approves invoices with discount &lt; <strong>20%</strong>, and escalates to <strong>Muddasir (923228064444)</strong> &amp; <strong>Awais (923004755563)</strong> via WhatsApp + Email for higher discounts.
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="showBotConfig()">⚙️ Configure</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="toolbar-search">
+          <input class="search-input" id="approvalSearch" placeholder="Search by client, invoice, amount..." oninput="renderApprovals()"/>
+        </div>
+        <select class="select" style="width:auto;min-width:130px" id="approvalStatus" onchange="renderApprovals()">
+          <option value="">All Status</option>
+          <option value="pending">⏳ Pending</option>
+          <option value="approved">✓ Approved</option>
+          <option value="rejected">✕ Rejected</option>
+        </select>
+        <select class="select" style="width:auto;min-width:130px" id="approvalType" onchange="renderApprovals()">
+          <option value="">All Types</option>
+          <option value="invoice">📄 Invoice</option>
+          <option value="payment">💰 Payment</option>
+        </select>
+      </div>
+
+      <div class="approval-grid" id="approvalsList"></div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Bot Config Modal -->
+<div class="modal-overlay hidden" id="configModal">
+  <div class="modal-box" style="max-width:600px">
+    <div class="modal-header">
+      <div>
+        <div class="topbar-title">🤖 Bot Configuration</div>
+        <div class="topbar-sub">Auto-approval thresholds and notification settings</div>
+      </div>
+      <button class="modal-close" onclick="closeConfig()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Auto-Approve Discount Threshold (%)</label>
+        <input class="input mono" type="number" id="cfg-threshold" value="20"/>
+      </div>
+      <div class="field">
+        <label>Admin WhatsApp #1 (Muddasir)</label>
+        <input class="input mono" type="text" id="cfg-admin1" value="923228064444"/>
+      </div>
+      <div class="field">
+        <label>Admin WhatsApp #2 (Awais)</label>
+        <input class="input mono" type="text" id="cfg-admin2" value="923004755563"/>
+      </div>
+      <div class="field">
+        <label>Admin Email (notifications)</label>
+        <input class="input" type="email" id="cfg-email" placeholder="admin@cncelectric.pk"/>
+      </div>
+      <div class="field">
+        <label>Notification Channels</label>
+        <div class="flex gap-3 flex-wrap" style="padding:8px 0">
+          <label class="flex items-center gap-2"><input type="checkbox" id="cfg-wa" checked/> WhatsApp</label>
+          <label class="flex items-center gap-2"><input type="checkbox" id="cfg-em" checked/> Email</label>
+          <label class="flex items-center gap-2"><input type="checkbox" id="cfg-dash" checked/> Dashboard</label>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button class="btn btn-primary" onclick="saveBotConfig()">💾 Save Configuration</button>
+        <button class="btn btn-ghost" onclick="closeConfig()">Cancel</button>
+      </div>
+      <div style="margin-top:16px;padding:12px;background:var(--yellow-50);border:1px solid var(--yellow-100);border-radius:8px;font-size:12px;color:var(--text-2)">
+        ⚠️ <strong>Note:</strong> These settings are saved to dashboard. To apply them to the bot, update <code style="font-family:var(--font-mono);background:white;padding:1px 5px;border-radius:3px">.env</code> file at <code style="font-family:var(--font-mono);background:white;padding:1px 5px;border-radius:3px">C:\CNC-Bot</code> and restart with <code style="font-family:var(--font-mono);background:white;padding:1px 5px;border-radius:3px">pm2 restart cnc-bot</code>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="shared/firebase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script>
+function renderApprovals() {
+  const search = (document.getElementById('approvalSearch').value || '').toLowerCase();
+  const status = document.getElementById('approvalStatus').value;
+  const type = document.getElementById('approvalType').value;
+
+  const pending = approvals.filter(a => a.status === 'pending').length;
+  const approved = approvals.filter(a => a.status === 'approved').length;
+  const rejected = approvals.filter(a => a.status === 'rejected').length;
+  const auto = approvals.filter(a => a.autoApproved).length;
+
+  document.getElementById('ap-pending').textContent = pending;
+  document.getElementById('ap-approved').textContent = approved;
+  document.getElementById('ap-rejected').textContent = rejected;
+  document.getElementById('ap-auto').textContent = auto;
+
+  let filtered = approvals.filter(a => {
+    if (search) {
+      const haystack = ((a.client || '') + ' ' + (a.invoiceNo || '') + ' ' + a.amount + ' ' + (a.salesPerson || '')).toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    if (status && a.status !== status) return false;
+    if (type && a.type !== type) return false;
+    return true;
+  });
+
+  filtered.sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (a.status !== 'pending' && b.status === 'pending') return 1;
+    return new Date(b.timestamp) - new Date(a.timestamp);
+  });
+
+  const list = document.getElementById('approvalsList');
+  if (!filtered.length) {
+    if (approvals.length === 0) {
+      list.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">✓</div><div class="empty-title">No approvals yet</div><div class="empty-desc">When sales reps submit invoices/payments to the bot, requests will appear here. Bot will auto-approve those under the discount threshold and escalate the rest to admins. Or upload <code style="font-family:var(--font-mono);background:var(--surface-2);padding:1px 6px;border-radius:3px">decisions_db.json</code> from <a href="upload.html" style="color:var(--brand)">Load Data</a>.</div></div>`;
+    } else {
+      list.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🔍</div><div class="empty-title">No matches</div><div class="empty-desc">Try changing your filters</div></div>`;
+    }
+    return;
+  }
+
+  list.innerHTML = filtered.map(a => `
+    <div class="approval-card">
+      <div class="approval-status-bar ${a.status}"></div>
+      <div class="approval-card-body">
+        <div class="approval-head">
+          <span class="approval-id">${a.id}</span>
+          <span class="badge badge-${a.status === 'approved' ? 'green' : a.status === 'rejected' ? 'red' : 'yellow'}">
+            ${a.status === 'approved' ? '✓ Approved' : a.status === 'rejected' ? '✕ Rejected' : '⏳ Pending'}
+            ${a.autoApproved ? ' · 🤖 Auto' : ''}
+          </span>
+        </div>
+        <div class="approval-amount">PKR ${fmt(a.amount)}</div>
+        <div class="approval-meta">
+          <strong>${a.client || '—'}</strong> · ${a.invoiceNo || '—'}<br/>
+          ${a.discount ? `${a.discount}% discount · ` : ''}${a.salesPerson || ''}
+        </div>
+        <div class="approval-row"><span class="approval-row-label">Type</span><span class="approval-row-value">${a.type === 'payment' ? '💰 Payment' : '📄 Invoice'}</span></div>
+        <div class="approval-row"><span class="approval-row-label">Submitted</span><span class="approval-row-value">${fmtDateTime(a.timestamp)}</span></div>
+        ${a.reason ? `<div class="approval-row"><span class="approval-row-label">Reason</span><span class="approval-row-value" style="text-align:right;max-width:60%;word-break:break-word">${a.reason}</span></div>` : ''}
+        ${a.status === 'pending' ? `
+          <div class="approval-actions">
+            <button class="btn btn-success btn-sm" onclick="actOnApproval('${a.id}','approved')">✓ Approve</button>
+            <button class="btn btn-danger btn-sm" onclick="actOnApproval('${a.id}','rejected')">✕ Reject</button>
+          </div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function actOnApproval(id, status) {
+  const a = approvals.find(x => x.id === id);
+  if (!a) return;
+  a.status = status;
+  a.actedAt = new Date().toISOString();
+  saveAllState();
+  renderApprovals();
+  renderSidebar('approvals');
+  showToast(`${status === 'approved' ? '✓ Approved' : '✕ Rejected'}: ${a.invoiceNo || a.id}`, status === 'approved' ? '✅' : '❌');
+
+  // TODO: Send to bot via webhook for real-time sync
+  // fetch('https://your-bot-webhook/approvals', { method:'POST', body: JSON.stringify(a) });
+}
+
+function showBotConfig() {
+  const cfg = STORE.load('botConfig', {
+    threshold: 20, admin1: '923228064444', admin2: '923004755563',
+    email: '', wa: true, em: true, dash: true
+  });
+  document.getElementById('cfg-threshold').value = cfg.threshold;
+  document.getElementById('cfg-admin1').value = cfg.admin1;
+  document.getElementById('cfg-admin2').value = cfg.admin2;
+  document.getElementById('cfg-email').value = cfg.email;
+  document.getElementById('cfg-wa').checked = cfg.wa;
+  document.getElementById('cfg-em').checked = cfg.em;
+  document.getElementById('cfg-dash').checked = cfg.dash;
+  document.getElementById('configModal').classList.remove('hidden');
+}
+function closeConfig() {
+  document.getElementById('configModal').classList.add('hidden');
+}
+function saveBotConfig() {
+  const cfg = {
+    threshold: num(document.getElementById('cfg-threshold').value),
+    admin1: document.getElementById('cfg-admin1').value.trim(),
+    admin2: document.getElementById('cfg-admin2').value.trim(),
+    email: document.getElementById('cfg-email').value.trim(),
+    wa: document.getElementById('cfg-wa').checked,
+    em: document.getElementById('cfg-em').checked,
+    dash: document.getElementById('cfg-dash').checked
+  };
+  STORE.save('botConfig', cfg);
+  closeConfig();
+  showToast('Configuration saved', '💾');
+}
+
+document.addEventListener('click', e => {
+  if (e.target.id === 'configModal') closeConfig();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderApprovals();
+});
+</script>
+</body>
+</html>

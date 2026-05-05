@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Load Data · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.upload-card {
+  background: var(--surface);
+  border: 1.5px dashed var(--border-2);
+  border-radius: 10px;
+  padding: 18px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  display: block;
+  position: relative;
+}
+.upload-card:hover { border-color: var(--brand); background: var(--brand-50); }
+.upload-card input { display: none; }
+.upload-card.loaded { border-color: var(--green); border-style: solid; background: var(--green-50); }
+.upload-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: grid; place-items: center;
+  margin: 0 auto 10px;
+  font-size: 16px;
+  background: var(--surface-2);
+}
+.upload-card.loaded .upload-icon { background: var(--green-100); }
+.upload-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 3px; color: var(--text); }
+.upload-card p { font-size: 11px; color: var(--text-3); line-height: 1.4; }
+.upload-status {
+  display: none;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--green);
+}
+.upload-card.loaded .upload-status { display: block; }
+.info-box {
+  background: var(--blue-50);
+  border: 1px solid var(--blue-100);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.info-box strong { color: var(--blue); }
+.info-box code {
+  font-family: var(--font-mono);
+  background: white;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+}
+.import-log {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #1F2937;
+  color: #E5E7EB;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  max-height: 180px;
+  overflow-y: auto;
+  display: none;
+  line-height: 1.6;
+}
+.import-log.show { display: block; }
+.import-log .ok { color: #10B981; }
+.import-log .warn { color: #F59E0B; }
+.import-log .err { color: #EF4444; }
+.import-log .info { color: #60A5FA; }
+.summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 10px;
+}
+.summary-pill {
+  background: var(--surface-2);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+</style>
+</head>
+<body data-page="upload">
+
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Load Data</div>
+        <div class="topbar-sub">Upload bot database files OR paste CSV directly</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="clearAll()">✕ Clear All</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="info-box">
+        <strong>📌 Recommended path:</strong> Bot ki JSON files (<code>ledger_db.json</code>, <code>payments_db.json</code>, etc.) directly upload karein from <code>C:\CNC-Bot\database\</code> folder. Dashboard automatically convert kar dega — koi manual CSV banane ki zaroorat nahi.
+        <br><br>
+        <strong>💡 Note:</strong> Bot PDF ledgers se transactions extract karta hai but phone/email/address nahi. Wo manually dashboard mein add kar sakte hain after import.
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <div class="card-title">🤖 Bot Database Files</div>
+          <div class="card-sub">From C:\CNC-Bot\database\ folder</div>
+        </div>
+        <div class="card-body">
+          <div class="upload-grid">
+            <label class="upload-card" id="botLedgerCard">
+              <input type="file" accept=".json" onchange="handleBotFile(event,'ledger')"/>
+              <div class="upload-icon">👥</div>
+              <h4>ledger_db.json</h4>
+              <p>Client transactions, balances, behavior — auto-converts to dashboard format</p>
+              <div class="upload-status">✓ Loaded</div>
+            </label>
+            <label class="upload-card" id="botPaymentsCard">
+              <input type="file" accept=".json" onchange="handleBotFile(event,'payments')"/>
+              <div class="upload-icon">💰</div>
+              <h4>payments_db.json</h4>
+              <p>WhatsApp payment screenshots data</p>
+              <div class="upload-status">✓ Loaded</div>
+            </label>
+            <label class="upload-card" id="botSalesCard">
+              <input type="file" accept=".json" onchange="handleBotFile(event,'salesperson')"/>
+              <div class="upload-icon">👤</div>
+              <h4>salesperson_db.json</h4>
+              <p>Sales rep tracking per client</p>
+              <div class="upload-status">✓ Loaded</div>
+            </label>
+            <label class="upload-card" id="botDecisionsCard">
+              <input type="file" accept=".json" onchange="handleBotFile(event,'decisions')"/>
+              <div class="upload-icon">⚖️</div>
+              <h4>decisions_db.json</h4>
+              <p>Bot's auto-approval/rejection history</p>
+              <div class="upload-status">✓ Loaded</div>
+            </label>
+          </div>
+
+          <div class="summary-row" id="botSummary"></div>
+          <div class="import-log" id="importLog"></div>
+
+          <div class="flex gap-2 flex-wrap mt-3">
+            <button class="btn btn-primary" onclick="processBotData()" id="processBotBtn" disabled>⚡ Process &amp; Analyze</button>
+            <button class="btn btn-secondary" onclick="loadAllBotDemo()">📦 Use Demo Data</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearBotData()">↺ Reset bot files</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <div class="card-title">📒 OR upload CSV / Excel directly</div>
+          <div class="card-sub">If you don't have bot JSON files</div>
+        </div>
+        <div class="card-body">
+          <div class="upload-grid">
+            <label class="upload-card" id="csvCard">
+              <input type="file" accept=".csv,.txt" onchange="handleFile(event,'csv')"/>
+              <div class="upload-icon">📄</div>
+              <h4>CSV / Text</h4>
+              <p>customer, date, invoice, amount, paid, due</p>
+              <div class="upload-status">✓ Loaded</div>
+            </label>
+            <label class="upload-card" id="xlsCard">
+              <input type="file" accept=".xlsx,.xls" onchange="handleFile(event,'xls')"/>
+              <div class="upload-icon">📊</div>
+              <h4>Excel (.xlsx)</h4>
+              <p>AISONE ERP export — auto column detection</p>
+              <div class="upload-status">✓ Loaded</div>
+            </label>
+            <label class="upload-card" id="imgCard">
+              <input type="file" accept="image/*,.pdf" onchange="handleFile(event,'img')"/>
+              <div class="upload-icon">🖼️</div>
+              <h4>Image / PDF</h4>
+              <p>AI extraction (placeholder — needs API)</p>
+              <div class="upload-status">✓ Loaded</div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📋 OR paste CSV directly</div>
+        </div>
+        <div class="card-body">
+          <textarea class="textarea" id="csvInput" placeholder="customer,date,invoice,amount,paid,due&#10;BRIGHT BROTHERS,20/04/2026,SI-10261,190800,0,595332"></textarea>
+          <div class="flex gap-2 flex-wrap mt-3">
+            <button class="btn btn-primary" onclick="loadData()">⚡ Analyze All Clients</button>
+            <button class="btn btn-secondary" onclick="loadDemo('bright')">+ Bright Brothers Demo</button>
+            <button class="btn btn-secondary" onclick="loadDemo('ask')">+ ASK Solar Demo</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('csvInput').value=''">✕ Clear Text</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="shared/firebase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script src="shared/analysis.js"></script>
+<script>
+
+// ═══════════════════════════════════════════════════════════════
+// State for bot data being staged
+// ═══════════════════════════════════════════════════════════════
+const botData = {
+  ledger:      null,
+  payments:    null,
+  salesperson: null,
+  decisions:   null
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Demo data
+// ═══════════════════════════════════════════════════════════════
+const BRIGHT_DEMO = `customer,date,invoice,amount,paid,due
+BRIGHT BROTHERS,28/11/2025,SI-9028,11480,0,0
+BRIGHT BROTHERS,20/04/2026,SI-10261,190800,0,595332`;
+
+const ASK_DEMO = `customer,date,invoice,amount,paid,due
+ASK Solar Technology,21/07/2025,SI-6601,109267,0,109267
+ASK Solar Technology,22/04/2026,SI-11386,285600,0,836813`;
+
+// ═══════════════════════════════════════════════════════════════
+// Logging helpers
+// ═══════════════════════════════════════════════════════════════
+function logMsg(msg, type = 'info') {
+  const log = document.getElementById('importLog');
+  log.classList.add('show');
+  const time = new Date().toLocaleTimeString();
+  log.innerHTML += `<div><span class="${type}">[${time}]</span> ${msg}</div>`;
+  log.scrollTop = log.scrollHeight;
+}
+
+function clearLog() {
+  const log = document.getElementById('importLog');
+  log.innerHTML = '';
+  log.classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CSV / Excel / Image handlers
+// ═══════════════════════════════════════════════════════════════
+function handleFile(event, type) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (type === 'csv') {
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('csvInput').value = e.target.result;
+      document.getElementById('csvCard').classList.add('loaded');
+      showToast('CSV loaded — click Analyze', '📄');
+    };
+    reader.readAsText(file);
+  }
+
+  if (type === 'xls') {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const csv = XLSX.utils.sheet_to_csv(ws);
+        document.getElementById('csvInput').value = csv;
+        document.getElementById('xlsCard').classList.add('loaded');
+        showToast('Excel loaded — click Analyze', '📊');
+      } catch (err) {
+        showToast('Excel parse error — try CSV instead', '❌');
+      }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  if (type === 'img') {
+    document.getElementById('imgCard').classList.add('loaded');
+    showToast('Image/PDF loaded — AI extraction needs API setup', '🖼️');
+  }
+}
+
+function loadDemo(type) {
+  const data = type === 'bright' ? BRIGHT_DEMO : ASK_DEMO;
+  const existing = document.getElementById('csvInput').value.trim();
+  document.getElementById('csvInput').value = existing
+    ? existing + '\n' + data.split('\n').slice(1).join('\n')
+    : data;
+  showToast(`${type === 'bright' ? 'Bright Brothers' : 'ASK Solar'} demo added`, '✓');
+}
+
+function loadData() {
+  const text = document.getElementById('csvInput').value.trim();
+  if (!text) {
+    showToast('Paste or upload data first', '⚠️');
+    return;
+  }
+  rows = parseCSV(text);
+  if (!rows.length) {
+    showToast('Could not parse — check format', '❌');
+    return;
+  }
+  computeCustomers();
+  saveAllState();
+  showToast(`✓ ${customers.length} clients analyzed — redirecting...`, '⚡');
+  setTimeout(() => { window.location.href = 'index.html'; }, 800);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BOT JSON FILE HANDLING
+// Parses actual bot file structures correctly
+// ═══════════════════════════════════════════════════════════════
+function handleBotFile(event, type) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      botData[type] = data;
+
+      const cardId = {
+        ledger: 'botLedgerCard',
+        payments: 'botPaymentsCard',
+        salesperson: 'botSalesCard',
+        decisions: 'botDecisionsCard'
+      }[type];
+      document.getElementById(cardId).classList.add('loaded');
+
+      // Quick preview
+      let preview = '';
+      if (type === 'ledger') {
+        const clients = Object.keys(data).filter(k => !k.startsWith('__'));
+        preview = `${clients.length} clients`;
+      } else if (type === 'payments') {
+        const payments = data.payments || data;
+        let count = 0;
+        Object.values(payments).forEach(v => count += Array.isArray(v) ? v.length : 1);
+        preview = `${count} payments`;
+      } else if (type === 'salesperson') {
+        preview = `${Object.keys(data).length} sales-rep mappings`;
+      } else if (type === 'decisions') {
+        preview = `${Object.keys(data).length} approval records`;
+      }
+
+      logMsg(`✓ ${type}_db.json loaded — ${preview}`, 'ok');
+      updateBotSummary();
+      checkProcessButton();
+
+    } catch (err) {
+      logMsg(`✗ Failed to parse ${type}_db.json: ${err.message}`, 'err');
+      showToast('Invalid JSON file', '❌');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function updateBotSummary() {
+  const counts = [];
+  if (botData.ledger) {
+    const n = Object.keys(botData.ledger).filter(k => !k.startsWith('__')).length;
+    counts.push(`👥 ${n} clients`);
+  }
+  if (botData.payments) {
+    const p = botData.payments.payments || botData.payments;
+    let n = 0;
+    Object.values(p).forEach(v => n += Array.isArray(v) ? v.length : 1);
+    counts.push(`💰 ${n} payments`);
+  }
+  if (botData.salesperson) counts.push(`👤 ${Object.keys(botData.salesperson).length} sales mappings`);
+  if (botData.decisions) counts.push(`⚖️ ${Object.keys(botData.decisions).length} approvals`);
+
+  document.getElementById('botSummary').innerHTML = counts.map(c =>
+    `<span class="summary-pill">${c}</span>`
+  ).join('');
+}
+
+function checkProcessButton() {
+  const btn = document.getElementById('processBotBtn');
+  // Need at least ledger to do meaningful analysis
+  btn.disabled = !botData.ledger;
+}
+
+function clearBotData() {
+  botData.ledger = null;
+  botData.payments = null;
+  botData.salesperson = null;
+  botData.decisions = null;
+  ['botLedgerCard','botPaymentsCard','botSalesCard','botDecisionsCard'].forEach(id => {
+    document.getElementById(id).classList.remove('loaded');
+    document.getElementById(id).querySelector('input').value = '';
+  });
+  document.getElementById('botSummary').innerHTML = '';
+  clearLog();
+  document.getElementById('processBotBtn').disabled = true;
+  showToast('Bot files reset', '↺');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONVERTERS — Bot's actual JSON formats → Dashboard format
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Convert ledger_db.json → CSV-style rows array
+ *
+ * Bot structure:
+ *   { "client_lower": {
+ *       name, outstandingAmount, outstandingType, transactions: [
+ *         {date, type: "Invoice"|"Payment"|"Receipt", amount, voucher, description}
+ *       ],
+ *       totalInvoiced, totalPaid, behaviorSummary, riskLevel, riskNotes,
+ *       avgPaymentDays, filename, processed
+ *     }
+ *   }
+ *
+ * Dashboard needs rows like:
+ *   { customer, date, invoice, amount, paid, due }
+ */
+function convertBotLedgerToRows(botLedger) {
+  const out = [];
+  let clientCount = 0;
+  let txCount = 0;
+  let skipped = 0;
+
+  Object.entries(botLedger).forEach(([key, client]) => {
+    // Skip metadata keys
+    if (key.startsWith('__')) return;
+    if (!client || typeof client !== 'object') { skipped++; return; }
+    if (!Array.isArray(client.transactions)) { skipped++; return; }
+
+    const clientName = client.name || key;
+    clientCount++;
+
+    // De-dupe transactions (bot sometimes has duplicates)
+    const seen = new Set();
+    const uniqueTxns = [];
+    client.transactions.forEach(t => {
+      if (!t || !t.date) return;
+      const sig = `${t.date}|${t.voucher || t.description || ''}|${t.amount}|${t.type}`;
+      if (!seen.has(sig)) {
+        seen.add(sig);
+        uniqueTxns.push(t);
+      }
+    });
+
+    // Sort by date for proper running balance
+    uniqueTxns.sort((a, b) => {
+      const da = parseDate(a.date) || new Date(0);
+      const db = parseDate(b.date) || new Date(0);
+      return da - db;
+    });
+
+    // Compute running balance
+    let running = 0;
+    uniqueTxns.forEach(t => {
+      const amount = parseFloat(String(t.amount).replace(/,/g, '')) || 0;
+      const isInvoice = (t.type || '').toLowerCase().includes('invoice') ||
+                        (t.type || '').toLowerCase().includes('debit') ||
+                        (t.type || '').toLowerCase() === 'sale';
+      const isPayment = (t.type || '').toLowerCase().includes('payment') ||
+                        (t.type || '').toLowerCase().includes('receipt') ||
+                        (t.type || '').toLowerCase().includes('credit');
+
+      if (isInvoice) running += amount;
+      else if (isPayment) running -= amount;
+
+      out.push({
+        customer: clientName,
+        date: t.date,
+        invoice: t.voucher || t.description || '',
+        amount: isInvoice ? amount : 0,
+        paid: isPayment ? amount : 0,
+        due: running
+      });
+      txCount++;
+    });
+
+    // If transactions are present but final balance doesn't match outstandingAmount,
+    // we trust the bot's outstandingAmount as ground truth (override last row's `due`)
+    if (uniqueTxns.length && client.outstandingAmount !== undefined) {
+      const lastRow = out[out.length - 1];
+      const reported = parseFloat(client.outstandingAmount) || 0;
+      const sign = client.outstandingType === 'Cr' ? -1 : 1;
+      lastRow.due = reported * sign;
+    }
+  });
+
+  logMsg(`Ledger: ${clientCount} clients · ${txCount} transactions · ${skipped} skipped`, 'info');
+  return out;
+}
+
+/**
+ * Convert payments_db.json → flat array of payment records
+ *
+ * Bot structure:
+ *   {
+ *     "payments": {
+ *       "client_lower": <single object> OR <array of objects>
+ *     },
+ *     "txnIds": [...],
+ *     "lastSaved": "..."
+ *   }
+ *
+ * Dashboard expects array of: {id, date, client, amount, bank, txnId, screenshot}
+ */
+function convertBotPayments(botPayments) {
+  const out = [];
+  const root = botPayments.payments || botPayments;
+
+  Object.entries(root).forEach(([key, value]) => {
+    if (key === 'txnIds' || key === 'lastSaved') return;
+
+    // Value can be a single object OR an array of objects
+    const records = Array.isArray(value) ? value : [value];
+
+    records.forEach((p, idx) => {
+      if (!p || typeof p !== 'object') return;
+      out.push({
+        id: `${key}-${idx}-${p.storedAt || Date.now()}`,
+        date: p.date || '',
+        client: p.name || key,
+        amount: parseFloat(String(p.amount || '0').replace(/,/g, '')) || 0,
+        bank: p.bank || '',
+        txnId: p.txnId || '',
+        accountNo: p.account_no || '',
+        storedAt: p.storedAt || null,
+        screenshot: null,
+        status: 'received',
+        salesPerson: ''
+      });
+    });
+  });
+
+  logMsg(`Payments: ${out.length} records imported`, 'info');
+  return out;
+}
+
+/**
+ * Convert salesperson_db.json → client→salesperson lookup
+ *
+ * Bot structure:
+ *   { "client_lower": {
+ *       clientName, salesperson, salespersonNumber,
+ *       firstSeen, lastSeen, invoiceCount, paymentCount, invoices: [...]
+ *     }
+ *   }
+ *
+ * Dashboard wants: { "client_lower": { name, phone, ... } }
+ */
+function convertBotSalesperson(botSP) {
+  const out = {};
+  Object.entries(botSP).forEach(([key, sp]) => {
+    if (!sp || typeof sp !== 'object') return;
+    out[key] = {
+      name: sp.salesperson || '',
+      number: sp.salespersonNumber || '',
+      invoiceCount: sp.invoiceCount || 0,
+      paymentCount: sp.paymentCount || 0,
+      firstSeen: sp.firstSeen,
+      lastSeen: sp.lastSeen,
+      invoices: sp.invoices || []
+    };
+  });
+  logMsg(`Salesperson DB: ${Object.keys(out).length} mappings`, 'info');
+  return out;
+}
+
+/**
+ * Convert decisions_db.json → approval records
+ *
+ * Bot structure:
+ *   { "invoiceNo": {
+ *       clientName, botDecision: "APPROVE"|"REJECT"|"HOLD",
+ *       discount, hadPayment, paymentTotal, paymentSufficient,
+ *       hadLedger, ledgerOutstanding, ledgerType,
+ *       aiReason, doubtAlert, timestamp, overridden
+ *     }
+ *   }
+ *
+ * Dashboard expects:
+ *   [{ id, type, client, amount, discount, salesPerson, status, reason, timestamp, ... }]
+ */
+function convertBotDecisions(botDec) {
+  const out = [];
+  Object.entries(botDec).forEach(([invoiceNo, d]) => {
+    if (!d || typeof d !== 'object') return;
+    out.push({
+      id: invoiceNo,
+      type: 'invoice',
+      client: d.clientName || 'Unknown',
+      amount: 0,
+      discount: d.discount || 0,
+      hadPayment: d.hadPayment || false,
+      paymentTotal: d.paymentTotal || 0,
+      paymentSufficient: d.paymentSufficient || false,
+      hadLedger: d.hadLedger || false,
+      ledgerOutstanding: d.ledgerOutstanding || 0,
+      ledgerType: d.ledgerType || 'Dr',
+      reason: d.aiReason || '',
+      doubtAlert: d.doubtAlert || false,
+      status: (d.botDecision || 'pending').toLowerCase(),
+      timestamp: d.timestamp || new Date().toISOString(),
+      overridden: d.overridden || false,
+      salesPerson: '',
+      actedAt: null
+    });
+  });
+  logMsg(`Decisions: ${out.length} approval records imported`, 'info');
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MASTER PROCESSOR — runs all converters and loads into dashboard
+// ═══════════════════════════════════════════════════════════════
+function processBotData() {
+  if (!botData.ledger) {
+    showToast('Need ledger_db.json at minimum', '⚠️');
+    return;
+  }
+
+  clearLog();
+  logMsg('▶ Starting bot data processing...', 'info');
+
+  try {
+    // 1. Convert ledger to rows for analysis
+    rows = convertBotLedgerToRows(botData.ledger);
+    if (!rows.length) {
+      logMsg('⚠ No usable transactions in ledger', 'warn');
+      showToast('Ledger has no transactions', '⚠️');
+      return;
+    }
+
+    // 2. Convert payments
+    if (botData.payments) {
+      const payments = convertBotPayments(botData.payments);
+      STORE.save('payments', payments);
+    }
+
+    // 3. Convert salesperson DB
+    if (botData.salesperson) {
+      const spDB = convertBotSalesperson(botData.salesperson);
+      STORE.save('spDB', spDB);
+    }
+
+    // 4. Convert decisions
+    if (botData.decisions) {
+      const approvals = convertBotDecisions(botData.decisions);
+      STORE.save('approvals', approvals);
+    }
+
+    // 5. Run customer analysis (computeCustomers reads `rows` global)
+    logMsg('▶ Running 15-point credit analysis...', 'info');
+    computeCustomers();
+
+    // 6. Enrich customers with bot's risk data + sales rep info
+    if (window.customers && customers.length) {
+      const spDB = STORE.load('spDB') || {};
+      customers.forEach(c => {
+        const key = (c.name || '').toLowerCase().trim();
+        const botRecord = botData.ledger[key];
+        if (botRecord) {
+          c.botRiskLevel = botRecord.riskLevel || null;
+          c.botRiskNotes = botRecord.riskNotes || [];
+          c.behaviorSummary = botRecord.behaviorSummary || '';
+          c.avgPaymentDays = botRecord.avgPaymentDays || 'N/A';
+          c.outstandingType = botRecord.outstandingType || 'Dr';
+        }
+        // Sales rep
+        const spInfo = spDB[key];
+        if (spInfo) {
+          c.salesPerson = spInfo.name;
+          c.salesPersonInvoices = spInfo.invoiceCount || 0;
+        }
+      });
+    }
+
+    // 7. Save everything
+    saveAllState();
+
+    logMsg(`✓ Done — ${customers.length} clients analyzed`, 'ok');
+    showToast(`✓ ${customers.length} clients analyzed — redirecting...`, '⚡');
+
+    setTimeout(() => { window.location.href = 'index.html'; }, 1200);
+
+  } catch (err) {
+    console.error('processBotData error:', err);
+    logMsg(`✗ Error: ${err.message}`, 'err');
+    showToast('Processing failed — check console', '❌');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Demo: load all bot demo data inline (for testing without files)
+// ═══════════════════════════════════════════════════════════════
+function loadAllBotDemo() {
+  // Minimal demo matching bot's actual format
+  botData.ledger = {
+    "bright brothers": {
+      name: "BRIGHT BROTHERS",
+      outstandingAmount: 595332,
+      outstandingType: "Dr",
+      transactions: [
+        { date: "28/11/2025", type: "Invoice", amount: "11480", voucher: "SI-9028" },
+        { date: "20/04/2026", type: "Invoice", amount: "190800", voucher: "SI-10261" }
+      ],
+      totalInvoiced: 595332,
+      totalPaid: 0,
+      riskLevel: "High",
+      riskNotes: ["Significant outstanding amount", "No recent payments"],
+      behaviorSummary: "Customer with growing outstanding balance; payment recovery needed."
+    },
+    "ask solar technology": {
+      name: "ASK Solar Technology",
+      outstandingAmount: 836813,
+      outstandingType: "Dr",
+      transactions: [
+        { date: "21/07/2025", type: "Invoice", amount: "109267", voucher: "SI-6601" },
+        { date: "22/04/2026", type: "Invoice", amount: "285600", voucher: "SI-11386" }
+      ],
+      totalInvoiced: 836813,
+      totalPaid: 0,
+      riskLevel: "High",
+      riskNotes: ["Long-term outstanding", "Old invoices unpaid"],
+      behaviorSummary: "Solar industry client with significant aged receivables."
+    }
+  };
+
+  botData.payments = {
+    payments: {
+      "shan ali khan": {
+        name: "Shan Ali Khan",
+        amount: "750000",
+        date: "27 April, 2026",
+        bank: "MEEZAN",
+        txnId: "",
+        account_no: "PK80MEZN0009180109780400",
+        storedAt: Date.now()
+      }
+    },
+    txnIds: [],
+    lastSaved: new Date().toISOString()
+  };
+
+  botData.salesperson = {
+    "bright brothers": {
+      clientName: "BRIGHT BROTHERS",
+      salesperson: "Muhammad Arslan khalil",
+      salespersonNumber: "92321xxx@c.us",
+      invoiceCount: 2,
+      paymentCount: 0,
+      invoices: []
+    }
+  };
+
+  botData.decisions = {
+    "SI-10261": {
+      clientName: "BRIGHT BROTHERS",
+      botDecision: "HOLD",
+      discount: 25,
+      hadPayment: false,
+      paymentTotal: 0,
+      hadLedger: true,
+      ledgerOutstanding: 595332,
+      ledgerType: "Dr",
+      aiReason: "High outstanding balance + 25% discount requires senior approval",
+      doubtAlert: false,
+      timestamp: new Date().toISOString(),
+      overridden: false
+    }
+  };
+
+  ['botLedgerCard','botPaymentsCard','botSalesCard','botDecisionsCard'].forEach(id => {
+    document.getElementById(id).classList.add('loaded');
+  });
+
+  clearLog();
+  logMsg('✓ Demo data loaded (2 clients, 1 payment, 1 sales mapping, 1 approval)', 'ok');
+  updateBotSummary();
+  checkProcessButton();
+  showToast('Demo data ready — click Process & Analyze', '📦');
+}
+
+function clearAll() {
+  if (!confirm('Clear all uploaded data and analysis? Yeh undo nahi ho sakta.')) return;
+  clearBotData();
+  document.getElementById('csvInput').value = '';
+  ['csvCard','xlsCard','imgCard'].forEach(id => {
+    document.getElementById(id).classList.remove('loaded');
+  });
+  // Clear localStorage state
+  ['rows','customers','payments','approvals','spDB','clientDB'].forEach(k => {
+    STORE.save(k, null);
+  });
+  showToast('Everything cleared', '↺');
+}
+</script>
+
+</body>
+</html>

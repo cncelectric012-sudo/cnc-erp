@@ -1,0 +1,57 @@
+# CRITICAL — secrets and credentials (NEVER commit these)
+.env
+.env.*
+!.env.example
+*-service-account*.json
+firebase-adminsdk-*.json
+credentials/
+google-credentials.json
+
+# WhatsApp Web JS session (contains auth tokens)
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Local database (sensitive customer data — phone, address, balances)
+database/
+ledgers/
+*.db
+*.sqlite
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json.bak
+
+# Logs
+logs/
+*.log
+
+# Firebase CLI cache
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# OS
+desktop.ini
+
+# Build / temp
+dist/
+build/
+tmp/
+*.bak
+*.tmp
+
+# PM2
+.pm2/
+ecosystem.config.local.js
+
+# Dashboard subfolder has its own .gitignore
+# (dashboard/ folder itself is part of the repo)
