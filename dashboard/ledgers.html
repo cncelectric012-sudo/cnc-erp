@@ -215,12 +215,9 @@
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <!-- html2canvas for Image -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-<script src="shared/firebase-config.js"></script>
-<script src="shared/auth-guard.js"></script>
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/supabase-config.js"></script>
 <script src="shared/core.js"></script>
 
 <script>
@@ -241,27 +238,36 @@ const fmtK = n => {
   return Math.round(n).toString();
 };
 
-// ── Load from Firestore ────────────────────────────────────────
+// ── Load from Supabase ─────────────────────────────────────────
 async function loadClients() {
   try {
-    const firebase = window.firebase;
-    const app  = firebase.apps[0] || firebase.initializeApp(window.FIREBASE_CONFIG);
-    const db   = firebase.firestore(app);
+    const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
-    const snap = await db.collection('clients').get();
-    allClients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let allRows = [];
+    let from = 0;
+    const pageSize = 1000;
 
+    while (true) {
+      const { data, error } = await sb.from('clients')
+        .select('*').range(from, from + pageSize - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      allRows = allRows.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+
+    allClients = allRows;
     populateDropdowns();
     applyFilters();
-
     document.getElementById('topbarSub').textContent =
-      `${allClients.length} clients loaded from Firebase`;
+      `${allClients.length} clients loaded from Supabase`;
   } catch (err) {
-    console.error('Firestore load error:', err);
+    console.error('Supabase load error:', err);
     document.getElementById('ledgerGrid').innerHTML =
       `<div class="empty" style="grid-column:1/-1">
         <div class="empty-icon">⚠️</div>
-        <div class="empty-title">Firebase load failed</div>
+        <div class="empty-title">Supabase load failed</div>
         <div class="empty-desc">${err.message}</div>
       </div>`;
   }

@@ -16,10 +16,10 @@
    ═══════════════════════════════════════════════════════════════ */
 
 window.FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyBJXCAyEAww-XjWtC19Mdo2CNQ_uJQa0FA",
-  authDomain:        "cnc-invoice-ledgers-approvals.firebaseapp.com",
-  projectId:         "cnc-invoice-ledgers-approvals",
-  storageBucket:     "cnc-invoice-ledgers-approvals.firebasestorage.app",
-  messagingSenderId: "665671728862",
-  appId:             "1:665671728862:web:27756abe17b6ce979b8c4f"
+  apiKey:            "AIzaSyDDhsXtfdOpUhsRXqayDHrQZFLPscZqCIw",
+  authDomain:        "cnc-electric-erp.firebaseapp.com",
+  projectId:         "cnc-electric-erp",
+  storageBucket:     "cnc-electric-erp.firebasestorage.app",
+  messagingSenderId: "841412784519",
+  appId:             "1:841412784519:web:bfce21bf168ced166fa322"
 };

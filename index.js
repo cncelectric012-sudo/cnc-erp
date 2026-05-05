@@ -5,27 +5,36 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-// ─── Firestore (optional — only if service account configured) ─
-let db = null;
-const SA_PATH = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-if (SA_PATH && fs.existsSync(SA_PATH)) {
+// ─── Supabase (optional — only if keys configured) ────────────
+let supabase = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
     try {
-        const admin = require('firebase-admin');
-        const serviceAccount = require(path.resolve(SA_PATH));
-        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-        db = admin.firestore();
-        console.log('✅ Firestore connected');
+        const { createClient } = require('@supabase/supabase-js');
+        supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+        console.log('✅ Supabase connected');
     } catch (err) {
-        console.warn('⚠️  Firestore init failed:', err.message);
+        console.warn('⚠️  Supabase init failed:', err.message);
     }
 } else {
-    console.log('ℹ️  Firestore not configured — JSON-only mode');
+    console.log('ℹ️  Supabase not configured — JSON-only mode');
 }
 
-function syncFirestore(collection, docId, data) {
-    if (!db) return;
-    db.collection(collection).doc(docId).set(data, { merge: true })
-      .catch(err => console.error(`❌ Firestore sync error (${collection}/${docId}):`, err.message));
+function cleanKey(str) {
+    return str.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+}
+
+function syncSupabase(table, id, data) {
+    if (!supabase) return;
+    supabase.from(table).upsert({ id, ...data }, { onConflict: 'id' })
+      .then(({ error }) => { if (error) console.error(`❌ Supabase sync error (${table}):`, error.message); })
+      .catch(err => console.error(`❌ Supabase error (${table}):`, err.message));
+}
+
+function syncSupabaseNoId(table, data, conflictCol) {
+    if (!supabase) return;
+    supabase.from(table).upsert(data, { onConflict: conflictCol })
+      .then(({ error }) => { if (error) console.error(`❌ Supabase sync error (${table}):`, error.message); })
+      .catch(err => console.error(`❌ Supabase error (${table}):`, err.message));
 }
 
 // ─── Config ───────────────────────────────────────────────
@@ -254,7 +263,18 @@ function recordDecision(invoiceNo, decisionData) {
         overridden: false
     };
     saveDecisionsDB();
-    syncFirestore('approvals', invoiceNo, decisionsDB[invoiceNo]);
+    syncSupabaseNoId('approvals', { invoice_no: invoiceNo, ...decisionsDB[invoiceNo],
+        client_name: decisionsDB[invoiceNo].clientName,
+        bot_decision: decisionsDB[invoiceNo].botDecision,
+        had_payment: decisionsDB[invoiceNo].hadPayment,
+        payment_total: decisionsDB[invoiceNo].paymentTotal,
+        had_ledger: decisionsDB[invoiceNo].hadLedger,
+        ledger_outstanding: decisionsDB[invoiceNo].ledgerOutstanding,
+        ledger_type: decisionsDB[invoiceNo].ledgerType,
+        ai_reason: decisionsDB[invoiceNo].aiReason,
+        doubt_alert: decisionsDB[invoiceNo].doubtAlert,
+        created_at: decisionsDB[invoiceNo].timestamp
+    }, 'invoice_no');
     console.log(`📝 Decision recorded: ${invoiceNo} → ${decisionData.botDecision}`);
 }
 
@@ -284,7 +304,7 @@ function recordCorrection(invoiceNo, ownerAction) {
     // Learn pattern
     learnFromCorrection(correctionsDB[invoiceNo]);
     saveDecisionsDB();
-    syncFirestore('approvals', invoiceNo, decisionsDB[invoiceNo]);
+    syncSupabaseNoId('approvals', { invoice_no: invoiceNo, overridden: true, owner_action: ownerAction }, 'invoice_no');
     console.log(`🧠 Correction recorded: ${invoiceNo} — Bot said ${original.botDecision}, Owner said ${ownerAction}`);
 }
 
@@ -465,8 +485,8 @@ function updateClientInDB(data) {
     };
 
     saveDB();
-    const clientKey = data.client_name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
-    syncFirestore('clients', clientKey, ledgerDB[data.client_name.trim().toLowerCase()]);
+    const clientKey = cleanKey(data.client_name);
+    syncSupabase('clients', clientKey, ledgerDB[data.client_name.trim().toLowerCase()]);
     console.log(`💾 DB updated: ${data.client_name} — ${data.outstandingType} PKR ${data.outstandingAmount.toLocaleString()}`);
 }
 
@@ -698,8 +718,14 @@ function storePayment(name, data) {
     // Save to persistent DB
     savePaymentsDB();
 
-    const payKey = key.replace(/[^a-z0-9_]/g, '_');
-    syncFirestore('payments', payKey, { client: name, payments: paymentMemory[key], lastUpdated: new Date().toISOString() });
+    const newPayment = paymentMemory[key];
+    const lastPay = Array.isArray(newPayment) ? newPayment[newPayment.length-1] : newPayment;
+    if (lastPay) syncSupabaseNoId('payments', {
+        client_key: cleanKey(name), client_name: name,
+        amount: Number(String(lastPay.amount||0).replace(/,/g,''))||0,
+        date: lastPay.date||'', bank: lastPay.bank||'',
+        txn_id: lastPay.txnId||'', account_no: lastPay.account_no||''
+    }, 'id');
 
     const { total, count } = getTotalPaymentsForClient(name);
     console.log(`💾 Payment stored: ${name} — Rs. ${data.amount} | TXN: ${data.txnId || 'N/A'} | Total: Rs. ${total.toLocaleString()} (${count} payments)`);
