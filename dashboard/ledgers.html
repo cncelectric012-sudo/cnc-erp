@@ -90,7 +90,7 @@
     <div class="topbar">
       <div>
         <div class="topbar-title">Client Ledgers</div>
-        <div class="topbar-sub" id="topbarSub">Loading from Firebase...</div>
+        <div class="topbar-sub" id="topbarSub">Loading from Supabase...</div>
       </div>
       <div class="topbar-actions export-bar">
         <button class="btn-export" onclick="exportCSV()">⬇ CSV</button>
@@ -154,7 +154,7 @@
       <div id="ledgerGrid" class="client-grid">
         <div class="loading-state" style="grid-column:1/-1">
           <div class="loading-spinner"></div>
-          <div>Loading clients from Firebase...</div>
+          <div>Loading clients from Supabase...</div>
         </div>
       </div>
 
@@ -218,11 +218,12 @@
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="shared/supabase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
 <script src="shared/core.js"></script>
 
 <script>
 // ── State ──────────────────────────────────────────────────────
-let allClients = [];      // raw from Firestore
+let allClients = [];      // raw from Supabase
 let filtered   = [];      // after filters
 let currentSort = 'outstanding';
 let currentClient = null; // for modal

@@ -1,2 +1,2 @@
 window.SUPABASE_URL = 'https://knvaaxywlfpomlatpiua.supabase.co';
-window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmFheXl3bGZwb21sYXRwaXVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MzIyODUsImV4cCI6MjA5MzUwODI4NX0.tKNPBYghVZzXk2cOOFqsXOLX2YIQm2QwghUEOpGrZMQ';
+window.SUPABASE_ANON_KEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
