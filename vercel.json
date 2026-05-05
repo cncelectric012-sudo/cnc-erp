@@ -1,7 +1,8 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/dashboard/$1" }
-  ],
+  "framework": null,
+  "buildCommand": "",
+  "outputDirectory": "dashboard",
+  "installCommand": "echo skip",
   "headers": [
     {
       "source": "/(.*)",
