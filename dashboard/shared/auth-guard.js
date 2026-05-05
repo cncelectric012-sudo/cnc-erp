@@ -1,27 +1,20 @@
 /* ═══════════════════════════════════════════════════════════════
-   Auth Guard
-   Loaded BEFORE core.js on every page (except login.html).
+   Auth Guard — Supabase
+   Loaded BEFORE core.js on every protected page.
    Checks if user is logged in. If not → redirect to login.html.
    ═══════════════════════════════════════════════════════════════ */
 
 (function() {
-  // Initialize Firebase
-  if (typeof firebase === 'undefined' || !window.FIREBASE_CONFIG) {
-    console.error('[auth-guard] Firebase SDK or config missing — page cannot authenticate');
-    return;
-  }
+  const SUPABASE_URL = 'https://knvaaxywlfpomlatpiua.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmFheXl3bGZwb21sYXRwaXVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MzIyODUsImV4cCI6MjA5MzUwODI4NX0.tKNPBYghVZzXk2cOOFqsXOLX2YIQm2QwghUEOpGrZMQ';
 
-  if (!firebase.apps.length) {
-    firebase.initializeApp(window.FIREBASE_CONFIG);
-  }
-
-  // Hide page content until auth check completes (prevents flash of dashboard)
+  // Hide page until auth check completes
   const style = document.createElement('style');
   style.id = 'auth-guard-hide';
   style.textContent = 'body{visibility:hidden!important}';
   document.head.appendChild(style);
 
-  // Add a small loading indicator
+  // Loading spinner
   document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('auth-loader')) return;
     const loader = document.createElement('div');
@@ -41,24 +34,13 @@
     document.body.appendChild(loader);
   });
 
-  // Check auth state
-  firebase.auth().onAuthStateChanged(user => {
-    if (!user) {
-      // Not logged in → go to login page
-      window.location.replace('login.html');
-      return;
-    }
-
-    // Logged in — expose user info globally
+  function reveal(user) {
     window.currentUser = user;
-
-    // Reveal page
     const hideStyle = document.getElementById('auth-guard-hide');
     if (hideStyle) hideStyle.remove();
     const loader = document.getElementById('auth-loader');
     if (loader) loader.remove();
 
-    // Inject "Sign Out" into sidebar footer once core.js renders it
     setTimeout(() => {
       const footer = document.querySelector('.sb-footer');
       if (footer && !footer.querySelector('.sb-user')) {
@@ -75,12 +57,32 @@
         footer.appendChild(userBox);
       }
     }, 100);
-  });
+  }
 
-  // Global sign-out function
-  window.signOut = function() {
-    firebase.auth().signOut().then(() => {
-      window.location.replace('login.html');
+  function checkAuth() {
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window._supabase = client;
+
+    client.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        window.location.replace('login.html');
+        return;
+      }
+      reveal(session.user);
     });
+  }
+
+  if (typeof supabase !== 'undefined') {
+    checkAuth();
+  } else {
+    window.addEventListener('load', checkAuth);
+  }
+
+  window.signOut = function() {
+    if (window._supabase) {
+      window._supabase.auth.signOut().then(() => {
+        window.location.replace('login.html');
+      });
+    }
   };
 })();
