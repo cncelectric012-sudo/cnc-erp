@@ -149,6 +149,9 @@ function renderSidebar(activePage) {
         <span class="ico">📊</span>Portfolio
         <span class="badge-count">${customers.length || 0}</span>
       </a>
+      <a class="sb-item ${activePage==='clients'?'active':''}" href="clients.html">
+        <span class="ico">👥</span>Clients
+      </a>
       <a class="sb-item ${activePage==='ledgers'?'active':''}" href="ledgers.html">
         <span class="ico">📒</span>Client Ledgers
       </a>

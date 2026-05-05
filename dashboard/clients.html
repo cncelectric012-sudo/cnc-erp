@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Clients · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+.stat-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; }
+.stat-label { font-size:11px; color:var(--text-3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+.stat-val { font-size:24px; font-weight:700; }
+.stat-sub { font-size:11px; color:var(--text-3); margin-top:3px; }
+
+.tabs { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--border); }
+.tab { padding:8px 16px; font-size:13px; font-weight:500; color:var(--text-3); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+.tab.active { color:var(--brand); border-bottom-color:var(--brand); }
+
+.toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+.toolbar-left { display:flex; gap:8px; flex:1; flex-wrap:wrap; }
+.toolbar-right { display:flex; gap:8px; }
+
+.sp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; }
+.sp-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; cursor:pointer; transition:box-shadow .15s; }
+.sp-card:hover { box-shadow:var(--shadow-md); }
+.sp-name { font-weight:600; font-size:14px; margin-bottom:4px; }
+.sp-sub { font-size:12px; color:var(--text-3); }
+.sp-stats { display:flex; gap:16px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
+.sp-stat { text-align:center; flex:1; }
+.sp-stat-val { font-size:16px; font-weight:700; }
+.sp-stat-lbl { font-size:10px; color:var(--text-3); text-transform:uppercase; }
+
+/* Modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; z-index:1000; padding:20px; }
+.modal-overlay.hidden { display:none; }
+.modal { background:var(--surface); border-radius:14px; padding:28px; width:100%; max-width:680px; max-height:90vh; overflow-y:auto; box-shadow:var(--shadow-lg); }
+.modal-title { font-size:18px; font-weight:700; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; }
+.modal-close { background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-3); padding:0; line-height:1; }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.form-grid .full { grid-column:1/-1; }
+.req { color:var(--brand); }
+.section-divider { grid-column:1/-1; font-size:11px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:.6px; padding:8px 0 4px; border-top:1px solid var(--border); margin-top:4px; }
+
+/* Import modal */
+.import-zone { border:2px dashed var(--border-2); border-radius:10px; padding:32px; text-align:center; cursor:pointer; transition:border-color .15s; }
+.import-zone:hover, .import-zone.drag { border-color:var(--brand); background:var(--brand-50); }
+.import-zone input { display:none; }
+
+/* Table actions */
+.row-actions { display:flex; gap:6px; }
+.badge-sp { display:inline-block; background:var(--blue-50); color:var(--blue); padding:2px 8px; border-radius:4px; font-size:11px; font-weight:500; }
+</style>
+</head>
+<body data-page="clients">
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Client Management</div>
+        <div class="topbar-sub" id="topbarSub">Loading...</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="openImport()">📥 Import</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportClients()">📤 Export</button>
+        <button class="btn btn-primary btn-sm" onclick="openAddClient()">+ New Client</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Total Clients</div>
+          <div class="stat-val" id="st-total">0</div>
+          <div class="stat-sub">All registered</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Sales Reps</div>
+          <div class="stat-val" id="st-sp">0</div>
+          <div class="stat-sub">Active salespeople</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">With Outstanding</div>
+          <div class="stat-val" id="st-os">0</div>
+          <div class="stat-sub">Pending balance</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Outstanding</div>
+          <div class="stat-val" id="st-osamt" style="font-size:16px">—</div>
+          <div class="stat-sub">PKR</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('all',this)">All Clients</div>
+        <div class="tab" onclick="switchTab('sp',this)">By Salesperson</div>
+        <div class="tab" onclick="switchTab('ledger',this)">Ledger Clients</div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <input class="input" style="width:220px" id="searchBox" placeholder="Search name, phone, city..." oninput="applyFilters()"/>
+          <select class="input" style="width:160px" id="fSp" onchange="applyFilters()">
+            <option value="">All Sales Reps</option>
+          </select>
+          <select class="input" style="width:140px" id="fCity" onchange="applyFilters()">
+            <option value="">All Cities</option>
+          </select>
+          <select class="input" style="width:130px" id="fSource" onchange="applyFilters()">
+            <option value="">All Sources</option>
+            <option value="manual">Manual</option>
+            <option value="pdf">PDF Import</option>
+            <option value="csv">CSV Import</option>
+          </select>
+        </div>
+        <div class="toolbar-right">
+          <span id="filteredCount" class="text-3" style="font-size:12px;line-height:32px"></span>
+        </div>
+      </div>
+
+      <!-- All Clients Table -->
+      <div id="viewAll" class="card" style="padding:0;overflow:hidden">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Client Name</th>
+                <th>City</th>
+                <th>Phone</th>
+                <th>Sales Rep</th>
+                <th class="num">Outstanding</th>
+                <th>NTN</th>
+                <th>Source</th>
+                <th>Added</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="clientBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Salesperson View -->
+      <div id="viewSp" class="hidden">
+        <div class="sp-grid" id="spGrid"></div>
+      </div>
+
+      <!-- Ledger Clients -->
+      <div id="viewLedger" class="card hidden" style="padding:0;overflow:hidden">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Client Name</th>
+                <th class="num">Outstanding</th>
+                <th class="num">Total Invoiced</th>
+                <th class="num">Total Paid</th>
+                <th>Risk</th>
+                <th>Avg Pay Days</th>
+                <th>Last Updated</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Add/Edit Client Modal -->
+<div class="modal-overlay hidden" id="clientModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modalTitle">New Client</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <form id="clientForm" onsubmit="saveClient(event)">
+      <div class="form-grid">
+
+        <div class="section-divider">Basic Info</div>
+
+        <div class="field full">
+          <label>Company / Client Name <span class="req">*</span></label>
+          <input class="input" id="f-name" required placeholder="e.g. Al-Fatah Traders"/>
+        </div>
+        <div class="field">
+          <label>City <span class="req">*</span></label>
+          <input class="input" id="f-city" required placeholder="Lahore"/>
+        </div>
+        <div class="field">
+          <label>Branch</label>
+          <input class="input" id="f-branch" placeholder="Main / Gulberg"/>
+        </div>
+        <div class="field full">
+          <label>Address</label>
+          <input class="input" id="f-address" placeholder="Street address"/>
+        </div>
+
+        <div class="section-divider">Contact</div>
+
+        <div class="field">
+          <label>Contact Person</label>
+          <input class="input" id="f-contact" placeholder="Mr. Ahmed"/>
+        </div>
+        <div class="field">
+          <label>Phone / Mobile</label>
+          <input class="input" id="f-phone" placeholder="0300-1234567"/>
+        </div>
+        <div class="field">
+          <label>Contact Number 2</label>
+          <input class="input" id="f-contact-number" placeholder="0321-1234567"/>
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input class="input" id="f-email" type="email" placeholder="client@email.com"/>
+        </div>
+
+        <div class="section-divider">Sales & Credit</div>
+
+        <div class="field">
+          <label>Sales Person</label>
+          <input class="input" id="f-sp" placeholder="Sales rep name"/>
+        </div>
+        <div class="field">
+          <label>Salesperson Phone</label>
+          <input class="input" id="f-sp-number" placeholder="03XX-XXXXXXX"/>
+        </div>
+        <div class="field">
+          <label>Credit Limit (PKR)</label>
+          <input class="input" id="f-credit" type="number" placeholder="0"/>
+        </div>
+        <div class="field">
+          <label>Discount Given %</label>
+          <input class="input" id="f-discount" type="number" step="0.1" placeholder="0"/>
+        </div>
+        <div class="field">
+          <label>Sale Category</label>
+          <select class="input" id="f-category">
+            <option value="">Select...</option>
+            <option>Retail</option>
+            <option>Wholesale</option>
+            <option>Dealer</option>
+            <option>Project</option>
+            <option>Government</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Risk Level</label>
+          <select class="input" id="f-risk">
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+
+        <div class="section-divider">Tax Info (Optional)</div>
+
+        <div class="field">
+          <label>NTN</label>
+          <input class="input" id="f-ntn" placeholder="NTN number"/>
+        </div>
+        <div class="field">
+          <label>STRN</label>
+          <input class="input" id="f-strn" placeholder="STRN number"/>
+        </div>
+
+        <div class="section-divider">Notes</div>
+
+        <div class="field full">
+          <label>Notes</label>
+          <textarea class="input" id="f-notes" rows="3" placeholder="Any additional info about this client..."></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save Client</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay hidden" id="importModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">
+      Import Clients
+      <button class="modal-close" onclick="document.getElementById('importModal').classList.add('hidden')">✕</button>
+    </div>
+    <div class="import-zone" id="importZone" onclick="document.getElementById('importFile').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+      <input type="file" id="importFile" accept=".csv,.xlsx,.xls" onchange="handleImportFile(this.files[0])"/>
+      <div style="font-size:32px;margin-bottom:8px">📂</div>
+      <div style="font-weight:600;margin-bottom:4px">Click or drag file here</div>
+      <div style="font-size:12px;color:var(--text-3)">CSV or Excel (.xlsx, .xls)</div>
+    </div>
+    <div id="importPreview" class="hidden" style="margin-top:16px"></div>
+    <div style="margin-top:16px;padding:12px;background:var(--surface-2);border-radius:8px;font-size:12px">
+      <div style="font-weight:600;margin-bottom:6px">Required columns:</div>
+      <div style="color:var(--text-3)">
+        <b>name</b> (or "Company Name") — <span style="color:var(--brand)">mandatory</span><br>
+        <b>city</b> — <span style="color:var(--brand)">mandatory</span><br>
+        phone, address, contact_person, email, salesperson, ntn, strn, credit_limit, discount_pct, notes
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+      <button class="btn btn-ghost btn-sm" onclick="downloadTemplate()">⬇ Download Template</button>
+      <button class="btn btn-primary" id="importBtn" onclick="runImport()" disabled>Import</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script>
+const SB = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+let allClients = [];
+let filtered   = [];
+let currentTab = 'all';
+let editingId  = null;
+let importRows = [];
+
+const fmt  = n => new Intl.NumberFormat('en-PK',{maximumFractionDigits:0}).format(Math.round(n||0));
+const fmtK = n => {
+  if (n>=10000000) return (n/10000000).toFixed(1)+' Cr';
+  if (n>=100000)   return (n/100000).toFixed(1)+' L';
+  if (n>=1000)     return (n/1000).toFixed(1)+' K';
+  return Math.round(n).toString();
+};
+function cleanId(s){ return String(s).trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''); }
+
+// ── Load ──────────────────────────────────────────────────────
+async function loadClients() {
+  document.getElementById('topbarSub').textContent = 'Loading clients...';
+  let rows=[], from=0;
+  while(true){
+    const {data,error} = await SB.from('clients').select('*').range(from, from+999);
+    if(error){ console.error(error); break; }
+    if(!data||!data.length) break;
+    rows = rows.concat(data);
+    if(data.length<1000) break;
+    from+=1000;
+  }
+  allClients = rows;
+  updateStats();
+  populateFilters();
+  applyFilters();
+  document.getElementById('topbarSub').textContent = `${allClients.length} clients loaded`;
+}
+
+function updateStats(){
+  const sps = new Set(allClients.map(c=>c.salesperson).filter(Boolean));
+  const withOs = allClients.filter(c=>c.outstanding_amount>0).length;
+  const totalOs = allClients.reduce((s,c)=>s+(c.outstanding_amount||0),0);
+  document.getElementById('st-total').textContent = allClients.length;
+  document.getElementById('st-sp').textContent    = sps.size;
+  document.getElementById('st-os').textContent    = withOs;
+  document.getElementById('st-osamt').textContent = 'PKR '+fmtK(totalOs);
+}
+
+function populateFilters(){
+  const sps    = [...new Set(allClients.map(c=>c.salesperson).filter(Boolean))].sort();
+  const cities = [...new Set(allClients.map(c=>c.city).filter(Boolean))].sort();
+  const fSp    = document.getElementById('fSp');
+  const fCity  = document.getElementById('fCity');
+  fSp.innerHTML   = '<option value="">All Sales Reps</option>' + sps.map(s=>`<option>${s}</option>`).join('');
+  fCity.innerHTML  = '<option value="">All Cities</option>'    + cities.map(c=>`<option>${c}</option>`).join('');
+}
+
+// ── Filters ───────────────────────────────────────────────────
+function applyFilters(){
+  const q      = (document.getElementById('searchBox').value||'').toLowerCase();
+  const sp     = document.getElementById('fSp').value;
+  const city   = document.getElementById('fCity').value;
+  const source = document.getElementById('fSource').value;
+
+  filtered = allClients.filter(c=>{
+    if(q && ![ c.name, c.phone, c.city, c.contact_person, c.email, c.ntn ].some(v=>(v||'').toLowerCase().includes(q))) return false;
+    if(sp   && c.salesperson !== sp)  return false;
+    if(city && c.city !== city)       return false;
+    if(source && c.source !== source) return false;
+    return true;
+  });
+
+  document.getElementById('filteredCount').textContent = `${filtered.length} of ${allClients.length}`;
+  renderCurrentTab();
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function switchTab(tab, el){
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderCurrentTab();
+}
+
+function renderCurrentTab(){
+  document.getElementById('viewAll').classList.toggle('hidden',    currentTab!=='all');
+  document.getElementById('viewSp').classList.toggle('hidden',     currentTab!=='sp');
+  document.getElementById('viewLedger').classList.toggle('hidden', currentTab!=='ledger');
+  if(currentTab==='all')    renderTable();
+  if(currentTab==='sp')     renderSpView();
+  if(currentTab==='ledger') renderLedger();
+}
+
+// ── All Clients Table ─────────────────────────────────────────
+function renderTable(){
+  const body = document.getElementById('clientBody');
+  if(!filtered.length){
+    body.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No clients found</div><div class="empty-desc">Add your first client or import from CSV/Excel</div></div></td></tr>`;
+    return;
+  }
+  body.innerHTML = filtered.map((c,i)=>`
+    <tr>
+      <td class="text-3" style="font-size:11px">${i+1}</td>
+      <td>
+        <div class="strong">${c.name}</div>
+        ${c.contact_person?`<div class="text-3" style="font-size:11px">${c.contact_person}</div>`:''}
+      </td>
+      <td>${c.city||'—'}</td>
+      <td style="font-family:var(--mono);font-size:12px">${c.phone||'—'}</td>
+      <td>${c.salesperson?`<span class="badge-sp">${c.salesperson}</span>`:'—'}</td>
+      <td class="num strong" style="color:${(c.outstanding_amount||0)>0?'var(--red)':'var(--green)'}">
+        ${(c.outstanding_amount||0)>0?'PKR '+fmt(c.outstanding_amount):'Clear'}
+      </td>
+      <td style="font-size:11px;color:var(--text-3)">${c.ntn||'—'}</td>
+      <td><span class="badge badge-gray" style="font-size:10px">${c.source||'manual'}</span></td>
+      <td style="font-size:11px;color:var(--text-3)">${c.last_updated?new Date(c.last_updated).toLocaleDateString('en-GB'):'—'}</td>
+      <td>
+        <div class="row-actions">
+          <button class="btn btn-secondary btn-sm" onclick="editClient('${c.id}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteClient('${c.id}','${c.name.replace(/'/g,"\\'")}')">Del</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+// ── Salesperson View ──────────────────────────────────────────
+function renderSpView(){
+  const groups = {};
+  allClients.forEach(c=>{
+    const sp = c.salesperson||'(No Salesperson)';
+    if(!groups[sp]) groups[sp]={clients:[],outstanding:0};
+    groups[sp].clients.push(c);
+    groups[sp].outstanding += (c.outstanding_amount||0);
+  });
+
+  const grid = document.getElementById('spGrid');
+  const entries = Object.entries(groups).sort((a,b)=>b[1].clients.length-a[1].clients.length);
+
+  if(!entries.length){
+    grid.innerHTML=`<div class="empty"><div class="empty-icon">👤</div><div class="empty-title">No clients yet</div></div>`;
+    return;
+  }
+
+  grid.innerHTML = entries.map(([sp,g])=>`
+    <div class="sp-card" onclick="filterBySp('${sp.replace(/'/g,"\\'")}')">
+      <div class="sp-name">${sp}</div>
+      <div class="sp-sub">${g.clients[0]?.salesperson_number||''}</div>
+      <div class="sp-stats">
+        <div class="sp-stat">
+          <div class="sp-stat-val">${g.clients.length}</div>
+          <div class="sp-stat-lbl">Clients</div>
+        </div>
+        <div class="sp-stat">
+          <div class="sp-stat-val" style="color:var(--red)">${fmtK(g.outstanding)}</div>
+          <div class="sp-stat-lbl">Outstanding</div>
+        </div>
+        <div class="sp-stat">
+          <div class="sp-stat-val">${g.clients.filter(c=>(c.outstanding_amount||0)>0).length}</div>
+          <div class="sp-stat-lbl">Pending</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function filterBySp(sp){
+  document.getElementById('fSp').value = sp==='(No Salesperson)'?'':sp;
+  switchTab('all', document.querySelectorAll('.tab')[0]);
+}
+
+// ── Ledger View ───────────────────────────────────────────────
+function renderLedger(){
+  const ledgerClients = allClients.filter(c=>c.source==='pdf'||c.total_invoiced>0||(c.transactions&&c.transactions.length>0));
+  const body = document.getElementById('ledgerBody');
+  if(!ledgerClients.length){
+    body.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-icon">📒</div><div class="empty-title">No ledger clients</div><div class="empty-desc">Upload PDF ledgers from Load Data page</div></div></td></tr>`;
+    return;
+  }
+  const riskColor = r => r==='Low'?'var(--green)':r==='High'?'var(--red)':'var(--yellow)';
+  body.innerHTML = ledgerClients.map(c=>`
+    <tr>
+      <td><div class="strong">${c.name}</div><div class="text-3" style="font-size:11px">${c.city||''}</div></td>
+      <td class="num strong" style="color:${(c.outstanding_amount||0)>0?'var(--red)':'var(--green)'}">PKR ${fmt(c.outstanding_amount||0)}</td>
+      <td class="num">PKR ${fmt(c.total_invoiced||0)}</td>
+      <td class="num">PKR ${fmt(c.total_paid||0)}</td>
+      <td><span style="color:${riskColor(c.risk_level)};font-weight:600">${c.risk_level||'Medium'}</span></td>
+      <td class="text-3">${c.avg_payment_days||'N/A'}</td>
+      <td class="text-3" style="font-size:11px">${c.last_updated?new Date(c.last_updated).toLocaleDateString('en-GB'):'—'}</td>
+    </tr>`).join('');
+}
+
+// ── Add / Edit ────────────────────────────────────────────────
+function openAddClient(){
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'New Client';
+  document.getElementById('saveBtn').textContent = 'Save Client';
+  document.getElementById('clientForm').reset();
+  document.getElementById('clientModal').classList.remove('hidden');
+}
+
+function editClient(id){
+  const c = allClients.find(x=>x.id===id);
+  if(!c) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'Edit Client';
+  document.getElementById('saveBtn').textContent = 'Update Client';
+  document.getElementById('f-name').value           = c.name||'';
+  document.getElementById('f-city').value           = c.city||'';
+  document.getElementById('f-branch').value         = c.branch||'';
+  document.getElementById('f-address').value        = c.address||'';
+  document.getElementById('f-contact').value        = c.contact_person||'';
+  document.getElementById('f-phone').value          = c.phone||'';
+  document.getElementById('f-contact-number').value = c.contact_number||'';
+  document.getElementById('f-email').value          = c.email||'';
+  document.getElementById('f-sp').value             = c.salesperson||'';
+  document.getElementById('f-sp-number').value      = c.salesperson_number||'';
+  document.getElementById('f-credit').value         = c.credit_limit||'';
+  document.getElementById('f-discount').value       = c.discount_pct||'';
+  document.getElementById('f-category').value       = c.sale_category||'';
+  document.getElementById('f-risk').value           = c.risk_level||'Medium';
+  document.getElementById('f-ntn').value            = c.ntn||'';
+  document.getElementById('f-strn').value           = c.strn||'';
+  document.getElementById('f-notes').value          = c.notes||'';
+  document.getElementById('clientModal').classList.remove('hidden');
+}
+
+function closeModal(){
+  document.getElementById('clientModal').classList.add('hidden');
+  editingId = null;
+}
+
+async function saveClient(e){
+  e.preventDefault();
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const name = document.getElementById('f-name').value.trim();
+  const record = {
+    id:               editingId || cleanId(name)+'_'+Date.now(),
+    name,
+    city:             document.getElementById('f-city').value.trim(),
+    branch:           document.getElementById('f-branch').value.trim(),
+    address:          document.getElementById('f-address').value.trim(),
+    contact_person:   document.getElementById('f-contact').value.trim(),
+    phone:            document.getElementById('f-phone').value.trim(),
+    contact_number:   document.getElementById('f-contact-number').value.trim(),
+    email:            document.getElementById('f-email').value.trim(),
+    salesperson:      document.getElementById('f-sp').value.trim(),
+    salesperson_number: document.getElementById('f-sp-number').value.trim(),
+    credit_limit:     parseFloat(document.getElementById('f-credit').value)||0,
+    discount_pct:     parseFloat(document.getElementById('f-discount').value)||0,
+    sale_category:    document.getElementById('f-category').value,
+    risk_level:       document.getElementById('f-risk').value,
+    ntn:              document.getElementById('f-ntn').value.trim(),
+    strn:             document.getElementById('f-strn').value.trim(),
+    notes:            document.getElementById('f-notes').value.trim(),
+    source:           'manual',
+    last_updated:     new Date().toISOString()
+  };
+
+  const {error} = await SB.from('clients').upsert(record, {onConflict:'id'});
+  btn.disabled = false;
+  btn.textContent = editingId?'Update Client':'Save Client';
+
+  if(error){ showToast('Save failed: '+error.message,'❌'); return; }
+  showToast(editingId?'Client updated':'Client added','✅');
+  closeModal();
+  loadClients();
+}
+
+async function deleteClient(id, name){
+  if(!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  const {error} = await SB.from('clients').delete().eq('id',id);
+  if(error){ showToast('Delete failed','❌'); return; }
+  showToast('Client deleted','🗑️');
+  loadClients();
+}
+
+// ── Export ────────────────────────────────────────────────────
+function exportClients(){
+  if(!allClients.length){ showToast('No data to export','⚠️'); return; }
+  const headers = ['name','city','branch','phone','contact_person','email','salesperson','salesperson_number','credit_limit','discount_pct','sale_category','risk_level','ntn','strn','outstanding_amount','total_invoiced','total_paid','notes','source','last_updated'];
+  const csv = [headers.join(','), ...allClients.map(c=>headers.map(h=>`"${(c[h]||'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'CNC_Clients_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  showToast('Exported '+allClients.length+' clients','📤');
+}
+
+// ── Import ────────────────────────────────────────────────────
+function openImport(){
+  importRows = [];
+  document.getElementById('importFile').value='';
+  document.getElementById('importPreview').innerHTML='';
+  document.getElementById('importPreview').classList.add('hidden');
+  document.getElementById('importBtn').disabled=true;
+  document.getElementById('importZone').classList.remove('drag');
+  document.getElementById('importModal').classList.remove('hidden');
+}
+
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('importZone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if(file) handleImportFile(file);
+}
+
+function handleImportFile(file){
+  if(!file) return;
+  const isCsv = file.name.endsWith('.csv');
+  const reader = new FileReader();
+  reader.onload = ev => {
+    let rows;
+    if(isCsv){
+      rows = parseCSVImport(ev.target.result);
+    } else {
+      const wb = XLSX.read(ev.target.result, {type:'binary'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+    }
+    importRows = rows.map(normalizeImportRow).filter(r=>r.name);
+    showImportPreview();
+  };
+  if(isCsv) reader.readAsText(file);
+  else reader.readAsBinaryString(file);
+}
+
+function parseCSVImport(text){
+  const lines = text.trim().split(/\r?\n/);
+  const headers = lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim().toLowerCase());
+  return lines.slice(1).map(line=>{
+    const vals = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g)||line.split(',');
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=(vals[i]||'').replace(/^"|"$/g,'').trim());
+    return obj;
+  });
+}
+
+function normalizeImportRow(r){
+  const name = r.name||r['company name']||r['client name']||r['customer']||'';
+  if(!name.trim()) return null;
+  return {
+    id:              cleanId(name)+'_imp_'+Math.random().toString(36).slice(2,7),
+    name:            name.trim(),
+    city:            r.city||r['city']||'',
+    branch:          r.branch||'',
+    address:         r.address||r['street address']||'',
+    contact_person:  r.contact_person||r['contact']||r['contact person']||'',
+    phone:           r.phone||r['mobile']||r['cell']||'',
+    email:           r.email||'',
+    salesperson:     r.salesperson||r['sales person']||r['sales rep']||'',
+    salesperson_number: r.salesperson_number||r['sp phone']||'',
+    credit_limit:    parseFloat(r.credit_limit||r['credit limit']||0)||0,
+    discount_pct:    parseFloat(r.discount_pct||r['discount%']||r['discount']||0)||0,
+    ntn:             r.ntn||'',
+    strn:            r.strn||'',
+    notes:           r.notes||'',
+    sale_category:   r.sale_category||r['category']||'',
+    risk_level:      r.risk_level||r['risk']||'Medium',
+    source:          'csv',
+    last_updated:    new Date().toISOString()
+  };
+}
+
+function showImportPreview(){
+  const el = document.getElementById('importPreview');
+  if(!importRows.length){
+    el.innerHTML=`<div style="color:var(--red);font-size:13px">⚠️ No valid rows found. Make sure "name" column exists.</div>`;
+    el.classList.remove('hidden');
+    document.getElementById('importBtn').disabled=true;
+    return;
+  }
+  el.innerHTML=`
+    <div style="font-size:13px;margin-bottom:8px"><b>${importRows.length}</b> clients ready to import</div>
+    <div style="max-height:150px;overflow-y:auto;font-size:12px;background:var(--surface-2);border-radius:6px;padding:8px">
+      ${importRows.slice(0,10).map(r=>`<div style="padding:3px 0;border-bottom:1px solid var(--border)">${r.name} — ${r.city||'(no city)'} — ${r.salesperson||'(no SP)'}</div>`).join('')}
+      ${importRows.length>10?`<div style="color:var(--text-3);padding:4px 0">...and ${importRows.length-10} more</div>`:''}
+    </div>`;
+  el.classList.remove('hidden');
+  document.getElementById('importBtn').disabled=false;
+}
+
+async function runImport(){
+  const btn = document.getElementById('importBtn');
+  btn.disabled=true; btn.textContent='Importing...';
+  const chunkSize=50;
+  let done=0,errors=0;
+  for(let i=0;i<importRows.length;i+=chunkSize){
+    const chunk = importRows.slice(i,i+chunkSize);
+    const {error} = await SB.from('clients').upsert(chunk,{onConflict:'id'});
+    if(error){ errors++; console.error(error); }
+    else done+=chunk.length;
+  }
+  btn.textContent='Import';
+  document.getElementById('importModal').classList.add('hidden');
+  showToast(`Imported ${done} clients${errors?', '+errors+' errors':''}`, done?'✅':'❌');
+  loadClients();
+}
+
+function downloadTemplate(){
+  const headers = ['name','city','branch','address','contact_person','phone','email','salesperson','salesperson_number','credit_limit','discount_pct','sale_category','ntn','strn','notes'];
+  const sample  = ['Al-Fatah Traders','Lahore','Main','23 Gulberg','Mr. Ahmed','0300-1234567','ahmed@email.com','Ali Raza','0321-9876543','100000','5','Wholesale','1234567','ABC123','Good client'];
+  const csv = [headers.join(','), sample.join(',')].join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'CNC_Clients_Template.csv';
+  a.click();
+}
+
+// ── Init ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadClients);
+</script>
+</body>
+</html>
