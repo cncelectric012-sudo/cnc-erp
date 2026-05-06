@@ -130,7 +130,40 @@ function showToast(msg, icon = '✓') {
 
 // ── Sidebar Render ───────────────────────────────────────────
 function renderSidebar(activePage) {
+  const can = (p) => !window.userPerms || window.userPerms.includes(p);
   const pendingApprovals = (approvals || []).filter(a => a.status === 'pending').length;
+
+  const sbItem = (page, ico, label, badge, perm) => {
+    if (perm && !can(perm)) return '';
+    return `<a class="sb-item ${activePage===page?'active':''}" href="${page}.html">
+      <span class="ico">${ico}</span>${label}
+      ${badge !== undefined ? `<span class="badge-count">${badge}</span>` : ''}
+    </a>`;
+  };
+
+  const workspaceItems = [
+    sbItem('upload',    '📥', 'Load Data',      undefined,   'dashboard.view'),
+    sbItem('portfolio', '📊', 'Portfolio',      customers.length||0, 'dashboard.view'),
+    sbItem('clients',   '👥', 'Clients',        undefined,   'clients.view'),
+    sbItem('ledgers',   '📒', 'Client Ledgers', undefined,   'ledgers.view'),
+    sbItem('payments',  '💳', 'Payments',       payments.length||0, 'payments.view'),
+    sbItem('approvals', '✓',  'Approvals',      pendingApprovals,   'approvals.view'),
+  ].filter(Boolean).join('');
+
+  const engineItems = [
+    sbItem('decision',  '⚡',  'Invoice Decision', undefined, 'dashboard.view'),
+    sbItem('policy',    '⚙️', 'Policy Settings',  undefined, 'dashboard.view'),
+    sbItem('controls',  '🎛️', 'Parameters',       undefined, 'dashboard.view'),
+  ].filter(Boolean).join('');
+
+  const financeItems = [
+    sbItem('paygate', '💰', 'PayGate', undefined, 'paygate.view'),
+  ].filter(Boolean).join('');
+
+  const adminItems = [
+    sbItem('users', '🔐', 'Users & Roles', undefined, 'users.view'),
+  ].filter(Boolean).join('');
+
   const html = `
     <div class="sb-brand">
       <div class="sb-logo">C</div>
@@ -139,59 +172,10 @@ function renderSidebar(activePage) {
         <div class="sb-brand-sub">Credit Engine v2.0</div>
       </div>
     </div>
-
-    <div class="sb-section">
-      <div class="sb-section-label">Workspace</div>
-      <a class="sb-item ${activePage==='upload'?'active':''}" href="upload.html">
-        <span class="ico">📥</span>Load Data
-      </a>
-      <a class="sb-item ${activePage==='portfolio'?'active':''}" href="index.html">
-        <span class="ico">📊</span>Portfolio
-        <span class="badge-count">${customers.length || 0}</span>
-      </a>
-      <a class="sb-item ${activePage==='clients'?'active':''}" href="clients.html">
-        <span class="ico">👥</span>Clients
-      </a>
-      <a class="sb-item ${activePage==='ledgers'?'active':''}" href="ledgers.html">
-        <span class="ico">📒</span>Client Ledgers
-      </a>
-      <a class="sb-item ${activePage==='payments'?'active':''}" href="payments.html">
-        <span class="ico">💳</span>Payments
-        <span class="badge-count">${payments.length || 0}</span>
-      </a>
-      <a class="sb-item ${activePage==='approvals'?'active':''}" href="approvals.html">
-        <span class="ico">✓</span>Approvals
-        <span class="badge-count">${pendingApprovals}</span>
-      </a>
-    </div>
-
-    <div class="sb-section">
-      <div class="sb-section-label">Engine</div>
-      <a class="sb-item ${activePage==='decision'?'active':''}" href="decision.html">
-        <span class="ico">⚡</span>Invoice Decision
-      </a>
-      <a class="sb-item ${activePage==='policy'?'active':''}" href="policy.html">
-        <span class="ico">⚙️</span>Policy Settings
-      </a>
-      <a class="sb-item ${activePage==='controls'?'active':''}" href="controls.html">
-        <span class="ico">🎛️</span>Parameters
-      </a>
-    </div>
-
-    <div class="sb-section">
-      <div class="sb-section-label">Finance</div>
-      <a class="sb-item ${activePage==='paygate'?'active':''}" href="paygate.html">
-        <span class="ico">💰</span>PayGate
-      </a>
-    </div>
-
-    <div class="sb-section">
-      <div class="sb-section-label">Administration</div>
-      <a class="sb-item ${activePage==='users'?'active':''}" href="users.html">
-        <span class="ico">🔐</span>Users & Roles
-      </a>
-    </div>
-
+    ${workspaceItems ? `<div class="sb-section"><div class="sb-section-label">Workspace</div>${workspaceItems}</div>` : ''}
+    ${engineItems   ? `<div class="sb-section"><div class="sb-section-label">Engine</div>${engineItems}</div>` : ''}
+    ${financeItems  ? `<div class="sb-section"><div class="sb-section-label">Finance</div>${financeItems}</div>` : ''}
+    ${adminItems    ? `<div class="sb-section"><div class="sb-section-label">Administration</div>${adminItems}</div>` : ''}
     <div class="sb-footer">
       <div class="sb-status">
         <div class="sb-status-dot"></div>

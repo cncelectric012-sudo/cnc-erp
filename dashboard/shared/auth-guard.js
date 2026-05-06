@@ -1,12 +1,28 @@
 /* ═══════════════════════════════════════════════════════════════
-   Auth Guard — Supabase
+   Auth Guard — Supabase + Role-Based Access Control
    ═══════════════════════════════════════════════════════════════ */
 
 (function() {
   const SUPABASE_URL = 'https://knvaaxywlfpomlatpiua.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
+  const API = SUPABASE_URL + '/rest/v1';
 
-  // Hide page until auth check completes
+  // Page → required permission mapping
+  const PAGE_PERMS = {
+    'index.html':    'dashboard.view',
+    'upload.html':   'dashboard.view',
+    'clients.html':  'clients.view',
+    'ledgers.html':  'ledgers.view',
+    'payments.html': 'payments.view',
+    'approvals.html':'approvals.view',
+    'decision.html': 'dashboard.view',
+    'policy.html':   'dashboard.view',
+    'controls.html': 'dashboard.view',
+    'paygate.html':  'paygate.view',
+    'users.html':    'users.view',
+  };
+
+  // Hide page until auth + perms loaded
   const style = document.createElement('style');
   style.id = 'auth-guard-hide';
   style.textContent = 'body{visibility:hidden!important}';
@@ -25,58 +41,106 @@
     loader.innerHTML = `
       <div style="text-align:center">
         <div style="width:32px;height:32px;border:3px solid #E5E7EB;border-top-color:#DC2626;border-radius:50%;margin:0 auto 12px;animation:spin 0.8s linear infinite"></div>
-        <div>Verifying session...</div>
+        <div>Loading...</div>
       </div>
       <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
     `;
     document.body.appendChild(loader);
   });
 
-  function reveal(user) {
+  function goLogin() { window.location.replace('login.html'); }
+
+  function goNoAccess(perm) {
+    const page = window.location.pathname.split('/').pop() || 'index.html';
+    window.location.replace(`login.html?noaccess=1&page=${encodeURIComponent(page)}`);
+  }
+
+  async function fetchPerms(email) {
+    try {
+      const hdrs = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY };
+      // Find user in app_users by email
+      const ur = await fetch(`${API}/app_users?email=eq.${encodeURIComponent(email)}&active=eq.true&select=id,name,role_id,username`, { headers: hdrs });
+      const users = await ur.json();
+
+      if (!users || !users.length) {
+        // Not in app_users → give full access (owner/admin account)
+        return { role: 'super_admin', perms: null, appUser: null };
+      }
+
+      const appUser = users[0];
+      const pr = await fetch(`${API}/role_permissions?role_id=eq.${appUser.role_id}&select=permission`, { headers: hdrs });
+      const permRows = await pr.json();
+      const perms = (permRows || []).map(p => p.permission);
+
+      return { role: appUser.role_id, perms, appUser };
+    } catch(e) {
+      return { role: 'super_admin', perms: null, appUser: null };
+    }
+  }
+
+  function hasPerm(perm) {
+    if (!window.userPerms) return true; // null = super_admin (full access)
+    return window.userPerms.includes(perm);
+  }
+
+  async function reveal(user) {
     window.currentUser = user;
+
+    // Load permissions
+    const { role, perms, appUser } = await fetchPerms(user.email);
+    window.userRole  = role;
+    window.userPerms = perms; // null = full access
+    window.appUser   = appUser;
+
+    // Check if current page is allowed
+    const page = window.location.pathname.split('/').pop() || 'index.html';
+    const requiredPerm = PAGE_PERMS[page];
+    if (requiredPerm && !hasPerm(requiredPerm)) {
+      goNoAccess(requiredPerm);
+      return;
+    }
+
+    // Show page
     document.getElementById('auth-guard-hide')?.remove();
     document.getElementById('auth-loader')?.remove();
 
+    // Sidebar user box
     setTimeout(() => {
       const footer = document.querySelector('.sb-footer');
       if (footer && !footer.querySelector('.sb-user')) {
+        const displayName = appUser?.name || user.email.split('@')[0];
+        const roleName = role ? role.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()) : '';
         const userBox = document.createElement('div');
         userBox.className = 'sb-user';
         userBox.style.cssText = 'padding:8px 10px;font-size:11px;color:var(--text-3);border-top:1px solid var(--border);margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px';
         userBox.innerHTML = `
-          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">
-            <div style="font-weight:600;color:var(--text-2)">Signed in</div>
-            <div style="font-size:10px">${user.email}</div>
+          <div style="overflow:hidden;flex:1;min-width:0">
+            <div style="font-weight:600;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${displayName}</div>
+            <div style="font-size:10px;color:var(--text-3)">${roleName}</div>
           </div>
-          <button onclick="signOut()" style="background:none;border:1px solid var(--border);color:var(--text-3);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-family:inherit">Sign out</button>
+          <button onclick="signOut()" style="background:none;border:1px solid var(--border);color:var(--text-3);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-family:inherit;white-space:nowrap">Sign out</button>
         `;
         footer.appendChild(userBox);
       }
     }, 150);
   }
 
-  function goLogin() {
-    window.location.replace('login.html');
-  }
-
   async function checkAuth() {
     try {
       const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       window._supabase = client;
+      window.hasPerm = (p) => !window.userPerms || window.userPerms.includes(p);
 
-      // Timeout: if Supabase doesn't respond in 6s, go to login
-      const timeout = setTimeout(goLogin, 6000);
-
+      const timeout = setTimeout(goLogin, 8000);
       const { data: { session }, error } = await client.auth.getSession();
       clearTimeout(timeout);
 
       if (error || !session) {
-        // Try refresh
         const { data: refreshed } = await client.auth.refreshSession();
         if (!refreshed?.session) { goLogin(); return; }
-        reveal(refreshed.session.user);
+        await reveal(refreshed.session.user);
       } else {
-        reveal(session.user);
+        await reveal(session.user);
       }
     } catch(e) {
       console.error('Auth error:', e);
@@ -84,7 +148,6 @@
     }
   }
 
-  // Wait for Supabase SDK to be available
   function waitForSupabase(attempts) {
     if (typeof supabase !== 'undefined') {
       checkAuth();
