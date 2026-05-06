@@ -107,25 +107,6 @@
   <aside class="sidebar" id="sidebar"></aside>
   <main class="main">
 
-    <!-- PayGate Login Screen -->
-    <div class="pg-login hidden" id="pgLogin">
-      <div class="pg-login-box">
-        <div class="pg-logo">PG</div>
-        <div style="text-align:center;font-size:20px;font-weight:800;margin-bottom:4px">PayGate</div>
-        <div style="text-align:center;font-size:12px;color:var(--text-3);margin-bottom:20px">CNC Electric · CS Traders · CSPL</div>
-        <div class="field">
-          <label>Username</label>
-          <input class="input" id="pg-username" placeholder="Enter username" autocomplete="username"/>
-        </div>
-        <div class="field">
-          <label>Password</label>
-          <input class="input" id="pg-pass" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')pgLogin()"/>
-        </div>
-        <div id="pg-login-err" style="color:var(--red);font-size:12px;min-height:18px;margin-bottom:8px"></div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="pgLogin()">Sign In</button>
-      </div>
-    </div>
-
     <!-- Main App -->
     <div id="pgApp" class="hidden">
       <div class="topbar" style="gap:10px">
@@ -140,7 +121,6 @@
             <button class="view-btn" id="vbAccounts" onclick="setView('accounts',this)">🖥️ Accounts</button>
           </div>
           <span id="pgUserBadge" style="font-size:12px;color:var(--text-3)"></span>
-          <button class="btn btn-ghost btn-sm" onclick="pgLogout()">Sign Out</button>
         </div>
       </div>
 
@@ -316,37 +296,22 @@ let pgState = { cust:'', amt:'', ent:'CNC', typ:'ledger', phone:'', invoice:'', 
 
 const BANK_MAP = { CNC:'BAH AOP or Meezan Pvt', CST:'BAFL AOP (705) or BAH AOP', CSPL:'BAFL 989 or BAH Pvt' };
 
-async function pgLogin() {
-  const username = document.getElementById('pg-username').value.trim().toLowerCase();
-  const pass     = document.getElementById('pg-pass').value;
-  const errEl    = document.getElementById('pg-login-err');
-  errEl.textContent = '';
-  if(!username||!pass) { errEl.textContent='Enter username and password'; return; }
-
-  try {
-    const hash = await sha256(pass);
-    const data = await apiFetch(`/app_users?username=eq.${encodeURIComponent(username)}&active=eq.true&select=id,name,username,role_id,email,phone`);
-    if(!data||!data.length) { errEl.textContent='User not found'; return; }
-
-    const userCheck = await apiFetch(`/app_users?username=eq.${encodeURIComponent(username)}&password_hash=eq.${hash}&active=eq.true&select=id,name,username,role_id`);
-    if(!userCheck||!userCheck.length) { errEl.textContent='Wrong password'; return; }
-
-    PGU = userCheck[0];
-    // Update last login
-    await fetch(`${API}/app_users?id=eq.${PGU.id}`, { method:'PATCH', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify({last_login:new Date().toISOString()}) });
-
-    try { localStorage.setItem('pg_session', JSON.stringify(PGU)); } catch(e){}
-    initPGApp();
-  } catch(e) {
-    errEl.textContent = 'Error: '+e.message;
+// ── Init from ERP session (auth-guard sets window.currentUser) ──
+async function initFromERP() {
+  const erpUser = window.currentUser;
+  if(!erpUser?.email) {
+    document.getElementById('pgTopbarSub').textContent = '⚠️ ERP session not found';
+    return;
   }
-}
-
-function pgLogout() {
-  PGU = null;
-  try { localStorage.removeItem('pg_session'); } catch(e){}
-  document.getElementById('pgLogin').classList.remove('hidden');
-  document.getElementById('pgApp').classList.add('hidden');
+  // Look up user in app_users by email
+  const data = await apiFetch(`/app_users?email=eq.${encodeURIComponent(erpUser.email)}&active=eq.true&select=id,name,username,role_id`);
+  if(data && data.length) {
+    PGU = data[0];
+  } else {
+    // Fallback: use ERP email as name, assign super_admin role for owner
+    PGU = { id: erpUser.id, name: erpUser.email.split('@')[0], username: erpUser.email, role_id: 'super_admin' };
+  }
+  initPGApp();
 }
 
 function canDo(perm) {
@@ -355,7 +320,6 @@ function canDo(perm) {
 }
 
 async function initPGApp() {
-  document.getElementById('pgLogin').classList.add('hidden');
   document.getElementById('pgApp').classList.remove('hidden');
 
   // Load user permissions
@@ -729,13 +693,17 @@ document.getElementById('pgDetailModal').addEventListener('click', e => {
   if(e.target===e.currentTarget) e.currentTarget.classList.add('hidden');
 });
 
-// ── Auto login ─────────────────────────────────────────────────
+// ── Init: wait for auth-guard to set window.currentUser ────────
 document.addEventListener('DOMContentLoaded', () => {
-  try {
-    const saved = JSON.parse(localStorage.getItem('pg_session')||'null');
-    if(saved?.id) { PGU=saved; initPGApp(); return; }
-  } catch(e){}
-  document.getElementById('pgLogin').classList.remove('hidden');
+  // auth-guard fires a reveal — wait for currentUser to be set
+  const wait = setInterval(() => {
+    if(window.currentUser) {
+      clearInterval(wait);
+      initFromERP();
+    }
+  }, 100);
+  // Timeout after 8s
+  setTimeout(() => clearInterval(wait), 8000);
 });
 </script>
 </body>
