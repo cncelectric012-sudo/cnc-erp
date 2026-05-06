@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Users & Roles · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.page-tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--border); }
+.page-tab { padding:9px 18px; font-size:13px; font-weight:500; color:var(--text-3); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+.page-tab.active { color:var(--brand); border-bottom-color:var(--brand); }
+
+.user-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; }
+.user-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; position:relative; }
+.user-card.inactive { opacity:.6; }
+.user-avatar { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; color:white; margin-bottom:10px; }
+.user-name { font-weight:700; font-size:15px; }
+.user-meta { font-size:12px; color:var(--text-3); margin-top:2px; }
+.role-pill { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:600; margin-top:8px; }
+.user-actions { display:flex; gap:6px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
+
+.roles-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:12px; }
+.role-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; }
+.role-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.role-dot { width:14px; height:14px; border-radius:50%; flex-shrink:0; }
+.role-name { font-weight:700; font-size:15px; }
+.role-desc { font-size:12px; color:var(--text-3); }
+.perm-list { display:flex; flex-wrap:wrap; gap:5px; }
+.perm-badge { padding:2px 8px; border-radius:4px; font-size:10px; font-weight:600; background:var(--surface-2); color:var(--text-3); border:1px solid var(--border); }
+.perm-badge.on { background:var(--green-50); color:var(--green); border-color:var(--green-100); }
+
+/* Modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:500; padding:20px; }
+.modal-overlay.hidden { display:none; }
+.modal-box { background:var(--surface); border-radius:14px; width:100%; max-width:600px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+.modal-hdr { padding:18px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:var(--surface); z-index:1; }
+.modal-hdr h2 { font-size:16px; font-weight:700; margin:0; }
+.modal-body { padding:20px 22px; }
+.modal-close { background:var(--surface-2); border:1px solid var(--border); width:30px; height:30px; border-radius:6px; cursor:pointer; font-size:16px; display:grid; place-items:center; }
+
+.form-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.form-grid2 .full { grid-column:1/-1; }
+.section-lbl { font-size:11px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:.5px; margin:14px 0 8px; padding-top:10px; border-top:1px solid var(--border); }
+
+/* Permissions checkboxes */
+.perm-group { margin-bottom:14px; }
+.perm-group-title { font-size:11px; font-weight:700; color:var(--text-2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+.perm-checks { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.perm-check { display:flex; align-items:center; gap:8px; padding:7px 10px; border:1px solid var(--border); border-radius:6px; cursor:pointer; transition:all .15s; }
+.perm-check:hover { background:var(--surface-2); }
+.perm-check.checked { background:var(--green-50); border-color:var(--green-100); }
+.perm-check input { display:none; }
+.perm-check .chk { width:16px; height:16px; border:2px solid var(--border-2); border-radius:3px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .15s; }
+.perm-check.checked .chk { background:var(--green); border-color:var(--green); color:white; font-size:10px; }
+.perm-check .chk-lbl { font-size:12px; font-weight:500; }
+
+.stats-bar { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px; }
+.stat-mini { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+.stat-mini .v { font-size:22px; font-weight:700; }
+.stat-mini .l { font-size:11px; color:var(--text-3); margin-top:2px; }
+</style>
+</head>
+<body data-page="users">
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Users & Roles</div>
+        <div class="topbar-sub" id="topbarSub">Loading...</div>
+      </div>
+      <div class="topbar-actions">
+        <div style="position:relative">
+          <button class="btn btn-primary btn-sm" onclick="toggleDropdown()">+ Create ▾</button>
+          <div id="createDropdown" class="hidden" style="position:absolute;right:0;top:38px;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-md);min-width:160px;z-index:100;">
+            <div style="padding:6px 4px;">
+              <button onclick="openUserModal();toggleDropdown()" style="display:block;width:100%;padding:8px 14px;text-align:left;background:none;border:none;cursor:pointer;font-size:13px;border-radius:6px;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='none'">👤 New User</button>
+              <button onclick="openRoleModal();toggleDropdown()" style="display:block;width:100%;padding:8px 14px;text-align:left;background:none;border:none;cursor:pointer;font-size:13px;border-radius:6px;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='none'">🎭 New Role</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="stats-bar">
+        <div class="stat-mini"><div class="v" id="st-users">0</div><div class="l">Total Users</div></div>
+        <div class="stat-mini"><div class="v" id="st-active" style="color:var(--green)">0</div><div class="l">Active</div></div>
+        <div class="stat-mini"><div class="v" id="st-roles">0</div><div class="l">Roles</div></div>
+        <div class="stat-mini"><div class="v" id="st-inactive" style="color:var(--text-3)">0</div><div class="l">Inactive</div></div>
+      </div>
+
+      <div class="page-tabs">
+        <div class="page-tab active" onclick="switchTab('users',this)">👥 Users</div>
+        <div class="page-tab" onclick="switchTab('roles',this)">🎭 Roles & Permissions</div>
+      </div>
+
+      <!-- Users Tab -->
+      <div id="tabUsers">
+        <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;">
+          <input class="input" style="width:240px" id="userSearch" placeholder="Search name, username..." oninput="renderUsers()"/>
+          <select class="input" style="width:160px" id="roleFilter" onchange="renderUsers()">
+            <option value="">All Roles</option>
+          </select>
+          <select class="input" style="width:130px" id="statusFilter" onchange="renderUsers()">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+        <div class="user-grid" id="userGrid"></div>
+      </div>
+
+      <!-- Roles Tab -->
+      <div id="tabRoles" class="hidden">
+        <div class="roles-grid" id="rolesGrid"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- User Modal -->
+<div class="modal-overlay hidden" id="userModal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h2 id="userModalTitle">New User</h2>
+      <button class="modal-close" onclick="closeUserModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <form onsubmit="saveUser(event)">
+        <div class="form-grid2">
+          <div class="section-lbl full">Basic Info</div>
+          <div class="field full">
+            <label>Full Name <span style="color:var(--brand)">*</span></label>
+            <input class="input" id="u-name" required placeholder="e.g. Ali Raza"/>
+          </div>
+          <div class="field">
+            <label>Username <span style="color:var(--brand)">*</span></label>
+            <input class="input" id="u-username" required placeholder="ali_raza" style="font-family:var(--font-mono)"/>
+          </div>
+          <div class="field">
+            <label>Phone</label>
+            <input class="input" id="u-phone" placeholder="0300-1234567"/>
+          </div>
+          <div class="field full">
+            <label>Email</label>
+            <input class="input" id="u-email" type="email" placeholder="ali@cncelectric.pk"/>
+          </div>
+
+          <div class="section-lbl full">Password</div>
+          <div class="field">
+            <label id="passLabel">Password <span style="color:var(--brand)">*</span></label>
+            <input class="input" id="u-pass" type="password" placeholder="Min 6 characters" style="font-family:var(--font-mono)"/>
+          </div>
+          <div class="field">
+            <label>Confirm Password</label>
+            <input class="input" id="u-pass2" type="password" placeholder="Repeat password" style="font-family:var(--font-mono)"/>
+          </div>
+          <div style="grid-column:1/-1;font-size:11px;color:var(--text-3);margin-top:-8px" id="passHint">Leave blank to keep existing password (edit mode)</div>
+
+          <div class="section-lbl full">Role & Status</div>
+          <div class="field">
+            <label>Role <span style="color:var(--brand)">*</span></label>
+            <select class="input" id="u-role" required>
+              <option value="">Select role...</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select class="input" id="u-active">
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+          <button type="button" class="btn btn-secondary" onclick="closeUserModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="userSaveBtn">Save User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Role Modal -->
+<div class="modal-overlay hidden" id="roleModal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h2 id="roleModalTitle">New Role</h2>
+      <button class="modal-close" onclick="closeRoleModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <form onsubmit="saveRole(event)">
+        <div class="form-grid2">
+          <div class="section-lbl full">Role Info</div>
+          <div class="field">
+            <label>Role ID <span style="color:var(--brand)">*</span></label>
+            <input class="input" id="r-id" required placeholder="e.g. manager" style="font-family:var(--font-mono)"/>
+          </div>
+          <div class="field">
+            <label>Display Name <span style="color:var(--brand)">*</span></label>
+            <input class="input" id="r-name" required placeholder="e.g. Manager"/>
+          </div>
+          <div class="field full">
+            <label>Description</label>
+            <input class="input" id="r-desc" placeholder="What can this role do?"/>
+          </div>
+          <div class="field">
+            <label>Color</label>
+            <input class="input" id="r-color" type="color" value="#2563EB" style="height:38px;padding:4px 8px;cursor:pointer"/>
+          </div>
+        </div>
+
+        <div class="section-lbl">Permissions</div>
+
+        <div class="perm-group">
+          <div class="perm-group-title">📊 Dashboard & Reports</div>
+          <div class="perm-checks">
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="dashboard.view"><div class="chk">✓</div><span class="chk-lbl">View Dashboard</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="reports.view"><div class="chk">✓</div><span class="chk-lbl">View Reports</span></label>
+          </div>
+        </div>
+
+        <div class="perm-group">
+          <div class="perm-group-title">👥 Clients</div>
+          <div class="perm-checks">
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="clients.view"><div class="chk">✓</div><span class="chk-lbl">View Clients</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="clients.create"><div class="chk">✓</div><span class="chk-lbl">Create Clients</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="clients.edit"><div class="chk">✓</div><span class="chk-lbl">Edit Clients</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="clients.delete"><div class="chk">✓</div><span class="chk-lbl">Delete Clients</span></label>
+          </div>
+        </div>
+
+        <div class="perm-group">
+          <div class="perm-group-title">💳 Payments & Ledgers</div>
+          <div class="perm-checks">
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="payments.view"><div class="chk">✓</div><span class="chk-lbl">View Payments</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="payments.create"><div class="chk">✓</div><span class="chk-lbl">Create Payments</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="payments.approve"><div class="chk">✓</div><span class="chk-lbl">Approve Payments</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="payments.journal"><div class="chk">✓</div><span class="chk-lbl">Post Journal</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="ledgers.view"><div class="chk">✓</div><span class="chk-lbl">View Ledgers</span></label>
+          </div>
+        </div>
+
+        <div class="perm-group">
+          <div class="perm-group-title">✅ Invoice Approvals</div>
+          <div class="perm-checks">
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="approvals.view"><div class="chk">✓</div><span class="chk-lbl">View Approvals</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="approvals.manage"><div class="chk">✓</div><span class="chk-lbl">Manage Approvals</span></label>
+          </div>
+        </div>
+
+        <div class="perm-group">
+          <div class="perm-group-title">💰 PayGate</div>
+          <div class="perm-checks">
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="paygate.view"><div class="chk">✓</div><span class="chk-lbl">View PayGate</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="paygate.submit"><div class="chk">✓</div><span class="chk-lbl">Submit Payments</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="paygate.verify"><div class="chk">✓</div><span class="chk-lbl">Verify Payments</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="paygate.journal"><div class="chk">✓</div><span class="chk-lbl">Post to Journal</span></label>
+          </div>
+        </div>
+
+        <div class="perm-group">
+          <div class="perm-group-title">⚙️ Administration</div>
+          <div class="perm-checks">
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="users.view"><div class="chk">✓</div><span class="chk-lbl">View Users</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="users.manage"><div class="chk">✓</div><span class="chk-lbl">Manage Users</span></label>
+            <label class="perm-check" onclick="togglePerm(this)"><input type="checkbox" value="roles.manage"><div class="chk">✓</div><span class="chk-lbl">Manage Roles</span></label>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+          <button type="button" class="btn btn-secondary" onclick="closeRoleModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="roleSaveBtn">Save Role</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script>
+const API  = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
+const KEY  = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
+const HDR  = { 'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':'return=representation' };
+
+async function apiFetch(path, opts={}) {
+  const r = await fetch(API+path, { headers:HDR, ...opts });
+  if(!r.ok) { const t=await r.text(); throw new Error(t); }
+  return r.status===204?null:r.json();
+}
+
+let allUsers=[], allRoles=[], rolePerms={};
+let editingUserId=null, editingRoleId=null;
+let currentTab='users';
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── Load ──────────────────────────────────────────────────────
+async function loadAll() {
+  document.getElementById('topbarSub').textContent = 'Loading...';
+  try {
+    const [users, roles, perms] = await Promise.all([
+      apiFetch('/app_users?order=created_at.desc&select=id,name,email,phone,username,role_id,active,last_login,created_at'),
+      apiFetch('/roles?order=name.asc'),
+      apiFetch('/role_permissions?select=role_id,permission')
+    ]);
+    allUsers = users || [];
+    allRoles = roles || [];
+    rolePerms = {};
+    (perms||[]).forEach(p => {
+      if(!rolePerms[p.role_id]) rolePerms[p.role_id]=[];
+      rolePerms[p.role_id].push(p.permission);
+    });
+    updateStats();
+    populateRoleFilter();
+    renderUsers();
+    renderRoles();
+    document.getElementById('topbarSub').textContent = `${allUsers.length} users · ${allRoles.length} roles`;
+  } catch(e) {
+    document.getElementById('topbarSub').textContent = '⚠️ '+e.message;
+  }
+}
+
+function updateStats() {
+  document.getElementById('st-users').textContent   = allUsers.length;
+  document.getElementById('st-active').textContent  = allUsers.filter(u=>u.active).length;
+  document.getElementById('st-roles').textContent   = allRoles.length;
+  document.getElementById('st-inactive').textContent= allUsers.filter(u=>!u.active).length;
+}
+
+function populateRoleFilter() {
+  const sel = document.getElementById('roleFilter');
+  sel.innerHTML = '<option value="">All Roles</option>' + allRoles.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
+  const uSel = document.getElementById('u-role');
+  if(uSel) uSel.innerHTML = '<option value="">Select role...</option>' + allRoles.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function switchTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.page-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tabUsers').classList.toggle('hidden', tab!=='users');
+  document.getElementById('tabRoles').classList.toggle('hidden', tab!=='roles');
+}
+
+// ── Users Render ──────────────────────────────────────────────
+function renderUsers() {
+  const q      = (document.getElementById('userSearch').value||'').toLowerCase();
+  const roleF  = document.getElementById('roleFilter').value;
+  const statusF= document.getElementById('statusFilter').value;
+
+  const filtered = allUsers.filter(u => {
+    if(q && ![(u.name||''),(u.username||''),(u.email||'')].some(v=>v.toLowerCase().includes(q))) return false;
+    if(roleF && u.role_id !== roleF) return false;
+    if(statusF==='active' && !u.active) return false;
+    if(statusF==='inactive' && u.active) return false;
+    return true;
+  });
+
+  const grid = document.getElementById('userGrid');
+  if(!filtered.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">👥</div><div class="empty-title">No users found</div></div>`;
+    return;
+  }
+
+  const colors = ['#DC2626','#2563EB','#16A34A','#7C3AED','#EA580C','#0891B2'];
+  grid.innerHTML = filtered.map((u,i) => {
+    const role = allRoles.find(r=>r.id===u.role_id);
+    const color = role?.color || colors[i%colors.length];
+    return `
+    <div class="user-card ${u.active?'':'inactive'}">
+      <div class="user-avatar" style="background:${color}">${(u.name||'?').charAt(0).toUpperCase()}</div>
+      <div class="user-name">${u.name}</div>
+      <div class="user-meta">@${u.username}${u.email?' · '+u.email:''}</div>
+      ${u.phone?`<div class="user-meta">${u.phone}</div>`:''}
+      <div style="margin-top:6px">
+        <span class="role-pill" style="background:${color}22;color:${color}">${role?.name||u.role_id||'No Role'}</span>
+        ${!u.active?'<span class="role-pill" style="background:var(--surface-2);color:var(--text-3);margin-left:4px">Inactive</span>':''}
+      </div>
+      ${u.last_login?`<div style="font-size:10px;color:var(--text-4);margin-top:6px">Last login: ${new Date(u.last_login).toLocaleDateString('en-GB')}</div>`:''}
+      <div class="user-actions">
+        <button class="btn btn-secondary btn-sm" onclick="editUser('${u.id}')">✏️ Edit</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleActive('${u.id}',${u.active})" style="color:${u.active?'var(--red)':'var(--green)'}">
+          ${u.active?'🚫 Deactivate':'✅ Activate'}
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="resetPass('${u.id}','${u.name.replace(/'/g,"\\'")}')">🔑 Reset Pass</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Roles Render ──────────────────────────────────────────────
+const ALL_PERMS = {
+  'dashboard.view':'View Dashboard','reports.view':'View Reports',
+  'clients.view':'View Clients','clients.create':'Create Clients','clients.edit':'Edit Clients','clients.delete':'Delete Clients',
+  'payments.view':'View Payments','payments.create':'Create Payments','payments.approve':'Approve Payments','payments.journal':'Post Journal','ledgers.view':'View Ledgers',
+  'approvals.view':'View Approvals','approvals.manage':'Manage Approvals',
+  'paygate.view':'View PayGate','paygate.submit':'Submit Payments','paygate.verify':'Verify Payments','paygate.journal':'Post to Journal',
+  'users.view':'View Users','users.manage':'Manage Users','roles.manage':'Manage Roles'
+};
+
+function renderRoles() {
+  const grid = document.getElementById('rolesGrid');
+  if(!allRoles.length) { grid.innerHTML=`<div class="empty"><div class="empty-icon">🎭</div><div class="empty-title">No roles yet</div></div>`; return; }
+  grid.innerHTML = allRoles.map(r => {
+    const perms = rolePerms[r.id]||[];
+    const userCount = allUsers.filter(u=>u.role_id===r.id).length;
+    return `
+    <div class="role-card">
+      <div class="role-header">
+        <div class="role-dot" style="background:${r.color||'#6B7280'}"></div>
+        <div>
+          <div class="role-name">${r.name}</div>
+          <div class="role-desc">${r.description||''} · <b>${userCount}</b> user${userCount!==1?'s':''}</div>
+        </div>
+      </div>
+      <div class="perm-list" style="margin-bottom:12px">
+        ${perms.map(p=>`<span class="perm-badge on">${ALL_PERMS[p]||p}</span>`).join('')}
+        ${!perms.length?'<span style="font-size:12px;color:var(--text-3)">No permissions</span>':''}
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="editRole('${r.id}')">✏️ Edit</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteRole('${r.id}','${r.name.replace(/'/g,"\\'")}')">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── User Modal ─────────────────────────────────────────────────
+function openUserModal(userId=null) {
+  editingUserId = userId;
+  document.getElementById('userModalTitle').textContent = userId?'Edit User':'New User';
+  document.getElementById('userSaveBtn').textContent = userId?'Update User':'Save User';
+  document.getElementById('passLabel').innerHTML = userId?'New Password <span style="color:var(--text-3)">(optional)</span>':'Password <span style="color:var(--brand)">*</span>';
+  document.getElementById('passHint').style.display = userId?'block':'none';
+  document.getElementById('u-pass').required = !userId;
+  populateRoleFilter();
+
+  if(userId) {
+    const u = allUsers.find(x=>x.id===userId);
+    if(!u) return;
+    document.getElementById('u-name').value     = u.name||'';
+    document.getElementById('u-username').value = u.username||'';
+    document.getElementById('u-email').value    = u.email||'';
+    document.getElementById('u-phone').value    = u.phone||'';
+    document.getElementById('u-role').value     = u.role_id||'';
+    document.getElementById('u-active').value   = String(u.active!==false);
+    document.getElementById('u-pass').value     = '';
+    document.getElementById('u-pass2').value    = '';
+  } else {
+    document.getElementById('u-name').value     = '';
+    document.getElementById('u-username').value = '';
+    document.getElementById('u-email').value    = '';
+    document.getElementById('u-phone').value    = '';
+    document.getElementById('u-role').value     = '';
+    document.getElementById('u-active').value   = 'true';
+    document.getElementById('u-pass').value     = '';
+    document.getElementById('u-pass2').value    = '';
+  }
+  document.getElementById('userModal').classList.remove('hidden');
+}
+
+function editUser(id) { openUserModal(id); }
+function closeUserModal() { document.getElementById('userModal').classList.add('hidden'); editingUserId=null; }
+
+async function saveUser(e) {
+  e.preventDefault();
+  const btn = document.getElementById('userSaveBtn');
+  btn.disabled=true; btn.textContent='Saving...';
+
+  const name     = document.getElementById('u-name').value.trim();
+  const username = document.getElementById('u-username').value.trim().toLowerCase();
+  const email    = document.getElementById('u-email').value.trim();
+  const phone    = document.getElementById('u-phone').value.trim();
+  const roleId   = document.getElementById('u-role').value;
+  const active   = document.getElementById('u-active').value === 'true';
+  const pass     = document.getElementById('u-pass').value;
+  const pass2    = document.getElementById('u-pass2').value;
+
+  if(pass && pass !== pass2) {
+    showToast('Passwords do not match','❌');
+    btn.disabled=false; btn.textContent=editingUserId?'Update User':'Save User';
+    return;
+  }
+  if(pass && pass.length < 6) {
+    showToast('Password must be at least 6 characters','❌');
+    btn.disabled=false; btn.textContent=editingUserId?'Update User':'Save User';
+    return;
+  }
+
+  try {
+    const record = { name, username, email, phone, role_id:roleId||null, active };
+    if(pass) record.password_hash = await sha256(pass);
+
+    if(editingUserId) {
+      await fetch(`${API}/app_users?id=eq.${editingUserId}`, { method:'PATCH', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify(record) });
+    } else {
+      record.id = 'usr_'+Date.now();
+      record.created_at = new Date().toISOString();
+      if(!pass) { showToast('Password required for new user','❌'); btn.disabled=false; btn.textContent='Save User'; return; }
+      await fetch(`${API}/app_users`, { method:'POST', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify(record) });
+    }
+    showToast(editingUserId?'User updated':'User created','✅');
+    closeUserModal();
+    loadAll();
+  } catch(err) {
+    showToast('Error: '+err.message,'❌');
+  }
+  btn.disabled=false; btn.textContent=editingUserId?'Update User':'Save User';
+}
+
+async function toggleActive(id, current) {
+  await fetch(`${API}/app_users?id=eq.${id}`, { method:'PATCH', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify({active:!current}) });
+  showToast(current?'User deactivated':'User activated', current?'🚫':'✅');
+  loadAll();
+}
+
+async function resetPass(id, name) {
+  const newPass = prompt(`New password for "${name}":`, '');
+  if(!newPass) return;
+  if(newPass.length < 6) { alert('Password must be at least 6 characters'); return; }
+  const hash = await sha256(newPass);
+  await fetch(`${API}/app_users?id=eq.${id}`, { method:'PATCH', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify({password_hash:hash}) });
+  showToast('Password reset for '+name,'🔑');
+}
+
+// ── Role Modal ─────────────────────────────────────────────────
+function togglePerm(el) {
+  el.classList.toggle('checked');
+  el.querySelector('input').checked = el.classList.contains('checked');
+}
+
+function openRoleModal(roleId=null) {
+  editingRoleId = roleId;
+  document.getElementById('roleModalTitle').textContent = roleId?'Edit Role':'New Role';
+  document.getElementById('roleSaveBtn').textContent = roleId?'Update Role':'Save Role';
+  document.querySelectorAll('.perm-check').forEach(el => { el.classList.remove('checked'); el.querySelector('input').checked=false; });
+
+  if(roleId) {
+    const r = allRoles.find(x=>x.id===roleId);
+    if(!r) return;
+    document.getElementById('r-id').value    = r.id;
+    document.getElementById('r-id').disabled = true;
+    document.getElementById('r-name').value  = r.name;
+    document.getElementById('r-desc').value  = r.description||'';
+    document.getElementById('r-color').value = r.color||'#2563EB';
+    const perms = rolePerms[roleId]||[];
+    document.querySelectorAll('.perm-check').forEach(el => {
+      const val = el.querySelector('input').value;
+      if(perms.includes(val)) { el.classList.add('checked'); el.querySelector('input').checked=true; }
+    });
+  } else {
+    document.getElementById('r-id').value    = '';
+    document.getElementById('r-id').disabled = false;
+    document.getElementById('r-name').value  = '';
+    document.getElementById('r-desc').value  = '';
+    document.getElementById('r-color').value = '#2563EB';
+  }
+  document.getElementById('roleModal').classList.remove('hidden');
+}
+
+function editRole(id) { openRoleModal(id); }
+function closeRoleModal() { document.getElementById('roleModal').classList.add('hidden'); editingRoleId=null; }
+
+async function saveRole(e) {
+  e.preventDefault();
+  const btn = document.getElementById('roleSaveBtn');
+  btn.disabled=true; btn.textContent='Saving...';
+
+  const id    = document.getElementById('r-id').value.trim().toLowerCase().replace(/\s+/g,'_');
+  const name  = document.getElementById('r-name').value.trim();
+  const desc  = document.getElementById('r-desc').value.trim();
+  const color = document.getElementById('r-color').value;
+  const selectedPerms = [...document.querySelectorAll('.perm-check.checked')].map(el=>el.querySelector('input').value);
+
+  try {
+    if(editingRoleId) {
+      await fetch(`${API}/roles?id=eq.${editingRoleId}`, { method:'PATCH', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify({name,description:desc,color}) });
+      await fetch(`${API}/role_permissions?role_id=eq.${editingRoleId}`, { method:'DELETE', headers:HDR });
+    } else {
+      await fetch(`${API}/roles`, { method:'POST', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify({id,name,description:desc,color}) });
+    }
+    if(selectedPerms.length) {
+      const rid = editingRoleId||id;
+      await fetch(`${API}/role_permissions`, { method:'POST', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify(selectedPerms.map(p=>({role_id:rid,permission:p}))) });
+    }
+    showToast(editingRoleId?'Role updated':'Role created','✅');
+    closeRoleModal();
+    loadAll();
+  } catch(err) {
+    showToast('Error: '+err.message,'❌');
+  }
+  btn.disabled=false; btn.textContent=editingRoleId?'Update Role':'Save Role';
+}
+
+async function deleteRole(id, name) {
+  const usersWithRole = allUsers.filter(u=>u.role_id===id).length;
+  if(usersWithRole>0) { showToast(`Cannot delete — ${usersWithRole} user(s) have this role`,'⚠️'); return; }
+  if(!confirm(`Delete role "${name}"?`)) return;
+  await fetch(`${API}/roles?id=eq.${id}`, { method:'DELETE', headers:HDR });
+  showToast('Role deleted','🗑️');
+  loadAll();
+}
+
+// ── Dropdown ──────────────────────────────────────────────────
+function toggleDropdown() {
+  document.getElementById('createDropdown').classList.toggle('hidden');
+}
+document.addEventListener('click', e => {
+  if(!e.target.closest('.topbar-actions')) document.getElementById('createDropdown').classList.add('hidden');
+});
+
+document.addEventListener('DOMContentLoaded', loadAll);
+</script>
+</body>
+</html>

@@ -178,6 +178,20 @@ function renderSidebar(activePage) {
       </a>
     </div>
 
+    <div class="sb-section">
+      <div class="sb-section-label">Finance</div>
+      <a class="sb-item ${activePage==='paygate'?'active':''}" href="paygate.html">
+        <span class="ico">💰</span>PayGate
+      </a>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-section-label">Administration</div>
+      <a class="sb-item ${activePage==='users'?'active':''}" href="users.html">
+        <span class="ico">🔐</span>Users & Roles
+      </a>
+    </div>
+
     <div class="sb-footer">
       <div class="sb-status">
         <div class="sb-status-dot"></div>
