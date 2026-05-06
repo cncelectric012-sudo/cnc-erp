@@ -194,15 +194,52 @@ document.addEventListener('DOMContentLoaded', () => {
   loadAllState();
   const activePage = document.body.dataset.page || '';
   renderSidebar(activePage);
+  setupMobileNav();
 
-  // Close modals on Escape
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       document.querySelectorAll('.modal-overlay, .image-overlay').forEach(m => m.classList.add('hidden'));
       document.body.style.overflow = '';
+      closeMobileNav();
     }
   });
 });
+
+// ── Mobile Nav ───────────────────────────────────────────────
+function setupMobileNav() {
+  // Overlay
+  let overlay = document.getElementById('sidebarOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'sidebarOverlay';
+    overlay.className = 'sidebar-overlay';
+    overlay.onclick = closeMobileNav;
+    document.body.appendChild(overlay);
+  }
+  // Hamburger in topbar
+  const topbar = document.querySelector('.topbar');
+  if (topbar && !topbar.querySelector('.hamburger')) {
+    const btn = document.createElement('button');
+    btn.className = 'hamburger';
+    btn.setAttribute('aria-label', 'Menu');
+    btn.innerHTML = '<span></span><span></span><span></span>';
+    btn.onclick = toggleMobileNav;
+    topbar.insertBefore(btn, topbar.firstChild);
+  }
+}
+
+function toggleMobileNav() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (!sidebar) return;
+  const open = sidebar.classList.toggle('open');
+  overlay.classList.toggle('open', open);
+}
+
+function closeMobileNav() {
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.getElementById('sidebarOverlay')?.classList.remove('open');
+}
 
 // ── Image Lightbox ───────────────────────────────────────────
 function openImage(url) {

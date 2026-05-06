@@ -413,15 +413,65 @@ td.num, th.num { font-family: var(--font-mono); font-feature-settings: "tnum"; t
 .mt-3 { margin-top: 12px; }
 .mt-4 { margin-top: 16px; }
 
+/* ── Skeleton Loader ── */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 4px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.skeleton-row td { padding: 12px 14px; }
+.skeleton-line { height: 12px; border-radius: 3px; }
+
+/* ── Hamburger Button ── */
+.hamburger {
+  display: none; background: none; border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 8px; cursor: pointer; color: var(--text-2);
+  align-items: center; justify-content: center; gap: 2px; flex-direction: column;
+}
+.hamburger span { display: block; width: 16px; height: 2px; background: currentColor; border-radius: 1px; }
+
+/* ── Mobile Sidebar Overlay ── */
+.sidebar-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.4); z-index: 200;
+}
+.sidebar-overlay.open { display: block; }
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
-  .sidebar { display: none; }
-  .content { padding: 18px; }
-  .topbar { padding: 12px 18px; }
-  .hero { padding: 22px; }
-  .hero-title { font-size: 24px; }
+  .hamburger { display: inline-flex; }
+
+  .sidebar {
+    position: fixed; top: 0; left: -260px; height: 100vh;
+    width: 240px; z-index: 300; transition: left .25s ease;
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar.open { left: 0; }
+
+  .content { padding: 16px; }
+  .topbar { padding: 10px 16px; gap: 10px; }
+  .topbar-title { font-size: 14px; }
+  .topbar-sub { display: none; }
+  .topbar-actions .btn span { display: none; }
+  .hero { padding: 18px; }
+  .hero-title { font-size: 20px; }
+  .hero-desc { font-size: 12px; }
+  .hero::before { display: none; }
 }
+
 @media (max-width: 600px) {
-  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .kpi-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi-card { padding: 12px 14px; }
+  .kpi-value { font-size: 18px; }
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal-box { border-radius: 14px 14px 0 0; max-height: 92vh; }
+  .modal-body { max-height: 75vh; }
   .modal-body, .modal-header { padding: 14px; }
+  .topbar-actions { gap: 6px; }
+  .topbar-actions .btn-secondary { display: none; }
+  .content { padding: 12px; }
+  .toast { bottom: 16px; right: 12px; left: 12px; }
+  .table-scroll { -webkit-overflow-scrolling: touch; }
 }

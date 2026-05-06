@@ -339,23 +339,47 @@ const fmtK = n => {
 };
 function cleanId(s){ return String(s).trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''); }
 
+// ── Skeleton ──────────────────────────────────────────────────
+function showSkeleton() {
+  document.getElementById('clientBody').innerHTML = Array(6).fill(`
+    <tr class="skeleton-row">
+      <td><div class="skeleton skeleton-line" style="width:20px"></div></td>
+      <td><div class="skeleton skeleton-line" style="width:140px;margin-bottom:4px"></div><div class="skeleton skeleton-line" style="width:80px;height:10px"></div></td>
+      <td><div class="skeleton skeleton-line" style="width:70px"></div></td>
+      <td><div class="skeleton skeleton-line" style="width:100px"></div></td>
+      <td><div class="skeleton skeleton-line" style="width:80px"></div></td>
+      <td><div class="skeleton skeleton-line" style="width:90px;margin-left:auto"></div></td>
+      <td><div class="skeleton skeleton-line" style="width:60px"></div></td>
+      <td><div class="skeleton skeleton-line" style="width:50px"></div></td>
+      <td><div class="skeleton skeleton-line" style="width:60px"></div></td>
+      <td><div class="skeleton skeleton-line" style="width:70px"></div></td>
+    </tr>`).join('');
+}
+
 // ── Load ──────────────────────────────────────────────────────
 async function loadClients() {
-  document.getElementById('topbarSub').textContent = 'Loading clients...';
-  let rows=[], from=0;
-  while(true){
-    const {data,error} = await SB.from('clients').select('*').range(from, from+999);
-    if(error){ console.error(error); break; }
-    if(!data||!data.length) break;
-    rows = rows.concat(data);
-    if(data.length<1000) break;
-    from+=1000;
+  showSkeleton();
+  document.getElementById('topbarSub').textContent = 'Loading...';
+  // First load fast: get 200 rows immediately
+  const {data: first, error} = await SB.from('clients').select('*').range(0, 199).order('last_updated', {ascending: false});
+  if(error){ console.error(error); return; }
+  allClients = first || [];
+  updateStats(); populateFilters(); applyFilters();
+  document.getElementById('topbarSub').textContent = `${allClients.length} clients`;
+
+  // Background: load rest if more exist
+  if(first && first.length === 200) {
+    let from = 200;
+    while(true){
+      const {data} = await SB.from('clients').select('*').range(from, from+499);
+      if(!data||!data.length) break;
+      allClients = allClients.concat(data);
+      if(data.length<500) break;
+      from+=500;
+    }
+    updateStats(); populateFilters(); applyFilters();
+    document.getElementById('topbarSub').textContent = `${allClients.length} clients loaded`;
   }
-  allClients = rows;
-  updateStats();
-  populateFilters();
-  applyFilters();
-  document.getElementById('topbarSub').textContent = `${allClients.length} clients loaded`;
 }
 
 function updateStats(){
