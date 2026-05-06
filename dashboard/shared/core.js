@@ -157,7 +157,8 @@ function renderSidebar(activePage) {
   ].filter(Boolean).join('');
 
   const financeItems = [
-    sbItem('paygate', '💰', 'PayGate', undefined, 'paygate.view'),
+    sbItem('paygate', '💰', 'PayGate',            undefined, 'paygate.view'),
+    sbItem('bank',    '🏦', 'Bank Verification',  undefined, 'payments.view'),
   ].filter(Boolean).join('');
 
   const adminItems = [

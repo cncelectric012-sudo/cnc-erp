@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bank Verification · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.bk-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto}
+.bk-tab{padding:9px 16px;font-size:13px;font-weight:500;color:var(--text-3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.bk-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+.stat-c{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}
+.stat-c .v{font-size:22px;font-weight:800;font-family:var(--font-mono)}
+.stat-c .l{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+
+/* Alert card */
+.alert-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all .15s}
+.alert-card:hover{box-shadow:var(--shadow-sm);border-color:var(--brand)}
+.alert-card.matched{border-left:4px solid var(--green)}
+.alert-card.partial{border-left:4px solid var(--yellow)}
+.alert-card.unmatched{border-left:4px solid var(--red)}
+.alert-card.verified{border-left:4px solid var(--blue)}
+
+/* Risk badges */
+.risk-low{background:var(--green-50);color:var(--green);border:1px solid var(--green-100)}
+.risk-medium{background:var(--yellow-50);color:var(--yellow);border:1px solid var(--yellow-100)}
+.risk-high{background:var(--red-50);color:var(--red);border:1px solid var(--red-100)}
+
+/* SMS paste area */
+.sms-paste{border:2px dashed var(--border-2);border-radius:10px;padding:14px;transition:border-color .15s}
+.sms-paste:focus-within{border-color:var(--brand)}
+.sms-paste textarea{width:100%;border:none;outline:none;background:none;font-family:var(--font-mono);font-size:12px;resize:vertical;min-height:80px;color:var(--text-2);line-height:1.6}
+
+/* Bank account card */
+.bank-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px}
+.bank-card-top{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px}
+.bank-icon{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.bank-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.bank-mini{text-align:center}
+.bank-mini .v{font-size:16px;font-weight:700}
+.bank-mini .l{font-size:10px;color:var(--text-3)}
+
+/* Match indicator */
+.match-row{display:flex;align-items:center;gap:10px;padding:10px;background:var(--surface-2);border-radius:8px;margin-top:10px}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:flex-end;justify-content:center}
+.modal-bg.hidden{display:none}
+.modal-sheet{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:700px;max-height:90vh;overflow-y:auto;padding:20px 18px 32px}
+.modal-handle{width:40px;height:4px;border-radius:2px;background:var(--border-2);margin:0 auto 16px}
+
+@media(max-width:700px){
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body data-page="bank">
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">🏦 Bank Verification</div>
+        <div class="topbar-sub" id="bkSub">Loading...</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="openAddAlert()">+ Add Bank Alert</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportAlerts()">📥 Export</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="stats-row">
+        <div class="stat-c"><div class="v" id="st-total">0</div><div class="l">Total Alerts</div></div>
+        <div class="stat-c"><div class="v" id="st-matched" style="color:var(--green)">0</div><div class="l">Matched</div></div>
+        <div class="stat-c"><div class="v" id="st-unmatched" style="color:var(--red)">0</div><div class="l">Unmatched</div></div>
+        <div class="stat-c"><div class="v" id="st-verified" style="color:var(--blue)">0</div><div class="l">Verified</div></div>
+        <div class="stat-c"><div class="v" id="st-risk" style="color:var(--yellow)">0</div><div class="l">High Risk</div></div>
+      </div>
+
+      <div class="bk-tabs">
+        <div class="bk-tab active" onclick="bkTab('alerts',this)">📨 Bank Alerts</div>
+        <div class="bk-tab" onclick="bkTab('accounts',this)">🏦 Bank Accounts</div>
+        <div class="bk-tab" onclick="bkTab('analysis',this)">📊 Risk Analysis</div>
+        <div class="bk-tab" onclick="bkTab('setup',this)">⚙️ Auto-Fetch Setup</div>
+      </div>
+
+      <div id="bkContent"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Add Alert Modal -->
+<div class="modal-bg hidden" id="addAlertModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:14px">📨 Add Bank Alert</div>
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:10px">Bank ka SMS ya email paste karo — system automatically parse karega</div>
+
+    <div class="field">
+      <label>Bank SMS / Email Text <span style="color:var(--brand)">*</span></label>
+      <div class="sms-paste">
+        <textarea id="smsText" placeholder="Paste karo bank ka SMS ya email text yahan...&#10;&#10;Example:&#10;PKR 50,000.00 received from AHMAD ALI HBL in your BAF A/C **5705 on 5-May-26 10:30 via Fund Transfer Tx ID FT261250XXXXX"></textarea>
+      </div>
+    </div>
+
+    <div id="parsedPreview" class="hidden" style="background:var(--green-50);border:1px solid var(--green-100);border-radius:8px;padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:8px">✅ Parsed Successfully</div>
+      <div id="parsedData" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px"></div>
+    </div>
+
+    <div id="matchPreview" class="hidden" style="margin-bottom:14px"></div>
+
+    <div class="field">
+      <label>Notes (optional)</label>
+      <input class="input" id="alertNote" placeholder="Any additional note..."/>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeAddAlert()">Cancel</button>
+      <button class="btn btn-primary" id="saveAlertBtn" onclick="saveAlert()">Save Alert</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-bg hidden" id="detailModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script>
+const API = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
+const KEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
+const HDR = {'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':'return=representation'};
+
+async function apiFetch(path,opts={}){
+  const r=await fetch(API+path,{headers:HDR,...opts});
+  if(!r.ok){const t=await r.text();throw new Error(t);}
+  return r.status===204?null:r.json();
+}
+
+const PKR = n => 'PKR '+Number(n||0).toLocaleString('en-PK');
+const fmtDate = d => d?new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'-';
+const fmtDT = d => d?new Date(d).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'-';
+
+let allAlerts=[], bankAccounts=[], pgEntries=[], currentTab='alerts';
+let parsedAlert=null, matchedEntry=null;
+
+// ── SMS Parser ────────────────────────────────────────────────
+function parseSMS(text) {
+  if(!text||!text.trim()) return null;
+  const t = text.trim();
+  const result = { raw:t, bank_name:'', account_last4:'', amount:0, sender:'', txn_id:'', alert_date:'', alert_time:'', transfer_type:'' };
+
+  // ── Amount extraction ──────────────────────────────────────
+  const amtPatterns = [
+    /(?:PKR|Rs\.?)\s*([0-9,]+(?:\.[0-9]{2})?)/i,
+    /([0-9,]+(?:\.[0-9]{2})?)\s*(?:PKR|Rs\.?)/i,
+    /credited with (?:Rs\.?\s*)?([0-9,]+(?:\.[0-9]{2})?)/i,
+  ];
+  for(const p of amtPatterns){
+    const m=t.match(p);
+    if(m){result.amount=parseFloat(m[1].replace(/,/g,''));break;}
+  }
+
+  // ── Bank detection ─────────────────────────────────────────
+  if(/BAHL|Bank Al.?Habib/i.test(t)) result.bank_name='Bank Al Habib';
+  else if(/BAF\b|Bank Alfalah|ALFH/i.test(t)) result.bank_name='Bank Alfalah';
+  else if(/MBL|Meezan/i.test(t)) result.bank_name='Meezan Bank';
+  else if(/HBL|Habib Bank/i.test(t)) result.bank_name='HBL';
+  else if(/UBL/i.test(t)) result.bank_name='UBL';
+  else if(/MCB/i.test(t)) result.bank_name='MCB';
+  else if(/JSBL?|JS Bank/i.test(t)) result.bank_name='JS Bank';
+  else if(/NBP/i.test(t)) result.bank_name='NBP';
+
+  // ── Account last 4 ────────────────────────────────────────
+  const acc4 = t.match(/[*x]{2,4}([0-9]{4})/i) || t.match(/A\/C[^0-9]*([0-9]{4})/i);
+  if(acc4) result.account_last4 = acc4[1];
+
+  // ── Sender ────────────────────────────────────────────────
+  const senderPatterns = [
+    /from ([A-Z][A-Z ]{3,40}?) (?:MBL|HBL|UBL|MCB|BAHL|BAF|Meezan|in your)/i,
+    /from ([A-Z][A-Z ]{3,40}?) (?:MPBL|MPKK|PKLBPL)/i,
+    /Sender,\s*([A-Za-z ]+)/i,
+    /received from ([A-Z][A-Z ]{3,40})/i,
+    /from ([A-Za-z][A-Za-z ]{3,35}?) on /i,
+  ];
+  for(const p of senderPatterns){
+    const m=t.match(p);
+    if(m&&m[1].trim().length>2){result.sender=m[1].trim().replace(/\s+/g,' ');break;}
+  }
+
+  // ── Transaction ID ────────────────────────────────────────
+  const txn = t.match(/(?:Tx(?:n)? ?ID|TID)[:\s]+([A-Z0-9]+)/i) ||
+               t.match(/RAAST Tx ID ([A-Z0-9]+)/i) ||
+               t.match(/Ref[:\s]+([A-Z0-9]{6,})/i);
+  if(txn) result.txn_id = txn[1];
+
+  // ── Date parsing ──────────────────────────────────────────
+  const datePatterns = [
+    /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/,          // 02/05/2026 or 4-May-26
+    /(\d{1,2})-([A-Za-z]{3})-(\d{2,4})/,                  // 04-May-2026
+    /(\d{1,2})\/(\d{2})\/(\d{4})/,                         // 02/05/2026
+    /on (\d{1,2}[\/\-][A-Za-z0-9]{2,3}[\/\-]\d{2,4})/i,
+  ];
+  for(const p of datePatterns){
+    const m=t.match(p);
+    if(m){
+      try {
+        const raw = m[0].replace(/^on /i,'');
+        const months={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+        let d,mo,y;
+        const parts = raw.split(/[\/\-]/);
+        if(parts.length===3){
+          d=parseInt(parts[0]);
+          mo=months[parts[1].toLowerCase().slice(0,3)]||(parseInt(parts[1]));
+          y=parseInt(parts[2]);
+          if(y<100) y+=2000;
+          result.alert_date = `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        }
+      } catch(e){}
+      break;
+    }
+  }
+
+  // ── Time ──────────────────────────────────────────────────
+  const timeM = t.match(/(\d{1,2}:\d{2}(?::\d{2})?)/);
+  if(timeM) result.alert_time = timeM[1];
+
+  // ── Transfer type ─────────────────────────────────────────
+  if(/IBFT|Interbank/i.test(t)) result.transfer_type='IBFT';
+  else if(/RAAST/i.test(t)) result.transfer_type='RAAST';
+  else if(/Fund Transfer/i.test(t)) result.transfer_type='Fund Transfer';
+  else if(/Accnt Transfer|Account Transfer/i.test(t)) result.transfer_type='Internal Transfer';
+  else if(/Cash/i.test(t)) result.transfer_type='Cash Deposit';
+
+  // Find matching bank account
+  const matchedAcc = bankAccounts.find(a => result.account_last4 && a.account_no.endsWith(result.account_last4));
+  if(matchedAcc){
+    result.account_no = matchedAcc.account_no;
+    result.bank_name = result.bank_name || matchedAcc.bank_name;
+    result.entity = matchedAcc.entity;
+  }
+
+  return result;
+}
+
+// ── Match with PayGate submissions ────────────────────────────
+function findMatch(parsed) {
+  if(!parsed || !parsed.amount) return null;
+  const amt = parsed.amount;
+  const date = parsed.alert_date;
+
+  return pgEntries.find(e => {
+    if(e.status==='rejected') return false;
+    const amtDiff = Math.abs((e.amount||0) - amt);
+    const amtMatch = amtDiff <= amt * 0.01; // within 1%
+    if(!amtMatch) return false;
+
+    if(date && e.payment_date) {
+      const d1 = new Date(date), d2 = new Date(e.payment_date);
+      const daysDiff = Math.abs((d1-d2)/86400000);
+      return daysDiff <= 2;
+    }
+    return true;
+  });
+}
+
+// ── Risk Analysis ─────────────────────────────────────────────
+function analyzeRisk(parsed, allAlerts) {
+  const flags = [];
+  let score = 0;
+
+  if(!parsed.txn_id){flags.push('No TXN ID');score+=20;}
+  if(!parsed.sender){flags.push('Sender unknown');score+=15;}
+  if(!parsed.alert_date){flags.push('Date missing');score+=15;}
+
+  // Duplicate amount check (same amount in last 24h)
+  const recent = allAlerts.filter(a => {
+    if(!a.alert_date||!parsed.alert_date) return false;
+    const daysDiff = Math.abs(new Date(a.alert_date)-new Date(parsed.alert_date))/86400000;
+    return daysDiff<1 && Math.abs(a.amount-parsed.amount)<1;
+  });
+  if(recent.length>0){flags.push('Duplicate amount same day');score+=30;}
+
+  // Round number suspicion
+  if(parsed.amount>0 && parsed.amount%1000===0 && parsed.amount>50000){
+    flags.push('Round number large amount');score+=10;
+  }
+
+  // Weekend check
+  if(parsed.alert_date){
+    const day = new Date(parsed.alert_date).getDay();
+    if(day===0||day===6){flags.push('Weekend payment');score+=5;}
+  }
+
+  return {flags, score: Math.min(score, 100)};
+}
+
+// ── Load Data ─────────────────────────────────────────────────
+async function loadData(){
+  document.getElementById('bkSub').textContent='Loading...';
+  const [alerts,accounts,pg]=await Promise.all([
+    apiFetch('/bank_alerts?order=created_at.desc&limit=500'),
+    apiFetch('/bank_accounts?order=bank_name.asc'),
+    apiFetch('/paygate_entries?order=created_at.desc&limit=500&select=id,customer,amount,payment_date,bank_name,status,submitted_by,entity')
+  ]);
+  allAlerts=alerts||[];
+  bankAccounts=accounts||[];
+  pgEntries=pg||[];
+
+  document.getElementById('st-total').textContent=allAlerts.length;
+  document.getElementById('st-matched').textContent=allAlerts.filter(a=>a.match_status==='matched').length;
+  document.getElementById('st-unmatched').textContent=allAlerts.filter(a=>a.match_status==='unmatched').length;
+  document.getElementById('st-verified').textContent=allAlerts.filter(a=>a.match_status==='verified').length;
+  document.getElementById('st-risk').textContent=allAlerts.filter(a=>a.risk_score>=50).length;
+
+  document.getElementById('bkSub').textContent=`${allAlerts.length} alerts · ${bankAccounts.filter(a=>a.sms_active).length} accounts active`;
+  renderTab();
+}
+
+function bkTab(tab,el){
+  currentTab=tab;
+  document.querySelectorAll('.bk-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderTab();
+}
+
+function renderTab(){
+  const el=document.getElementById('bkContent');
+  if(currentTab==='alerts')   el.innerHTML=renderAlerts();
+  if(currentTab==='accounts') el.innerHTML=renderAccounts();
+  if(currentTab==='analysis') el.innerHTML=renderAnalysis();
+  if(currentTab==='setup')    el.innerHTML=renderSetup();
+}
+
+// ── Alerts Tab ────────────────────────────────────────────────
+function renderAlerts(){
+  const statusF=document.getElementById('af-status')?.value||'';
+  const bankF=document.getElementById('af-bank')?.value||'';
+  const dateF=document.getElementById('af-date')?.value||'';
+  const q=(document.getElementById('af-q')?.value||'').toLowerCase();
+
+  let src=allAlerts.filter(a=>{
+    if(statusF&&a.match_status!==statusF)return false;
+    if(bankF&&a.bank_name!==bankF)return false;
+    if(dateF&&a.alert_date!==dateF)return false;
+    if(q&&!a.sender?.toLowerCase().includes(q)&&!a.raw_text?.toLowerCase().includes(q))return false;
+    return true;
+  });
+
+  const banks=[...new Set(allAlerts.map(a=>a.bank_name).filter(Boolean))].sort();
+  const total=src.reduce((s,a)=>s+(a.amount||0),0);
+
+  return `
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+    <input class="input" style="width:180px" id="af-q" placeholder="Search sender..." oninput="renderTab()"/>
+    <select class="input" style="width:140px" id="af-status" onchange="renderTab()">
+      <option value="">All Status</option>
+      <option value="matched">Matched</option>
+      <option value="partial">Partial</option>
+      <option value="unmatched">Unmatched</option>
+      <option value="verified">Verified</option>
+    </select>
+    <select class="input" style="width:160px" id="af-bank" onchange="renderTab()">
+      <option value="">All Banks</option>
+      ${banks.map(b=>`<option value="${b}">${b}</option>`).join('')}
+    </select>
+    <input class="input" style="width:130px" id="af-date" type="date" onchange="renderTab()"/>
+    <span style="font-size:12px;color:var(--text-3)">${src.length} alerts · ${PKR(total)}</span>
+  </div>
+
+  ${src.length ? src.map(a => alertCard(a)).join('') : `
+  <div class="empty">
+    <div class="empty-icon">📨</div>
+    <div class="empty-title">No bank alerts yet</div>
+    <div class="empty-desc">Bank ka SMS paste karo "+ Add Bank Alert" button se</div>
+  </div>`}`;
+}
+
+function alertCard(a){
+  const riskColor = a.risk_score>=70?'var(--red)':a.risk_score>=40?'var(--yellow)':'var(--green)';
+  const matchClass = a.match_status==='verified'?'verified':a.match_status==='matched'?'matched':a.match_status==='partial'?'partial':'unmatched';
+  const matchTxt={verified:'✅ Verified',matched:'🔗 Matched',partial:'⚡ Partial',unmatched:'❓ Unmatched'};
+  const flags = a.risk_flags||[];
+
+  return `
+  <div class="alert-card ${matchClass}" onclick="showDetail('${a.id}')">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:15px">${PKR(a.amount)}</div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:2px">${a.bank_name||'Unknown Bank'} ${a.account_last4?'· **'+a.account_last4:''}</div>
+        <div style="font-size:11px;color:var(--text-3)">${a.sender||'Unknown sender'} ${a.transfer_type?'· '+a.transfer_type:''}</div>
+        <div style="font-size:11px;color:var(--text-3)">${a.alert_date||''} ${a.alert_time?'at '+a.alert_time:''}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <span class="badge ${matchClass==='verified'?'badge-blue':matchClass==='matched'?'badge-green':matchClass==='partial'?'badge-yellow':'badge-red'}">${matchTxt[a.match_status]||'Unknown'}</span>
+        <div style="margin-top:6px">
+          <span style="font-size:11px;font-weight:700;color:${riskColor}">Risk: ${a.risk_score||0}%</span>
+        </div>
+      </div>
+    </div>
+    ${flags.length?`<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">${flags.slice(0,3).map(f=>`<span class="badge badge-yellow" style="font-size:10px">⚠️ ${f}</span>`).join('')}</div>`:''}
+    ${a.txn_id?`<div style="font-size:10px;color:var(--text-4);margin-top:4px;font-family:var(--font-mono)">TXN: ${a.txn_id}</div>`:''}
+  </div>`;
+}
+
+// ── Accounts Tab ──────────────────────────────────────────────
+function renderAccounts(){
+  const bankColors={'Bank Al Habib':'#DC2626','Meezan Bank':'#16A34A','Bank Alfalah':'#2563EB','HBL':'#7C3AED','UBL':'#EA580C','JS Bank':'#0891B2','MCB':'#D97706'};
+  const bankEmoji={'Bank Al Habib':'🏛','Meezan Bank':'🕌','Bank Alfalah':'🏦','HBL':'🏦','UBL':'🏦','JS Bank':'💎','MCB':'🏦'};
+
+  return bankAccounts.map(a => {
+    const accAlerts = allAlerts.filter(x => x.account_last4 && a.account_no.endsWith(x.account_last4));
+    const totalIn = accAlerts.reduce((s,x)=>s+(x.amount||0),0);
+    const color = bankColors[a.bank_name]||'#6B7280';
+    const emoji = bankEmoji[a.bank_name]||'🏦';
+
+    return `
+    <div class="bank-card">
+      <div class="bank-card-top">
+        <div class="bank-icon" style="background:${color}22;color:${color}">${emoji}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px">${a.bank_name}</div>
+          <div style="font-size:12px;color:var(--text-3)">${a.account_title}</div>
+          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+            <span class="badge badge-${a.entity==='CNC'?'red':a.entity==='CST'?'blue':'green'}">${a.entity}</span>
+            <span class="badge badge-gray">${a.legal_status||'—'}</span>
+            ${a.sms_active?'<span class="badge badge-green">SMS Active</span>':'<span class="badge badge-red">SMS Inactive</span>'}
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+        <div><span style="color:var(--text-3)">Account: </span><span style="font-family:var(--font-mono);font-weight:600">${a.account_no}</span></div>
+        <div><span style="color:var(--text-3)">IBAN: </span><span style="font-family:var(--font-mono);font-size:11px">${a.iban||'—'}</span></div>
+        <div><span style="color:var(--text-3)">Alert No: </span><span style="font-weight:600">${a.alert_number||'N/A'}</span></div>
+        <div><span style="color:var(--text-3)">Alert to: </span><span>${a.alert_number_belongs_to||'—'}</span></div>
+        <div><span style="color:var(--text-3)">Branch: </span><span style="font-size:11px">${a.branch||'—'}</span></div>
+      </div>
+      <div class="bank-stats-row">
+        <div class="bank-mini"><div class="v">${accAlerts.length}</div><div class="l">Alerts</div></div>
+        <div class="bank-mini"><div class="v" style="font-size:13px">${PKR(totalIn)}</div><div class="l">Total Received</div></div>
+        <div class="bank-mini"><div class="v">${accAlerts.filter(x=>x.match_status==='verified').length}</div><div class="l">Verified</div></div>
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty"><div class="empty-title">No bank accounts</div></div>';
+}
+
+// ── Risk Analysis Tab ─────────────────────────────────────────
+function renderAnalysis(){
+  const today = new Date().toISOString().slice(0,10);
+  const thisMonth = new Date().toISOString().slice(0,7);
+
+  // Daily totals (last 30 days)
+  const daily={};
+  allAlerts.forEach(a=>{
+    const d=a.alert_date||'';
+    if(!d)return;
+    if(!daily[d])daily[d]={count:0,amount:0,banks:new Set()};
+    daily[d].count++;daily[d].amount+=(a.amount||0);
+    if(a.bank_name)daily[d].banks.add(a.bank_name);
+  });
+
+  // Bank distribution
+  const byBank={};
+  allAlerts.forEach(a=>{
+    const b=a.bank_name||'Unknown';
+    if(!byBank[b])byBank[b]={count:0,amount:0};
+    byBank[b].count++;byBank[b].amount+=(a.amount||0);
+  });
+
+  // Risk distribution
+  const highRisk=allAlerts.filter(a=>a.risk_score>=70);
+  const medRisk=allAlerts.filter(a=>a.risk_score>=40&&a.risk_score<70);
+  const unmatched=allAlerts.filter(a=>a.match_status==='unmatched');
+
+  // Top unmatched (suspicious)
+  const suspicious=allAlerts.filter(a=>a.match_status==='unmatched'&&a.amount>50000).sort((a,b)=>b.amount-a.amount);
+
+  return `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+
+    <div class="report-card card">
+      <div style="padding:12px 14px;border-bottom:1px solid var(--border);font-weight:700;font-size:13px">🎯 Match Rate</div>
+      <div style="padding:14px">
+        ${['verified','matched','partial','unmatched'].map(s=>{
+          const cnt=allAlerts.filter(a=>a.match_status===s).length;
+          const pct=allAlerts.length?Math.round(cnt/allAlerts.length*100):0;
+          const colors={verified:'var(--blue)',matched:'var(--green)',partial:'var(--yellow)',unmatched:'var(--red)'};
+          return `<div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+              <span style="text-transform:capitalize">${s}</span><span style="font-weight:700;color:${colors[s]}">${cnt} (${pct}%)</span>
+            </div>
+            <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${colors[s]};border-radius:3px"></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="report-card card">
+      <div style="padding:12px 14px;border-bottom:1px solid var(--border);font-weight:700;font-size:13px">🏦 By Bank</div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Bank</th><th class="num">Count</th><th class="num">Amount</th></tr></thead>
+          <tbody>${Object.entries(byBank).sort((a,b)=>b[1].amount-a[1].amount).map(([b,d])=>`
+          <tr><td style="font-size:12px">${b}</td><td class="num">${d.count}</td><td class="num" style="font-size:12px">${PKR(d.amount)}</td></tr>`).join('')||'<tr><td colspan="3"><div class="empty"><div class="empty-title">No data</div></div></td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  ${highRisk.length||medRisk.length?`
+  <div class="card" style="margin-bottom:16px">
+    <div style="padding:12px 14px;border-bottom:1px solid var(--border);font-weight:700;font-size:13px;color:var(--red)">⚠️ Risk Alerts (${highRisk.length+medRisk.length})</div>
+    <div style="padding:14px">
+      ${[...highRisk,...medRisk].slice(0,10).map(a=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="showDetail('${a.id}')">
+        <div>
+          <div style="font-size:13px;font-weight:600">${PKR(a.amount)} — ${a.bank_name||'?'}</div>
+          <div style="font-size:11px;color:var(--text-3)">${a.alert_date||'?'} · ${a.sender||'Unknown'}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${(a.risk_flags||[]).map(f=>`<span class="badge badge-yellow" style="font-size:9px">⚠️ ${f}</span>`).join('')}</div>
+        </div>
+        <span style="font-weight:700;color:${a.risk_score>=70?'var(--red)':'var(--yellow)'}">Risk ${a.risk_score}%</span>
+      </div>`).join('')}
+    </div>
+  </div>`:''}
+
+  ${suspicious.length?`
+  <div class="card">
+    <div style="padding:12px 14px;border-bottom:1px solid var(--border);font-weight:700;font-size:13px;color:var(--orange)">❓ Large Unmatched Payments</div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Amount</th><th>Bank</th><th>Sender</th><th>Date</th><th>TXN</th></tr></thead>
+        <tbody>${suspicious.slice(0,20).map(a=>`
+        <tr class="clickable" onclick="showDetail('${a.id}')">
+          <td style="font-weight:700">${PKR(a.amount)}</td>
+          <td style="font-size:11px">${a.bank_name||'?'}</td>
+          <td style="font-size:11px">${a.sender||'Unknown'}</td>
+          <td style="font-size:11px">${a.alert_date||'?'}</td>
+          <td style="font-size:10px;font-family:var(--font-mono);color:var(--text-3)">${a.txn_id||'—'}</td>
+        </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`:''}`;
+}
+
+// ── Setup Tab ─────────────────────────────────────────────────
+function renderSetup(){
+  return `
+  <div class="card card-body" style="max-width:680px">
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px">⚙️ Auto-Fetch Setup</div>
+    <div style="font-size:13px;color:var(--text-3);margin-bottom:20px">Bank SMS/email ko automatically fetch karne ke liye neeche diye gaye methods use karo</div>
+
+    <div style="background:var(--green-50);border:1px solid var(--green-100);border-radius:10px;padding:16px;margin-bottom:16px">
+      <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:8px">✅ Method 1: Manual Paste (Ready Now)</div>
+      <div style="font-size:13px;color:var(--text-2)">Jab bhi bank ka SMS ya email aaye, "+ Add Bank Alert" se paste karo — system automatically parse karega amount, date, sender sab kuch.</div>
+    </div>
+
+    <div style="background:var(--blue-50);border:1px solid var(--blue-100);border-radius:10px;padding:16px;margin-bottom:16px">
+      <div style="font-weight:700;font-size:14px;color:var(--blue);margin-bottom:8px">📧 Method 2: Email Forwarding (Setup Required)</div>
+      <div style="font-size:13px;color:var(--text-2);margin-bottom:10px">Bank ka email automatically forward karo is address pe:</div>
+      <div style="background:white;border:1px solid var(--blue-100);border-radius:6px;padding:10px;font-family:var(--font-mono);font-size:13px;color:var(--blue)">bank-alerts@cncelectric.vercel.app</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:8px">
+        Gmail mein: Settings → Filters → Forward matching emails<br>
+        Outlook mein: Rules → Forward to email
+      </div>
+    </div>
+
+    <div style="background:var(--yellow-50);border:1px solid var(--yellow-100);border-radius:10px;padding:16px;margin-bottom:16px">
+      <div style="font-weight:700;font-size:14px;color:var(--yellow);margin-bottom:8px">📱 Method 3: SMS Forwarding App</div>
+      <div style="font-size:13px;color:var(--text-2)">Android phone pe <b>"SMS to Email"</b> ya <b>"SMS Forwarder"</b> app install karo. Bank SMS automatically email pe forward hoga, phir Method 2 kaam karega.</div>
+    </div>
+
+    <div style="background:var(--surface-2);border-radius:10px;padding:16px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px">🏦 Active Bank Accounts (SMS Alert)</div>
+      ${bankAccounts.filter(a=>a.sms_active).map(a=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <div>
+          <div style="font-weight:600">${a.bank_name} — ${a.account_title}</div>
+          <div style="font-size:11px;color:var(--text-3);font-family:var(--font-mono)">${a.account_no}</div>
+        </div>
+        <div style="text-align:right;font-size:11px;color:var(--text-3)">
+          <div>${a.alert_number||'—'}</div>
+          <div>${a.alert_number_belongs_to||'—'}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ── Add Alert ─────────────────────────────────────────────────
+function openAddAlert(){
+  parsedAlert=null;matchedEntry=null;
+  document.getElementById('smsText').value='';
+  document.getElementById('parsedPreview').classList.add('hidden');
+  document.getElementById('matchPreview').classList.add('hidden');
+  document.getElementById('alertNote').value='';
+  document.getElementById('addAlertModal').classList.remove('hidden');
+}
+
+function closeAddAlert(){ document.getElementById('addAlertModal').classList.add('hidden'); }
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('smsText').addEventListener('input', function(){
+    const text = this.value.trim();
+    if(text.length<20){document.getElementById('parsedPreview').classList.add('hidden');parsedAlert=null;return;}
+    parsedAlert = parseSMS(text);
+    if(!parsedAlert||!parsedAlert.amount){document.getElementById('parsedPreview').classList.add('hidden');return;}
+
+    const {flags,score}=analyzeRisk(parsedAlert,allAlerts);
+    parsedAlert.risk_flags=flags;parsedAlert.risk_score=score;
+
+    const fields=[
+      ['Amount',PKR(parsedAlert.amount)],
+      ['Bank',parsedAlert.bank_name||'?'],
+      ['Account',parsedAlert.account_last4?'**'+parsedAlert.account_last4:'?'],
+      ['Date',parsedAlert.alert_date||'?'],
+      ['Time',parsedAlert.alert_time||'?'],
+      ['Sender',parsedAlert.sender||'?'],
+      ['TXN ID',parsedAlert.txn_id||'—'],
+      ['Transfer',parsedAlert.transfer_type||'?'],
+    ];
+    document.getElementById('parsedData').innerHTML=fields.map(([k,v])=>`
+      <div><span style="color:var(--text-3);font-size:10px;text-transform:uppercase">${k}</span><br><span style="font-weight:600;font-family:var(--font-mono)">${v}</span></div>`).join('');
+    document.getElementById('parsedPreview').classList.remove('hidden');
+
+    // Find match
+    matchedEntry=findMatch(parsedAlert);
+    const mp=document.getElementById('matchPreview');
+    if(matchedEntry){
+      parsedAlert.matched_paygate_id=matchedEntry.id;
+      parsedAlert.match_status='matched';
+      mp.innerHTML=`<div style="background:var(--green-50);border:1px solid var(--green-100);border-radius:8px;padding:12px">
+        <div style="font-weight:700;color:var(--green);margin-bottom:6px">🔗 PayGate Submission Match Found!</div>
+        <div style="font-size:12px"><b>${matchedEntry.customer}</b> — ${PKR(matchedEntry.amount)} — ${matchedEntry.submitted_by}</div>
+        <div style="font-size:11px;color:var(--text-3)">${matchedEntry.payment_date||''} · ${matchedEntry.bank_name||''}</div>
+      </div>`;
+      mp.classList.remove('hidden');
+    } else {
+      parsedAlert.match_status='unmatched';
+      mp.innerHTML=`<div style="background:var(--yellow-50);border:1px solid var(--yellow-100);border-radius:8px;padding:10px;font-size:12px;color:var(--yellow)">
+        ⚠️ No matching PayGate submission found for ${PKR(parsedAlert.amount)} on ${parsedAlert.alert_date||'?'}
+      </div>`;
+      mp.classList.remove('hidden');
+    }
+
+    if(score>=40){
+      document.getElementById('matchPreview').innerHTML+= `<div style="margin-top:8px;background:var(--red-50);border:1px solid var(--red-100);border-radius:8px;padding:10px;font-size:12px;color:var(--red)">
+        ⚠️ Risk Score: ${score}% — ${flags.join(', ')}
+      </div>`;
+    }
+  });
+});
+
+async function saveAlert(){
+  if(!parsedAlert||!parsedAlert.amount){showToast('Pehle valid SMS paste karo','⚠️');return;}
+  const btn=document.getElementById('saveAlertBtn');
+  btn.disabled=true;btn.textContent='Saving...';
+
+  const record={
+    id:'ALT-'+Date.now(),
+    raw_text:document.getElementById('smsText').value.trim(),
+    bank_name:parsedAlert.bank_name,
+    account_no:parsedAlert.account_no||'',
+    account_last4:parsedAlert.account_last4||'',
+    amount:parsedAlert.amount,
+    sender:parsedAlert.sender||'',
+    txn_id:parsedAlert.txn_id||'',
+    alert_date:parsedAlert.alert_date||'',
+    alert_time:parsedAlert.alert_time||'',
+    transfer_type:parsedAlert.transfer_type||'',
+    matched_paygate_id:parsedAlert.matched_paygate_id||'',
+    match_status:parsedAlert.match_status||'unmatched',
+    risk_flags:parsedAlert.risk_flags||[],
+    risk_score:parsedAlert.risk_score||0,
+    notes:document.getElementById('alertNote').value.trim(),
+    created_at:new Date().toISOString()
+  };
+
+  try{
+    await fetch(`${API}/bank_alerts`,{method:'POST',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify(record)});
+    if(matchedEntry){
+      await fetch(`${API}/paygate_entries?id=eq.${matchedEntry.id}`,{method:'PATCH',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify({status:'verified',verified_by:'Bank Auto-Match',verified_at:new Date().toISOString()})});
+      showToast('Alert saved + PayGate entry auto-verified!','✅');
+    } else {
+      showToast('Alert saved','✅');
+    }
+    closeAddAlert();
+    await loadData();
+  }catch(e){showToast('Error: '+e.message,'❌');}
+  btn.disabled=false;btn.textContent='Save Alert';
+}
+
+// ── Detail ────────────────────────────────────────────────────
+function showDetail(id){
+  const a=allAlerts.find(x=>x.id===id);if(!a)return;
+  const pg=pgEntries.find(x=>x.id===a.matched_paygate_id);
+  const riskColor=a.risk_score>=70?'var(--red)':a.risk_score>=40?'var(--yellow)':'var(--green)';
+
+  document.getElementById('detailContent').innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="font-size:18px;font-weight:800">${PKR(a.amount)}</div>
+    <button onclick="document.getElementById('detailModal').classList.add('hidden')" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:18px">✕</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    ${[['Bank',a.bank_name||'?'],['Account','**'+(a.account_last4||'?')],['Sender',a.sender||'?'],['Date',a.alert_date||'?'],['Time',a.alert_time||'?'],['Type',a.transfer_type||'?'],['TXN ID',a.txn_id||'—'],['Risk',a.risk_score+'%']].map(([k,v])=>`
+    <div style="background:var(--surface-2);padding:10px;border-radius:8px">
+      <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">${k}</div>
+      <div style="font-weight:600;font-family:var(--font-mono);font-size:13px;color:${k==='Risk'?riskColor:'inherit'}">${v}</div>
+    </div>`).join('')}
+  </div>
+
+  ${(a.risk_flags||[]).length?`<div style="background:var(--yellow-50);border:1px solid var(--yellow-100);border-radius:8px;padding:10px;margin-bottom:12px">
+    <div style="font-weight:700;font-size:12px;color:var(--yellow);margin-bottom:6px">⚠️ Risk Flags</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px">${a.risk_flags.map(f=>`<span class="badge badge-yellow">${f}</span>`).join('')}</div>
+  </div>`:''}
+
+  ${pg?`<div style="background:var(--green-50);border:1px solid var(--green-100);border-radius:8px;padding:10px;margin-bottom:12px">
+    <div style="font-weight:700;font-size:12px;color:var(--green);margin-bottom:6px">🔗 Matched PayGate Submission</div>
+    <div style="font-size:13px;font-weight:600">${pg.customer}</div>
+    <div style="font-size:11px;color:var(--text-3)">${PKR(pg.amount)} · ${pg.payment_date||''} · ${pg.submitted_by||''}</div>
+  </div>`:''}
+
+  ${a.match_status!=='verified'?`
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    ${pg?`<button class="btn btn-success" onclick="verifyAlert('${a.id}','${a.matched_paygate_id}')">✅ Verify & Approve</button>`:''}
+    <button class="btn btn-secondary" onclick="manualLink('${a.id}')">🔗 Link to Payment</button>
+    <button class="btn btn-danger btn-sm" onclick="deleteAlert('${a.id}')">🗑 Delete</button>
+  </div>`:'<span class="badge badge-blue" style="font-size:13px">✅ Verified</span>'}
+
+  <div style="background:var(--surface-2);border-radius:8px;padding:10px;font-family:var(--font-mono);font-size:11px;line-height:1.6;color:var(--text-2);margin-top:8px;max-height:150px;overflow-y:auto">${a.raw_text}</div>
+  `;
+  document.getElementById('detailModal').classList.remove('hidden');
+}
+
+async function verifyAlert(alertId, pgId){
+  if(pgId){
+    await fetch(`${API}/paygate_entries?id=eq.${pgId}`,{method:'PATCH',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify({status:'verified',verified_by:'Bank Verified',verified_at:new Date().toISOString()})});
+  }
+  await fetch(`${API}/bank_alerts?id=eq.${alertId}`,{method:'PATCH',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify({match_status:'verified',verified_at:new Date().toISOString()})});
+  showToast('Alert verified + PayGate approved!','✅');
+  document.getElementById('detailModal').classList.add('hidden');
+  await loadData();
+}
+
+async function deleteAlert(id){
+  if(!confirm('Delete this bank alert?'))return;
+  await fetch(`${API}/bank_alerts?id=eq.${id}`,{method:'DELETE',headers:HDR});
+  showToast('Deleted','🗑️');
+  document.getElementById('detailModal').classList.add('hidden');
+  await loadData();
+}
+
+function manualLink(alertId){
+  // TODO: show payment selector
+  showToast('Pehle PayGate mein payment dhundo, phir amount match confirm karo','ℹ️');
+}
+
+async function exportAlerts(){
+  if(!allAlerts.length){showToast('No data','⚠️');return;}
+  const h=['ID','Amount','Bank','Account','Sender','TXN ID','Date','Time','Transfer Type','Match Status','Risk Score','Risk Flags','Notes'];
+  const rows=allAlerts.map(a=>[a.id,a.amount,a.bank_name,a.account_last4,a.sender,a.txn_id,a.alert_date,a.alert_time,a.transfer_type,a.match_status,a.risk_score,(a.risk_flags||[]).join(';'),a.notes]);
+  const csv=[h.join(','),...rows.map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='Bank_Alerts_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+  showToast(allAlerts.length+' alerts exported','📥');
+}
+
+document.getElementById('detailModal').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.add('hidden');});
+document.getElementById('addAlertModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeAddAlert();});
+
+const bkAuthWait=setInterval(()=>{if(window.authReady){clearInterval(bkAuthWait);loadData();}},100);
+setTimeout(()=>clearInterval(bkAuthWait),10000);
+</script>
+</body>
+</html>

@@ -19,6 +19,7 @@
     'policy.html':          'dashboard.view',
     'controls.html':        'dashboard.view',
     'paygate.html':         'paygate.view',
+    'bank.html':            'payments.view',
     'users.html':           'users.view',
     'cnc_data_manager.html':'dashboard.view',
   };
