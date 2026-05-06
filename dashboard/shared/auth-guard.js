@@ -127,9 +127,25 @@
 
   async function checkAuth() {
     try {
+      window.hasPerm = (p) => !window.userPerms || window.userPerms.includes(p);
+
+      // ── Check app_users local session first ──────────────────
+      try {
+        const appSess = JSON.parse(localStorage.getItem('cnc_app_session') || 'null');
+        if (appSess?.id && appSess?.role_id) {
+          // Session expires after 12 hours
+          if (Date.now() - (appSess.ts || 0) < 12 * 60 * 60 * 1000) {
+            await revealAppUser(appSess);
+            return;
+          } else {
+            localStorage.removeItem('cnc_app_session');
+          }
+        }
+      } catch(e) {}
+
+      // ── Fall back to Supabase Auth ───────────────────────────
       const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       window._supabase = client;
-      window.hasPerm = (p) => !window.userPerms || window.userPerms.includes(p);
 
       const timeout = setTimeout(goLogin, 8000);
       const { data: { session }, error } = await client.auth.getSession();
@@ -146,6 +162,55 @@
       console.error('Auth error:', e);
       goLogin();
     }
+  }
+
+  async function revealAppUser(appSess) {
+    // Build a user-like object for reveal
+    const fakeUser = { email: appSess.email || appSess.username, id: appSess.id };
+    window.currentUser = fakeUser;
+    window.userRole    = appSess.role_id;
+    window.appUser     = appSess;
+
+    // Load permissions for this role
+    try {
+      const hdrs = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY };
+      const pr = await fetch(`${API}/role_permissions?role_id=eq.${appSess.role_id}&select=permission`, { headers: hdrs });
+      const rows = await pr.json();
+      window.userPerms = (rows || []).map(r => r.permission);
+    } catch(e) {
+      window.userPerms = null; // full access on error
+    }
+
+    // Check page permission
+    const page = window.location.pathname.split('/').pop() || 'index.html';
+    const requiredPerm = PAGE_PERMS[page];
+    if (requiredPerm && window.userPerms && !window.userPerms.includes(requiredPerm)) {
+      goNoAccess(requiredPerm);
+      return;
+    }
+
+    // Reveal page
+    document.getElementById('auth-guard-hide')?.remove();
+    document.getElementById('auth-loader')?.remove();
+
+    // Sidebar user box
+    setTimeout(() => {
+      const footer = document.querySelector('.sb-footer');
+      if (footer && !footer.querySelector('.sb-user')) {
+        const roleName = appSess.role_id.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+        const userBox = document.createElement('div');
+        userBox.className = 'sb-user';
+        userBox.style.cssText = 'padding:8px 10px;font-size:11px;color:var(--text-3);border-top:1px solid var(--border);margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px';
+        userBox.innerHTML = `
+          <div style="overflow:hidden;flex:1;min-width:0">
+            <div style="font-weight:600;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${appSess.name || appSess.username}</div>
+            <div style="font-size:10px;color:var(--text-3)">${roleName}</div>
+          </div>
+          <button onclick="signOut()" style="background:none;border:1px solid var(--border);color:var(--text-3);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-family:inherit;white-space:nowrap">Sign out</button>
+        `;
+        footer.appendChild(userBox);
+      }
+    }, 150);
   }
 
   function waitForSupabase(attempts) {
@@ -165,6 +230,7 @@
   }
 
   window.signOut = function() {
+    localStorage.removeItem('cnc_app_session');
     if (window._supabase) {
       window._supabase.auth.signOut().then(() => goLogin());
     } else {
