@@ -322,9 +322,23 @@
 <script src="shared/auth-guard.js"></script>
 <script src="shared/core.js"></script>
 <script>
-// Use auth-guard's client if available, else create new
-function getSB() {
-  return window._supabase || supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+// Direct REST fetch — bypasses SDK key compatibility issues
+const API = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
+const KEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
+const HEADERS = { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+
+async function sbFetch(table, params='') {
+  const r = await fetch(`${API}/${table}?${params}`, { headers: HEADERS });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbUpsert(table, data) {
+  const r = await fetch(`${API}/${table}`, { method:'POST', headers:{ ...HEADERS, 'Prefer':'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(data) });
+  if(!r.ok) throw new Error(await r.text());
+}
+async function sbDelete(table, id) {
+  const r = await fetch(`${API}/${table}?id=eq.${encodeURIComponent(id)}`, { method:'DELETE', headers: HEADERS });
+  if(!r.ok) throw new Error(await r.text());
 }
 let allClients = [];
 let filtered   = [];
@@ -363,31 +377,29 @@ async function loadClients() {
   showSkeleton();
   document.getElementById('topbarSub').textContent = 'Loading...';
   try {
-    const sb = getSB();
-    // First 200 rows fast
-    const {data: first, error} = await sb.from('clients').select('*').range(0, 199);
-    if(error) throw error;
+    // First 200 fast
+    const first = await sbFetch('clients', 'limit=200&offset=0&order=name.asc');
     allClients = first || [];
     updateStats(); populateFilters(); applyFilters();
     document.getElementById('topbarSub').textContent = `${allClients.length} clients`;
 
     // Load rest in background
-    if(first && first.length === 200) {
-      let from = 200;
+    if(first.length === 200) {
+      let offset = 200;
       while(true){
-        const {data, error: e2} = await sb.from('clients').select('*').range(from, from+499);
-        if(e2 || !data || !data.length) break;
-        allClients = allClients.concat(data);
-        if(data.length < 500) break;
-        from += 500;
+        const batch = await sbFetch('clients', `limit=500&offset=${offset}&order=name.asc`);
+        if(!batch || !batch.length) break;
+        allClients = allClients.concat(batch);
+        if(batch.length < 500) break;
+        offset += 500;
       }
       updateStats(); populateFilters(); applyFilters();
       document.getElementById('topbarSub').textContent = `${allClients.length} clients loaded`;
     }
   } catch(err) {
     console.error('Load error:', err);
-    document.getElementById('topbarSub').textContent = '⚠️ Load failed: ' + err.message;
-    document.getElementById('clientBody').innerHTML = `<tr><td colspan="10"><div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load clients</div><div class="empty-desc">${err.message}</div></div></td></tr>`;
+    document.getElementById('topbarSub').textContent = '⚠️ ' + err.message;
+    document.getElementById('clientBody').innerHTML = `<tr><td colspan="10"><div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load</div><div class="empty-desc">${err.message}</div></div></td></tr>`;
   }
 }
 
@@ -613,11 +625,15 @@ async function saveClient(e){
     last_updated:     new Date().toISOString()
   };
 
-  const {error} = await getSB().from('clients').upsert(record, {onConflict:'id'});
+  try {
+    await sbUpsert('clients', record);
+  } catch(err) {
+    btn.disabled = false;
+    btn.textContent = editingId?'Update Client':'Save Client';
+    showToast('Save failed: '+err.message,'❌'); return;
+  }
   btn.disabled = false;
   btn.textContent = editingId?'Update Client':'Save Client';
-
-  if(error){ showToast('Save failed: '+error.message,'❌'); return; }
   showToast(editingId?'Client updated':'Client added','✅');
   closeModal();
   loadClients();
@@ -625,8 +641,8 @@ async function saveClient(e){
 
 async function deleteClient(id, name){
   if(!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-  const {error} = await getSB().from('clients').delete().eq('id',id);
-  if(error){ showToast('Delete failed','❌'); return; }
+  try { await sbDelete('clients', id); }
+  catch(err){ showToast('Delete failed: '+err.message,'❌'); return; }
   showToast('Client deleted','🗑️');
   loadClients();
 }
