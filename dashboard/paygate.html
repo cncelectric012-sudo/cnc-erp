@@ -8,97 +8,96 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/styles.css">
 <style>
-/* PayGate Login */
-.pg-login { position:fixed; inset:0; background:linear-gradient(135deg,#EFF6FF,#F5F3FF); display:flex; align-items:center; justify-content:center; z-index:600; padding:16px; }
-.pg-login.hidden { display:none; }
-.pg-login-box { background:#fff; border-radius:16px; padding:28px 24px; width:100%; max-width:360px; box-shadow:0 20px 60px rgba(0,0,0,.15); }
-.pg-logo { width:52px; height:52px; background:linear-gradient(135deg,#DC2626,#7C3AED); border-radius:14px; display:grid; place-items:center; color:white; font-weight:800; font-size:20px; margin:0 auto 14px; }
+/* ─── Stats ─────────────────────────────────────────────────── */
+.pg-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+.pg-stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;position:relative;overflow:hidden}
+.pg-stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.pg-stat.s-total::before{background:var(--blue)}
+.pg-stat.s-pending::before{background:var(--yellow)}
+.pg-stat.s-verified::before{background:var(--blue)}
+.pg-stat.s-posted::before{background:var(--green)}
+.pg-stat.s-rejected::before{background:var(--red)}
+.pg-stat .v{font-size:24px;font-weight:800;font-family:var(--font-mono)}
+.pg-stat .l{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.pg-stat .sub{font-size:11px;color:var(--text-3);margin-top:2px}
 
-/* Role view toggle */
-.role-banner { background:linear-gradient(135deg,var(--brand),#7C3AED); color:white; padding:8px 16px; font-size:12px; display:flex; align-items:center; justify-content:between; gap:10px; }
-.view-toggle { display:flex; gap:4px; background:rgba(255,255,255,.15); padding:3px; border-radius:8px; }
-.view-btn { padding:5px 14px; border-radius:6px; border:none; font-size:11px; font-weight:600; cursor:pointer; background:none; color:rgba(255,255,255,.7); }
-.view-btn.active { background:white; color:var(--brand); }
+/* ─── Tabs ───────────────────────────────────────────────────── */
+.pg-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto}
+.pg-tab{padding:9px 16px;font-size:13px;font-weight:500;color:var(--text-3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.pg-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
 
-/* Stats */
-.pg-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
-.pg-stat { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px; text-align:center; }
-.pg-stat .v { font-size:22px; font-weight:700; }
-.pg-stat .l { font-size:10px; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
+/* ─── Submit Form ────────────────────────────────────────────── */
+.form-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-2col .full{grid-column:1/-1}
+.entity-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ent-btn{padding:10px;border:1.5px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;font-weight:700;font-size:13px;transition:all .15s;background:var(--surface)}
+.ent-btn.sel{border-color:var(--brand);background:var(--brand-50);color:var(--brand)}
+.type-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.type-btn{padding:9px;border:1.5px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;background:var(--surface)}
+.type-btn.sel{border-color:var(--blue);background:var(--blue-50);color:var(--blue)}
+.photo-zone{border:2px dashed var(--border-2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:border-color .15s}
+.photo-zone:hover{border-color:var(--brand)}
+.photo-zone img{max-width:100%;border-radius:8px;margin-top:8px;max-height:200px;object-fit:cover}
+.submit-btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--green);color:white;box-shadow:0 4px 12px rgba(5,150,105,.3);transition:all .15s}
+.submit-btn:disabled{background:var(--surface-2);color:var(--text-3);cursor:not-allowed;box-shadow:none}
+.bank-hint{background:var(--blue-50);border:1px solid var(--blue-100);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--blue);margin-bottom:10px}
 
-/* Tabs */
-.pg-tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:16px; }
-.pg-tab { padding:8px 16px; font-size:13px; font-weight:500; color:var(--text-3); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
-.pg-tab.active { color:var(--brand); border-bottom-color:var(--brand); }
+/* ─── Payment Cards ──────────────────────────────────────────── */
+.pay-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;margin-bottom:8px}
+.pay-card:hover{border-color:var(--brand);box-shadow:var(--shadow-sm)}
+.pay-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.pay-name{font-weight:600;font-size:14px}
+.pay-meta{font-size:11px;color:var(--text-3);margin-top:2px}
+.pay-amt{font-size:18px;font-weight:700;font-family:var(--font-mono);white-space:nowrap}
+.status-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:600}
+.status-pill.pending{background:var(--yellow-50);color:var(--yellow)}
+.status-pill.verified{background:var(--blue-50);color:var(--blue)}
+.status-pill.posted{background:var(--green-50);color:var(--green)}
+.status-pill.rejected{background:var(--red-50);color:var(--red)}
 
-/* Submit form */
-.entity-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-.ent-btn { padding:10px; border:1.5px solid var(--border); border-radius:8px; text-align:center; cursor:pointer; font-weight:600; font-size:13px; transition:all .15s; background:var(--surface); }
-.ent-btn.sel { border-color:var(--brand); background:var(--brand-50); color:var(--brand); }
-.type-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-.type-btn { padding:8px; border:1.5px solid var(--border); border-radius:8px; text-align:center; cursor:pointer; font-size:12px; font-weight:600; transition:all .15s; background:var(--surface); }
-.type-btn.sel { border-color:var(--blue); background:var(--blue-50); color:var(--blue); }
-.photo-zone { border:2px dashed var(--border-2); border-radius:10px; padding:20px; text-align:center; cursor:pointer; transition:border-color .15s; }
-.photo-zone:hover { border-color:var(--brand); }
-.photo-zone img { max-width:100%; border-radius:8px; margin-top:8px; max-height:200px; object-fit:cover; }
-.submit-btn { width:100%; padding:14px; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; background:var(--green); color:white; box-shadow:0 4px 12px rgba(5,150,105,.3); transition:all .15s; }
-.submit-btn:disabled { background:var(--surface-2); color:var(--text-3); cursor:not-allowed; box-shadow:none; }
-.submit-btn:hover:not(:disabled) { background:#047857; }
+/* ─── Report Tables ──────────────────────────────────────────── */
+.report-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.report-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--surface-2)}
+.report-hdr h3{font-size:13px;font-weight:700;margin:0}
 
-/* Bank hint */
-.bank-hint { background:var(--blue-50); border:1px solid var(--blue-100); border-radius:8px; padding:8px 12px; font-size:11px; color:var(--blue); margin-bottom:10px; }
+/* ─── Bar Chart ──────────────────────────────────────────────── */
+.mini-chart{display:flex;align-items:flex-end;gap:4px;height:60px;padding:0 4px}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.bar{width:100%;background:var(--brand-50);border-radius:3px 3px 0 0;transition:height .3s;min-height:2px;position:relative}
+.bar:hover{background:var(--brand)}
+.bar-lbl{font-size:8px;color:var(--text-3);white-space:nowrap}
 
-/* Payment cards */
-.pay-list { display:flex; flex-direction:column; gap:8px; }
-.pay-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px; cursor:pointer; transition:all .15s; }
-.pay-card:hover { border-color:var(--brand); box-shadow:var(--shadow-sm); }
-.pay-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
-.pay-card-name { font-weight:600; font-size:14px; }
-.pay-card-meta { font-size:11px; color:var(--text-3); margin-top:2px; }
-.pay-card-amt { font-size:18px; font-weight:700; font-family:var(--font-mono); white-space:nowrap; }
-.status-pill { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:600; }
-.status-pill.pending  { background:var(--yellow-50); color:var(--yellow); }
-.status-pill.verified { background:var(--blue-50);   color:var(--blue); }
-.status-pill.posted   { background:var(--green-50);  color:var(--green); }
-.status-pill.rejected { background:var(--red-50);    color:var(--red); }
+/* ─── Autocomplete ───────────────────────────────────────────── */
+.ac-wrap{position:relative}
+.ac-drop{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--brand);border-top:none;border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;z-index:50;box-shadow:var(--shadow-md)}
+.ac-item{padding:9px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.ac-item:hover{background:var(--surface-2)}
+.ac-item:last-child{border-bottom:none}
 
-/* Accounts review */
-.review-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; margin-bottom:10px; overflow:hidden; }
-.review-header { padding:14px 16px; background:var(--surface-2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
-.review-body { padding:16px; }
-.review-split { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.review-col { padding:10px; border-radius:8px; }
-.review-col.claim { background:var(--blue-50); border:1px solid var(--blue-100); }
-.review-col.bank  { background:var(--green-50); border:1px solid var(--green-100); }
-.review-col h4 { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
-.review-col .rv { font-size:13px; font-weight:600; }
-.review-col .rs { font-size:11px; color:var(--text-3); }
-.action-row { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+/* ─── Detail Modal ───────────────────────────────────────────── */
+.pg-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;display:flex;align-items:flex-end;justify-content:center}
+.pg-modal-bg.hidden{display:none}
+.pg-modal{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:680px;max-height:90vh;overflow-y:auto;padding:20px 18px 32px}
+.pg-modal-handle{width:40px;height:4px;border-radius:2px;background:var(--border-2);margin:0 auto 16px}
 
-/* Modal */
-.pg-modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:300; display:flex; align-items:flex-end; justify-content:center; }
-.pg-modal-bg.hidden { display:none; }
-.pg-modal { background:var(--surface); border-radius:16px 16px 0 0; width:100%; max-width:640px; max-height:90vh; overflow-y:auto; padding:20px 18px 32px; }
-.pg-modal-handle { width:40px; height:4px; border-radius:2px; background:var(--border-2); margin:0 auto 16px; }
+/* ─── Filter Bar ─────────────────────────────────────────────── */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
 
-/* Message thread */
-.msg-thread { border-top:1px solid var(--border); padding-top:12px; margin-top:12px; }
-.msg-bubble { max-width:80%; padding:8px 12px; border-radius:10px; margin-bottom:6px; font-size:12px; line-height:1.5; }
-.msg-bubble.mine { background:var(--brand-50); color:var(--brand); margin-left:auto; border-bottom-right-radius:3px; }
-.msg-bubble.theirs { background:var(--surface-2); color:var(--text-2); border-bottom-left-radius:3px; }
-.msg-who { font-size:10px; font-weight:600; color:var(--text-3); margin-bottom:2px; }
-.msg-time { font-size:10px; color:var(--text-4); margin-top:2px; }
+/* ─── Timeline ───────────────────────────────────────────────── */
+.timeline-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.timeline-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.timeline-dot.posted{background:var(--green)}
+.timeline-dot.verified{background:var(--blue)}
+.timeline-dot.pending{background:var(--yellow)}
+.timeline-dot.rejected{background:var(--red)}
 
-/* Autocomplete */
-.autocomplete-wrap { position:relative; }
-.autocomplete-drop { position:absolute; top:100%; left:0; right:0; background:var(--surface); border:1.5px solid var(--brand); border-top:none; border-radius:0 0 8px 8px; max-height:220px; overflow-y:auto; z-index:50; box-shadow:var(--shadow-md); }
-.autocomplete-item { padding:10px 14px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
-.autocomplete-item:hover { background:var(--surface-2); }
-.autocomplete-item:last-child { border-bottom:none; }
-
-@media(max-width:600px) {
-  .pg-stats { grid-template-columns:repeat(2,1fr); }
-  .review-split { grid-template-columns:1fr; }
+@media(max-width:700px){
+  .pg-stats{grid-template-columns:repeat(2,1fr)}
+  .form-2col{grid-template-columns:1fr}
+  .form-2col .full{grid-column:1}
+}
+@media(max-width:400px){
+  .pg-stats{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
@@ -107,159 +106,27 @@
   <aside class="sidebar" id="sidebar"></aside>
   <main class="main">
 
-    <!-- Main App -->
-    <div id="pgApp" class="hidden">
-      <div class="topbar" style="gap:10px">
-        <div>
-          <div class="topbar-title">💰 PayGate</div>
-          <div class="topbar-sub" id="pgTopbarSub">Payment Management System</div>
-        </div>
-        <div class="topbar-actions">
-          <!-- View toggle for accounts/coo/ceo -->
-          <div id="viewToggle" class="hidden" style="display:flex;gap:4px;background:var(--surface-2);padding:3px;border-radius:8px">
-            <button class="view-btn active" id="vbField" onclick="setView('field',this)">📱 Field</button>
-            <button class="view-btn" id="vbAccounts" onclick="setView('accounts',this)">🖥️ Accounts</button>
-          </div>
-          <span id="pgUserBadge" style="font-size:12px;color:var(--text-3)"></span>
-        </div>
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">💰 PayGate</div>
+        <div class="topbar-sub" id="pgSub">Loading...</div>
       </div>
-
-      <div class="content">
-        <!-- Stats -->
-        <div class="pg-stats">
-          <div class="pg-stat"><div class="v" id="pg-today">0</div><div class="l">Today</div></div>
-          <div class="pg-stat"><div class="v" id="pg-pending" style="color:var(--yellow)">0</div><div class="l">Pending</div></div>
-          <div class="pg-stat"><div class="v" id="pg-verified" style="color:var(--blue)">0</div><div class="l">Verified</div></div>
-          <div class="pg-stat"><div class="v" id="pg-posted" style="color:var(--green)">0</div><div class="l">Posted</div></div>
+      <div class="topbar-actions">
+        <div id="viewToggle" class="hidden" style="display:flex;gap:4px;background:var(--surface-2);padding:3px;border-radius:8px">
+          <button class="btn btn-ghost btn-sm active" id="vbField" onclick="setView('field',this)" style="padding:5px 12px">📱 Field</button>
+          <button class="btn btn-ghost btn-sm" id="vbAdmin" onclick="setView('admin',this)" style="padding:5px 12px">🖥️ Admin</button>
         </div>
-
-        <!-- Tabs -->
-        <div class="pg-tabs">
-          <div class="pg-tab active" id="tab-new" onclick="pgTab('new',this)">+ New Payment</div>
-          <div class="pg-tab" id="tab-mine" onclick="pgTab('mine',this)">My Payments</div>
-          <div class="pg-tab hidden" id="tab-review" onclick="pgTab('review',this)">Review Queue</div>
-          <div class="pg-tab hidden" id="tab-all" onclick="pgTab('all',this)">All Payments</div>
-        </div>
-
-        <!-- New Payment -->
-        <div id="view-new">
-          <div class="card card-body" style="max-width:600px">
-            <div class="field">
-              <label>Customer / Dealer Name <span style="color:var(--brand)">*</span></label>
-              <div class="autocomplete-wrap">
-                <input class="input" id="pg-cust" placeholder="Search 4000+ clients..." autocomplete="off" oninput="acSearch(this.value)" onfocus="acSearch(this.value)"/>
-                <div class="autocomplete-drop hidden" id="acDrop"></div>
-              </div>
-            </div>
-            <div class="field">
-              <label>Amount (PKR) <span style="color:var(--brand)">*</span></label>
-              <input class="input" id="pg-amt" type="number" placeholder="0" style="font-size:22px;font-weight:700;text-align:center;font-family:var(--font-mono)"/>
-            </div>
-            <div class="field">
-              <label>Entity</label>
-              <div class="entity-row">
-                <div class="ent-btn sel" onclick="selEnt('CNC',this)">CNC</div>
-                <div class="ent-btn" onclick="selEnt('CST',this)">CST</div>
-                <div class="ent-btn" onclick="selEnt('CSPL',this)">CSPL</div>
-              </div>
-            </div>
-            <div class="bank-hint" id="bankHint">🏦 Bank for <b>CNC</b>: BAH AOP or Meezan Pvt</div>
-            <div class="field">
-              <label>Payment Type <span style="color:var(--brand)">*</span></label>
-              <div class="type-row">
-                <div class="type-btn sel" onclick="selType('ledger',this)">Ledger Credit</div>
-                <div class="type-btn" onclick="selType('dispatch',this)">For Dispatch</div>
-                <div class="type-btn" onclick="selType('outward',this)">Outward Pay</div>
-              </div>
-            </div>
-            <div class="field">
-              <label>Phone Number</label>
-              <input class="input" id="pg-phone" placeholder="03XX-XXXXXXX" type="tel"/>
-            </div>
-            <div class="field" id="invoiceField" style="display:none">
-              <label>Invoice / Order Ref <span style="color:var(--brand)">*</span></label>
-              <input class="input" id="pg-invoice" placeholder="INV-XXXX or order ref"/>
-            </div>
-            <div class="field">
-              <label>Receipt Photo</label>
-              <div class="photo-zone" onclick="document.getElementById('pg-photo-input').click()">
-                <input type="file" id="pg-photo-input" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
-                <div id="pg-photo-preview">
-                  <div style="font-size:28px">📸</div>
-                  <div style="font-size:12px;color:var(--text-3);margin-top:4px">Tap to take or upload photo</div>
-                </div>
-              </div>
-            </div>
-            <div class="field">
-              <label>Bank SMS / WhatsApp Message</label>
-              <textarea class="input" id="pg-bankmsg" rows="3" placeholder="Paste bank confirmation message here..."></textarea>
-            </div>
-            <div class="field">
-              <label>Note</label>
-              <input class="input" id="pg-note" placeholder="Optional note..."/>
-            </div>
-            <button class="submit-btn" id="pg-submit-btn" onclick="submitPayment()" disabled>Submit Payment</button>
-          </div>
-        </div>
-
-        <!-- My Payments -->
-        <div id="view-mine" class="hidden">
-          <div class="pay-list" id="myPayList">
-            <div class="empty"><div class="empty-icon">💳</div><div class="empty-title">No payments yet</div><div class="empty-desc">Submit your first payment from the New tab</div></div>
-          </div>
-        </div>
-
-        <!-- Review Queue (Accounts) -->
-        <div id="view-review" class="hidden">
-          <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <select class="input" style="width:140px" id="reviewFilter" onchange="renderReview()">
-              <option value="pending">Pending</option>
-              <option value="verified">Verified</option>
-              <option value="all">All</option>
-            </select>
-            <select class="input" style="width:130px" id="reviewEnt" onchange="renderReview()">
-              <option value="">All Entities</option>
-              <option>CNC</option><option>CST</option><option>CSPL</option>
-            </select>
-            <span id="reviewCount" style="font-size:12px;color:var(--text-3)"></span>
-          </div>
-          <div id="reviewList"></div>
-        </div>
-
-        <!-- All Payments -->
-        <div id="view-all" class="hidden">
-          <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
-            <input class="input" style="width:200px" id="allSearch" placeholder="Search customer..." oninput="renderAll()"/>
-            <select class="input" style="width:130px" id="allStatus" onchange="renderAll()">
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="verified">Verified</option>
-              <option value="posted">Posted</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <select class="input" style="width:130px" id="allEnt" onchange="renderAll()">
-              <option value="">All Entities</option>
-              <option>CNC</option><option>CST</option><option>CSPL</option>
-            </select>
-          </div>
-          <div class="card" style="padding:0;overflow:hidden">
-            <div class="table-scroll">
-              <table>
-                <thead><tr>
-                  <th>Customer</th><th>Amount</th><th>Entity</th><th>Type</th>
-                  <th>Submitted By</th><th>Status</th><th>Date</th><th></th>
-                </tr></thead>
-                <tbody id="allList"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <span id="pgUserBadge" style="font-size:12px;color:var(--text-3)"></span>
       </div>
+    </div>
+
+    <div class="content" id="pgContent">
+      <div class="empty"><div class="empty-icon">💰</div><div class="empty-title">Loading PayGate...</div></div>
     </div>
   </main>
 </div>
 
-<!-- Payment Detail Modal -->
+<!-- Detail Modal -->
 <div class="pg-modal-bg hidden" id="pgDetailModal">
   <div class="pg-modal">
     <div class="pg-modal-handle"></div>
@@ -274,437 +141,787 @@
 <script>
 const API = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
 const KEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
-const HDR = { 'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':'return=representation' };
+const HDR = {'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':'return=representation'};
 
-async function apiFetch(path, opts={}) {
-  const r = await fetch(API+path, { headers:HDR, ...opts });
-  if(!r.ok) { const t=await r.text(); throw new Error(t); }
+const BANKS = ['Meezan Bank','HBL','UBL','MCB','Allied Bank','Bank Alfalah (BAFL)','Bank Al-Habib (BAH)','NBP','Faysal Bank','Askari Bank','JS Bank','Silk Bank','Habib Metro','Dubai Islamic Bank','Other'];
+const BANK_ROUTING = {CNC:'BAH AOP ya Meezan Pvt',CST:'BAFL AOP (705) ya BAH AOP',CSPL:'BAFL 989 ya BAH Pvt'};
+const PAY_TYPES = ['Ledger Credit','For Dispatch','Outward Payment','Advance','Security Deposit'];
+
+async function apiFetch(path,opts={}){
+  const r=await fetch(API+path,{headers:HDR,...opts});
+  if(!r.ok){const t=await r.text();throw new Error(t);}
   return r.status===204?null:r.json();
 }
 
-async function sha256(s) {
-  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-  return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
-}
+const PKR = n => 'PKR '+Number(n||0).toLocaleString('en-PK');
+const fmtDate = d => d?new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'-';
+const fmtDT   = d => d?new Date(d).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'-';
 
-// ── PayGate Auth ───────────────────────────────────────────────
-let PGU = null; // current paygate user
-let pgView = 'field';
-let pgCurrentTab = 'new';
-let allEntries = [], myEntries = [], allClients = [];
-let pgState = { cust:'', amt:'', ent:'CNC', typ:'ledger', phone:'', invoice:'', bankmsg:'', note:'', photo:null };
+let PGU=null, pgView='field', pgTab='submit';
+let allEntries=[], myEntries=[], allClients=[];
+let pgState={cust:'',amt:'',ent:'CNC',typ:'Ledger Credit',bank:'',account:'',txnId:'',payDate:'',phone:'',invoice:'',bankmsg:'',note:'',photo:null};
+let showAc=false;
 
-const BANK_MAP = { CNC:'BAH AOP or Meezan Pvt', CST:'BAFL AOP (705) or BAH AOP', CSPL:'BAFL 989 or BAH Pvt' };
+// ── Init ──────────────────────────────────────────────────────
+const pgWait = setInterval(()=>{
+  if(window.currentUser){ clearInterval(pgWait); initPG(); }
+},100);
+setTimeout(()=>clearInterval(pgWait),10000);
 
-// ── Init from ERP session (auth-guard sets window.currentUser) ──
-async function initFromERP() {
-  const erpUser = window.currentUser;
-  if(!erpUser?.email) {
-    document.getElementById('pgTopbarSub').textContent = '⚠️ ERP session not found';
-    return;
-  }
-  // Look up user in app_users by email
-  const data = await apiFetch(`/app_users?email=eq.${encodeURIComponent(erpUser.email)}&active=eq.true&select=id,name,username,role_id`);
-  if(data && data.length) {
-    PGU = data[0];
-  } else {
-    // Fallback: use ERP email as name, assign super_admin role for owner
-    PGU = { id: erpUser.id, name: erpUser.email.split('@')[0], username: erpUser.email, role_id: 'super_admin' };
-  }
-  initPGApp();
-}
+async function initPG(){
+  const u = window.currentUser;
+  const appU = window.appUser;
+  if(appU){ PGU={id:appU.id,name:appU.name||appU.username,role:appU.role_id,email:appU.email}; }
+  else { PGU={id:u.id,name:u.email.split('@')[0],role:window.userRole||'super_admin',email:u.email}; }
 
-function canDo(perm) {
-  // permissions loaded from role
-  return (PGU?.perms||[]).includes(perm);
-}
+  document.getElementById('pgUserBadge').textContent = PGU.name;
 
-async function initPGApp() {
-  document.getElementById('pgApp').classList.remove('hidden');
-
-  // Load user permissions
-  const perms = await apiFetch(`/role_permissions?role_id=eq.${PGU.role_id}&select=permission`);
-  PGU.perms = (perms||[]).map(p=>p.permission);
-
-  document.getElementById('pgUserBadge').textContent = PGU.name + ' · ' + PGU.role_id;
-
-  // Show/hide tabs based on role
-  const canVerify = canDo('paygate.verify') || canDo('paygate.journal');
-  document.getElementById('tab-review').classList.toggle('hidden', !canVerify);
-  document.getElementById('tab-all').classList.toggle('hidden', !canVerify);
-  document.getElementById('viewToggle').classList.toggle('hidden', !canVerify);
-  document.getElementById('tab-new').classList.toggle('hidden', !canDo('paygate.submit'));
-
-  if(!canDo('paygate.submit') && canVerify) {
-    pgTab('review', document.getElementById('tab-review'));
-    setView('accounts', document.getElementById('vbAccounts'));
-  }
+  const canAdmin = canDo('paygate.verify')||canDo('paygate.journal')||canDo('users.manage');
+  document.getElementById('viewToggle').classList.toggle('hidden',!canAdmin);
+  if(!canDo('paygate.submit')&&canAdmin){ pgView='admin'; }
 
   await loadData();
+  render();
 }
 
-// ── Data ───────────────────────────────────────────────────────
-async function loadData() {
-  document.getElementById('pgTopbarSub').textContent = 'Loading...';
-  try {
-    const [entries, clients] = await Promise.all([
-      apiFetch('/paygate_entries?order=created_at.desc&limit=500'),
-      apiFetch('/clients?select=id,name,city,salesperson&limit=5000&order=name.asc')
-    ]);
-    allEntries = entries || [];
-    allClients = clients || [];
-    myEntries  = allEntries.filter(e=>e.submitted_by===PGU.name);
-    updatePGStats();
-    renderCurrentTab();
-    document.getElementById('pgTopbarSub').textContent = `${allEntries.length} payments total`;
-  } catch(e) {
-    document.getElementById('pgTopbarSub').textContent = '⚠️ '+e.message;
-  }
+function canDo(p){ return !window.userPerms||window.userPerms.includes(p); }
+
+async function loadData(){
+  document.getElementById('pgSub').textContent='Loading...';
+  const [entries,clients]=await Promise.all([
+    apiFetch('/paygate_entries?order=created_at.desc&limit=1000'),
+    apiFetch('/clients?select=id,name,city,salesperson&limit=5000&order=name.asc')
+  ]);
+  allEntries=entries||[];
+  allClients=clients||[];
+  myEntries=allEntries.filter(e=>e.submitted_by===PGU.name);
+  document.getElementById('pgSub').textContent=`${allEntries.length} total payments`;
 }
 
-function updatePGStats() {
-  const today = new Date().toISOString().slice(0,10);
-  const src = canDo('paygate.verify') ? allEntries : myEntries;
-  document.getElementById('pg-today').textContent    = src.filter(e=>e.created_at?.slice(0,10)===today).length;
-  document.getElementById('pg-pending').textContent  = src.filter(e=>e.status==='pending').length;
-  document.getElementById('pg-verified').textContent = src.filter(e=>e.status==='verified').length;
-  document.getElementById('pg-posted').textContent   = src.filter(e=>e.journaled).length;
-}
-
-// ── View/Tab ───────────────────────────────────────────────────
-function setView(v, el) {
-  pgView = v;
-  document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
+function setView(v,el){
+  pgView=v;
+  document.querySelectorAll('#viewToggle button').forEach(b=>{b.classList.remove('active','btn-primary');b.style.background='';});
   el.classList.add('active');
-  if(v==='accounts') pgTab('review', document.getElementById('tab-review'));
-  else pgTab('new', document.getElementById('tab-new'));
+  el.style.background='var(--surface)';
+  pgTab = v==='admin'?'all':'submit';
+  render();
 }
 
-function pgTab(tab, el) {
-  pgCurrentTab = tab;
-  document.querySelectorAll('.pg-tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  ['new','mine','review','all'].forEach(v => document.getElementById('view-'+v).classList.toggle('hidden', v!==tab));
-  renderCurrentTab();
+// ── Main Render ───────────────────────────────────────────────
+function render(){
+  const isAdmin = pgView==='admin';
+  const src = isAdmin?allEntries:myEntries;
+  const today=new Date().toISOString().slice(0,10);
+
+  const stats = `
+  <div class="pg-stats">
+    <div class="pg-stat s-total"><div class="v">${src.length}</div><div class="l">Total</div><div class="sub">${PKR(src.reduce((s,e)=>s+(e.amount||0),0))}</div></div>
+    <div class="pg-stat s-pending"><div class="v" style="color:var(--yellow)">${src.filter(e=>e.status==='pending').length}</div><div class="l">Pending</div><div class="sub">${PKR(src.filter(e=>e.status==='pending').reduce((s,e)=>s+(e.amount||0),0))}</div></div>
+    <div class="pg-stat s-verified"><div class="v" style="color:var(--blue)">${src.filter(e=>e.status==='verified').length}</div><div class="l">Verified</div><div class="sub">${PKR(src.filter(e=>e.status==='verified').reduce((s,e)=>s+(e.amount||0),0))}</div></div>
+    <div class="pg-stat s-posted"><div class="v" style="color:var(--green)">${src.filter(e=>e.journaled).length}</div><div class="l">Posted</div><div class="sub">${PKR(src.filter(e=>e.journaled).reduce((s,e)=>s+(e.amount||0),0))}</div></div>
+    <div class="pg-stat s-rejected"><div class="v" style="color:var(--red)">${src.filter(e=>e.status==='rejected').length}</div><div class="l">Rejected</div><div class="sub">Today: ${src.filter(e=>(e.created_at||'').slice(0,10)===today).length}</div></div>
+  </div>`;
+
+  const fieldTabs=`
+  <div class="pg-tabs">
+    ${canDo('paygate.submit')?`<div class="pg-tab ${pgTab==='submit'?'active':''}" onclick="switchTab('submit')">+ Submit Payment</div>`:''}
+    <div class="pg-tab ${pgTab==='history'?'active':''}" onclick="switchTab('history')">📋 My History</div>
+    <div class="pg-tab ${pgTab==='monthly'?'active':''}" onclick="switchTab('monthly')">📅 Monthly</div>
+  </div>`;
+
+  const adminTabs=`
+  <div class="pg-tabs">
+    <div class="pg-tab ${pgTab==='all'?'active':''}" onclick="switchTab('all')">📋 All Payments</div>
+    <div class="pg-tab ${pgTab==='review'?'active':''}" onclick="switchTab('review')">⏳ Review Queue</div>
+    <div class="pg-tab ${pgTab==='sp'?'active':''}" onclick="switchTab('sp')">👤 By Salesperson</div>
+    <div class="pg-tab ${pgTab==='bank'?'active':''}" onclick="switchTab('bank')">🏦 By Bank</div>
+    <div class="pg-tab ${pgTab==='monthly'?'active':''}" onclick="switchTab('monthly')">📅 Monthly</div>
+    <div class="pg-tab ${pgTab==='client'?'active':''}" onclick="switchTab('client')">👥 By Client</div>
+  </div>`;
+
+  let body='';
+  if(pgTab==='submit')  body=renderSubmit();
+  if(pgTab==='history') body=renderHistory();
+  if(pgTab==='monthly') body=renderMonthly(src);
+  if(pgTab==='all')     body=renderAll();
+  if(pgTab==='review')  body=renderReview();
+  if(pgTab==='sp')      body=renderBySP();
+  if(pgTab==='bank')    body=renderByBank();
+  if(pgTab==='client')  body=renderByClient();
+
+  document.getElementById('pgContent').innerHTML = stats+(isAdmin?adminTabs:fieldTabs)+body;
+  bindAc();
+  if(pgTab==='submit') bindSubmitListeners();
 }
 
-function renderCurrentTab() {
-  if(pgCurrentTab==='mine')   renderMine();
-  if(pgCurrentTab==='review') renderReview();
-  if(pgCurrentTab==='all')    renderAll();
-}
+function switchTab(t){ pgTab=t; render(); }
 
-// ── Submit ─────────────────────────────────────────────────────
-function acSearch(q) {
-  const drop = document.getElementById('acDrop');
-  if(q.length < 2) { drop.classList.add('hidden'); checkSubmit(); return; }
-  const results = allClients.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())).slice(0,8);
-  if(!results.length) { drop.classList.add('hidden'); return; }
-  drop.classList.remove('hidden');
-  drop.innerHTML = results.map(c=>`
-    <div class="autocomplete-item" onclick="selectClient('${c.name.replace(/'/g,"\\'")}')">
-      <div>
-        <div style="font-weight:600">${c.name}</div>
-        <div style="font-size:10px;color:var(--text-3)">${c.city||''} ${c.salesperson?'· '+c.salesperson:''}</div>
+// ── Submit Form ───────────────────────────────────────────────
+function renderSubmit(){
+  const today=new Date().toISOString().slice(0,10);
+  const _q=pgState.cust;
+  const sugg=_q.length>1?allClients.filter(c=>c.name.toLowerCase().includes(_q.toLowerCase())).slice(0,8):[];
+
+  return `
+  <div class="card card-body" style="max-width:640px">
+    <div style="font-size:15px;font-weight:700;margin-bottom:16px">💰 New Payment</div>
+    <div class="form-2col">
+
+      <div class="field full">
+        <label>Customer / Client Name <span style="color:var(--brand)">*</span></label>
+        <div class="ac-wrap">
+          <input class="input" id="pg-cust" value="${esc(pgState.cust)}" placeholder="Search 4000+ clients..." autocomplete="off" oninput="pgState.cust=this.value;showAc=true;render()" onfocus="showAc=true;render()"/>
+          ${showAc&&sugg.length?`<div class="ac-drop" id="acDrop">${sugg.map(c=>`
+            <div class="ac-item" onclick="selClient('${esc(c.name)}')">
+              <div><div style="font-weight:600">${c.name}</div><div style="font-size:10px;color:var(--text-3)">${c.city||''} ${c.salesperson?'· '+c.salesperson:''}</div></div>
+            </div>`).join('')}</div>`:''}
+        </div>
       </div>
-    </div>`).join('');
+
+      <div class="field">
+        <label>Amount (PKR) <span style="color:var(--brand)">*</span></label>
+        <input class="input" id="pg-amt" type="number" value="${pgState.amt||''}" placeholder="0" style="font-size:20px;font-weight:700;text-align:center;font-family:var(--font-mono)" oninput="pgState.amt=this.value"/>
+      </div>
+      <div class="field">
+        <label>Payment Date <span style="color:var(--brand)">*</span></label>
+        <input class="input" id="pg-date" type="date" value="${pgState.payDate||today}" oninput="pgState.payDate=this.value"/>
+      </div>
+
+      <div class="field full">
+        <label>Entity</label>
+        <div class="entity-row">
+          ${['CNC','CST','CSPL'].map(e=>`<div class="ent-btn ${pgState.ent===e?'sel':''}" onclick="pgState.ent='${e}';render()">${e}</div>`).join('')}
+        </div>
+      </div>
+
+      <div class="bank-hint full">🏦 Bank for <b>${pgState.ent}</b>: ${BANK_ROUTING[pgState.ent]}</div>
+
+      <div class="field">
+        <label>Bank Name <span style="color:var(--brand)">*</span></label>
+        <select class="input" id="pg-bank" onchange="pgState.bank=this.value">
+          <option value="">Select bank...</option>
+          ${BANKS.map(b=>`<option value="${b}" ${pgState.bank===b?'selected':''}>${b}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Account / Ref No.</label>
+        <input class="input" id="pg-account" value="${esc(pgState.account)}" placeholder="Account number" style="font-family:var(--font-mono)" oninput="pgState.account=this.value"/>
+      </div>
+
+      <div class="field">
+        <label>Transaction ID</label>
+        <input class="input" id="pg-txn" value="${esc(pgState.txnId)}" placeholder="Bank TXN reference" style="font-family:var(--font-mono)" oninput="pgState.txnId=this.value"/>
+      </div>
+      <div class="field">
+        <label>Phone</label>
+        <input class="input" id="pg-phone" type="tel" value="${esc(pgState.phone)}" placeholder="03XX-XXXXXXX" oninput="pgState.phone=this.value"/>
+      </div>
+
+      <div class="field full">
+        <label>Payment Type <span style="color:var(--brand)">*</span></label>
+        <div class="type-row">
+          ${PAY_TYPES.map(t=>`<div class="type-btn ${pgState.typ===t?'sel':''}" onclick="pgState.typ='${t}';render()">${t}</div>`).join('')}
+        </div>
+      </div>
+
+      ${pgState.typ==='For Dispatch'?`
+      <div class="field full">
+        <label>Invoice / Order Ref <span style="color:var(--brand)">*</span></label>
+        <input class="input" id="pg-invoice" value="${esc(pgState.invoice)}" placeholder="INV-XXXX or order ref" oninput="pgState.invoice=this.value"/>
+      </div>`:''}
+
+      <div class="field full">
+        <label>Receipt Photo</label>
+        <div class="photo-zone" onclick="document.getElementById('pg-photo-input').click()">
+          <input type="file" id="pg-photo-input" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
+          ${pgState.photo
+            ?`<img src="${pgState.photo}"/>`
+            :`<div style="font-size:28px">📸</div><div style="font-size:12px;color:var(--text-3);margin-top:4px">Tap to attach receipt photo</div>`}
+        </div>
+      </div>
+
+      <div class="field full">
+        <label>Bank SMS / WhatsApp Message</label>
+        <textarea class="input" id="pg-bankmsg" rows="3" placeholder="Paste bank confirmation message..." oninput="pgState.bankmsg=this.value">${esc(pgState.bankmsg)}</textarea>
+      </div>
+
+      <div class="field full">
+        <label>Note (optional)</label>
+        <input class="input" id="pg-note" value="${esc(pgState.note)}" placeholder="Any additional info..." oninput="pgState.note=this.value"/>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;padding:12px;background:var(--surface-2);border-radius:8px;font-size:12px;color:var(--text-3);margin-bottom:14px">
+      ✅ <b>Required:</b> Customer, Amount, Date, Bank Name, Payment Type
+    </div>
+
+    <button class="submit-btn" id="pg-submit-btn" onclick="submitPayment()" ${pgState.cust&&pgState.amt&&pgState.bank?'':'disabled'}>
+      💰 Submit Payment
+    </button>
+  </div>`;
 }
 
-function selectClient(name) {
-  pgState.cust = name;
-  document.getElementById('pg-cust').value = name;
-  document.getElementById('acDrop').classList.add('hidden');
-  checkSubmit();
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function bindSubmitListeners(){
+  document.getElementById('pg-cust')?.addEventListener('blur',()=>{setTimeout(()=>{showAc=false;},200)});
 }
 
-document.addEventListener('click', e => {
-  if(!e.target.closest('.autocomplete-wrap')) document.getElementById('acDrop').classList.add('hidden');
-});
-
-function selEnt(ent, el) {
-  pgState.ent = ent;
-  document.querySelectorAll('.ent-btn').forEach(b=>b.classList.remove('sel'));
-  el.classList.add('sel');
-  document.getElementById('bankHint').innerHTML = `🏦 Bank for <b>${ent}</b>: ${BANK_MAP[ent]}`;
+function bindAc(){
+  document.getElementById('acDrop')?.addEventListener('mousedown',e=>e.preventDefault());
 }
 
-function selType(typ, el) {
-  pgState.typ = typ;
-  document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('sel'));
-  el.classList.add('sel');
-  document.getElementById('invoiceField').style.display = typ==='dispatch'?'block':'none';
+function selClient(name){
+  pgState.cust=name;
+  showAc=false;
+  render();
 }
 
-function checkSubmit() {
-  const cust = document.getElementById('pg-cust').value.trim();
-  const amt  = parseFloat(document.getElementById('pg-amt').value)||0;
-  document.getElementById('pg-submit-btn').disabled = !(cust && amt>0);
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('pg-cust').addEventListener('input', checkSubmit);
-  document.getElementById('pg-amt').addEventListener('input', checkSubmit);
-});
-
-function handlePhoto(e) {
-  const file = e.target.files[0]; if(!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    pgState.photo = ev.target.result;
-    document.getElementById('pg-photo-preview').innerHTML = `<img src="${ev.target.result}"/>`;
-  };
+function handlePhoto(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{pgState.photo=ev.target.result;render();};
   reader.readAsDataURL(file);
 }
 
-async function submitPayment() {
-  const btn  = document.getElementById('pg-submit-btn');
-  const cust = document.getElementById('pg-cust').value.trim();
-  const amt  = parseFloat(document.getElementById('pg-amt').value)||0;
-  if(!cust||!amt) return;
-  btn.disabled=true; btn.textContent='Submitting...';
+async function submitPayment(){
+  const btn=document.getElementById('pg-submit-btn');
+  if(!pgState.cust||!pgState.amt||!pgState.bank){return;}
+  btn.disabled=true;btn.textContent='Submitting...';
 
-  const entry = {
-    id: 'PG-'+Date.now(),
-    customer: cust,
-    amount: amt,
-    entity: pgState.ent,
-    payment_type: pgState.typ,
-    phone: document.getElementById('pg-phone').value.trim(),
-    invoice_ref: document.getElementById('pg-invoice').value.trim(),
-    bank_message: document.getElementById('pg-bankmsg').value.trim(),
-    photo_url: pgState.photo||'',
-    note: document.getElementById('pg-note').value.trim(),
-    submitted_by: PGU.name,
-    submitted_by_role: PGU.role_id,
-    status: 'pending',
-    journaled: false,
-    created_at: new Date().toISOString()
+  const entry={
+    id:'PG-'+Date.now(),
+    customer:pgState.cust,
+    amount:parseFloat(pgState.amt)||0,
+    entity:pgState.ent,
+    payment_type:pgState.typ,
+    bank_name:pgState.bank,
+    account_number:pgState.account,
+    transaction_id:pgState.txnId,
+    payment_date:pgState.payDate||new Date().toISOString().slice(0,10),
+    phone:pgState.phone,
+    invoice_ref:pgState.invoice,
+    bank_message:pgState.bankmsg,
+    photo_url:pgState.photo||'',
+    note:pgState.note,
+    submitted_by:PGU.name,
+    submitted_by_role:PGU.role,
+    salesperson_id:PGU.id,
+    status:'pending',
+    journaled:false,
+    created_at:new Date().toISOString()
   };
-
-  try {
-    await fetch(`${API}/paygate_entries`, { method:'POST', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify(entry) });
+  try{
+    await fetch(`${API}/paygate_entries`,{method:'POST',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify(entry)});
     showToast('Payment submitted!','✅');
-    // Reset form
-    document.getElementById('pg-cust').value='';
-    document.getElementById('pg-amt').value='';
-    document.getElementById('pg-phone').value='';
-    document.getElementById('pg-invoice').value='';
-    document.getElementById('pg-bankmsg').value='';
-    document.getElementById('pg-note').value='';
-    document.getElementById('pg-photo-preview').innerHTML=`<div style="font-size:28px">📸</div><div style="font-size:12px;color:var(--text-3);margin-top:4px">Tap to take or upload photo</div>`;
-    pgState.photo=null;
-    btn.textContent='Submit Payment'; btn.disabled=false;
+    pgState={cust:'',amt:'',ent:'CNC',typ:'Ledger Credit',bank:'',account:'',txnId:'',payDate:'',phone:'',invoice:'',bankmsg:'',note:'',photo:null};
     await loadData();
-    pgTab('mine', document.getElementById('tab-mine'));
-  } catch(e) {
+    pgTab='history';
+    render();
+  }catch(e){
     showToast('Failed: '+e.message,'❌');
-    btn.disabled=false; btn.textContent='Submit Payment';
+    btn.disabled=false;btn.textContent='💰 Submit Payment';
   }
 }
 
-// ── My Payments ────────────────────────────────────────────────
-function renderMine() {
-  const list = document.getElementById('myPayList');
-  if(!myEntries.length) {
-    list.innerHTML=`<div class="empty"><div class="empty-icon">💳</div><div class="empty-title">No payments yet</div><div class="empty-desc">Submit your first payment from New tab</div></div>`;
-    return;
-  }
-  list.innerHTML = myEntries.slice(0,50).map((e,i)=>payCard(e,i,'mine')).join('');
-}
+// ── My History ────────────────────────────────────────────────
+function renderHistory(){
+  const status=document.getElementById('hist-status')?.value||'';
+  const bank=document.getElementById('hist-bank')?.value||'';
+  let src=myEntries.filter(e=>{
+    if(status&&e.status!==status)return false;
+    if(bank&&e.bank_name!==bank)return false;
+    return true;
+  });
 
-function payCard(e, i, src) {
-  const statusMap = {pending:['pending','⏳ Pending'],verified:['verified','✅ Verified'],posted:['posted','📒 Posted'],rejected:['rejected','❌ Rejected']};
-  const [sc,sl] = statusMap[e.journaled?'posted':e.status]||['pending','⏳ Pending'];
-  const dt = e.created_at ? new Date(e.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+  const banks=[...new Set(myEntries.map(e=>e.bank_name).filter(Boolean))];
+
   return `
-  <div class="pay-card" onclick="showDetail('${e.id}','${src}')">
+  <div class="filter-bar">
+    <select class="input" style="width:140px" id="hist-status" onchange="render()">
+      <option value="">All Status</option>
+      <option value="pending">Pending</option>
+      <option value="verified">Verified</option>
+      <option value="posted">Posted</option>
+      <option value="rejected">Rejected</option>
+    </select>
+    <select class="input" style="width:160px" id="hist-bank" onchange="render()">
+      <option value="">All Banks</option>
+      ${banks.map(b=>`<option value="${b}">${b}</option>`).join('')}
+    </select>
+    <span style="font-size:12px;color:var(--text-3)">${src.length} entries · ${PKR(src.reduce((s,e)=>s+(e.amount||0),0))}</span>
+    <button class="btn btn-secondary btn-sm" onclick="exportPayments(${JSON.stringify(src)})">📥 Export</button>
+  </div>
+  <div>${src.map(e=>payCard(e)).join('')}</div>
+  ${!src.length?'<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No payments</div></div>':''}`;
+}
+
+function payCard(e,showSP=false){
+  const st=e.journaled?'posted':e.status||'pending';
+  const stMap={pending:'⏳ Pending',verified:'✅ Verified',posted:'📒 Posted',rejected:'❌ Rejected'};
+  return `
+  <div class="pay-card" onclick="showDetail('${e.id}')">
     <div class="pay-card-top">
-      <div>
-        <div class="pay-card-name">${e.customer}</div>
-        <div class="pay-card-meta">${e.entity} · ${e.payment_type} · ${e.submitted_by}</div>
-        <div class="pay-card-meta">${dt}</div>
+      <div style="flex:1;min-width:0">
+        <div class="pay-name">${esc(e.customer)}</div>
+        <div class="pay-meta">${e.bank_name||'—'} ${e.account_number?'· '+e.account_number:''}</div>
+        <div class="pay-meta">${fmtDate(e.payment_date||e.created_at)} · ${e.payment_type||'—'}${showSP&&e.submitted_by?' · '+e.submitted_by:''}</div>
       </div>
-      <div style="text-align:right">
-        <div class="pay-card-amt">PKR ${Number(e.amount||0).toLocaleString('en-PK')}</div>
-        <span class="status-pill ${sc}">${sl}</span>
+      <div style="text-align:right;flex-shrink:0">
+        <div class="pay-amt">${PKR(e.amount)}</div>
+        <div style="display:flex;gap:4px;justify-content:flex-end;margin-top:4px;flex-wrap:wrap">
+          <span class="badge badge-${e.entity==='CNC'?'red':e.entity==='CST'?'blue':'green'}">${e.entity}</span>
+          <span class="status-pill ${st}">${stMap[st]||st}</span>
+        </div>
       </div>
     </div>
-    ${e.note?`<div style="font-size:11px;color:var(--text-3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">📝 ${e.note}</div>`:''}
+    ${e.rejection_reason?`<div style="font-size:11px;color:var(--red);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">❌ ${e.rejection_reason}</div>`:''}
+    ${e.note?`<div style="font-size:11px;color:var(--text-3);margin-top:4px">📝 ${esc(e.note)}</div>`:''}
   </div>`;
 }
 
-// ── Review (Accounts) ──────────────────────────────────────────
-function renderReview() {
-  const statusF = document.getElementById('reviewFilter').value;
-  const entF    = document.getElementById('reviewEnt').value;
-  let list = allEntries.filter(e => {
-    if(statusF==='pending' && e.status!=='pending') return false;
-    if(statusF==='verified' && e.status!=='verified') return false;
-    if(entF && e.entity!==entF) return false;
-    if(e.journaled) return false;
-    return true;
+// ── Monthly View ──────────────────────────────────────────────
+function renderMonthly(src){
+  const byMonth={};
+  src.forEach(e=>{
+    const m=(e.payment_date||e.created_at||'').slice(0,7);
+    if(!m)return;
+    if(!byMonth[m])byMonth[m]={count:0,amount:0,posted:0,pending:0,rejected:0};
+    byMonth[m].count++;
+    byMonth[m].amount+=(e.amount||0);
+    if(e.journaled)byMonth[m].posted++;
+    else if(e.status==='rejected')byMonth[m].rejected++;
+    else byMonth[m].pending++;
   });
-  document.getElementById('reviewCount').textContent = list.length+' entries';
-  const el = document.getElementById('reviewList');
-  if(!list.length) { el.innerHTML=`<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">All clear!</div><div class="empty-desc">No pending payments to review</div></div>`; return; }
-  el.innerHTML = list.map(e => reviewCard(e)).join('');
-}
 
-function reviewCard(e) {
-  const dt = e.created_at ? new Date(e.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+  const months=Object.keys(byMonth).sort().reverse().slice(0,12);
+  const maxAmt=Math.max(...months.map(m=>byMonth[m].amount),1);
+
+  const bars=months.slice().reverse().map(m=>{
+    const d=byMonth[m];
+    const h=Math.max(4,Math.round((d.amount/maxAmt)*55));
+    const label=new Date(m+'-01').toLocaleDateString('en-GB',{month:'short',year:'2-digit'});
+    return `<div class="bar-wrap" title="${label}: ${PKR(d.amount)}">
+      <div class="bar" style="height:${h}px;background:var(--brand)"></div>
+      <div class="bar-lbl">${label}</div>
+    </div>`;
+  }).join('');
+
+  const rows=months.map(m=>{
+    const d=byMonth[m];
+    const label=new Date(m+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    return `<tr>
+      <td style="font-weight:600">${label}</td>
+      <td class="num">${d.count}</td>
+      <td class="num strong">${PKR(d.amount)}</td>
+      <td class="num" style="color:var(--green)">${d.posted}</td>
+      <td class="num" style="color:var(--yellow)">${d.pending}</td>
+      <td class="num" style="color:var(--red)">${d.rejected}</td>
+    </tr>`;
+  }).join('');
+
   return `
-  <div class="review-card">
-    <div class="review-header">
-      <div>
-        <div style="font-weight:700;font-size:14px">${e.customer}</div>
-        <div style="font-size:11px;color:var(--text-3)">${e.submitted_by} · ${dt}</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:20px;font-weight:700;font-family:var(--font-mono)">PKR ${Number(e.amount||0).toLocaleString('en-PK')}</div>
-        <span class="badge badge-${e.entity==='CNC'?'red':e.entity==='CST'?'blue':'green'}">${e.entity}</span>
-        <span class="badge badge-gray" style="margin-left:4px">${e.payment_type}</span>
-      </div>
+  <div class="report-card">
+    <div class="report-hdr"><h3>📅 Monthly Trend</h3></div>
+    <div style="padding:16px">
+      <div class="mini-chart">${bars}</div>
     </div>
-    <div class="review-body">
-      <div class="review-split">
-        <div class="review-col claim">
-          <h4>Claimed Info</h4>
-          ${e.phone?`<div class="rv">${e.phone}</div><div class="rs">Phone</div>`:''}
-          ${e.invoice_ref?`<div class="rv" style="margin-top:6px">${e.invoice_ref}</div><div class="rs">Invoice Ref</div>`:''}
-          ${e.note?`<div style="margin-top:6px;font-size:11px">${e.note}</div>`:''}
-        </div>
-        <div class="review-col ${e.bank_message?'bank':'nobank'}">
-          <h4>${e.bank_message?'Bank Message':'No Bank Message'}</h4>
-          ${e.bank_message?`<div style="font-size:11px;font-family:var(--font-mono);line-height:1.5">${e.bank_message.slice(0,200)}</div>`:
-          '<div style="font-size:11px;color:var(--text-3)">No bank confirmation provided</div>'}
-        </div>
-      </div>
-      ${e.photo_url?`<img src="${e.photo_url}" style="max-width:100%;border-radius:8px;margin-top:10px;max-height:180px;object-fit:cover;cursor:pointer" onclick="window.open(this.src)" />`:''}
-      ${e.status==='pending' && canDo('paygate.verify') ? `
-      <div class="action-row">
-        <button class="btn btn-success btn-sm" onclick="verifyEntry('${e.id}')">✅ Verify</button>
-        <button class="btn btn-danger btn-sm" onclick="rejectEntry('${e.id}')">❌ Reject</button>
-      </div>` : ''}
-      ${e.status==='verified' && canDo('paygate.journal') ? `
-      <div class="action-row">
-        <button class="btn btn-primary btn-sm" onclick="postJournal('${e.id}')">📒 Post to Journal</button>
-        <span style="font-size:11px;color:var(--text-3);line-height:30px">Verified ✅</span>
-      </div>` : ''}
+  </div>
+  <div class="report-card">
+    <div class="report-hdr">
+      <h3>Monthly Breakdown</h3>
+      <button class="btn btn-secondary btn-sm" onclick="exportMonthly(${JSON.stringify(Object.fromEntries(months.map(m=>[m,byMonth[m]])))})">📥 Export</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Month</th><th class="num">Count</th><th class="num">Total Amount</th><th class="num">Posted</th><th class="num">Pending</th><th class="num">Rejected</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="6"><div class="empty"><div class="empty-title">No data</div></div></td></tr>'}</tbody>
+      </table>
     </div>
   </div>`;
 }
 
-async function verifyEntry(id) {
-  await fetch(`${API}/paygate_entries?id=eq.${id}`, { method:'PATCH', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify({status:'verified',verified_by:PGU.name,verified_at:new Date().toISOString()}) });
-  showToast('Payment verified','✅'); await loadData();
-}
+// ── All Payments (Admin) ──────────────────────────────────────
+function renderAll(){
+  const q=document.getElementById('all-q')?.value?.toLowerCase()||'';
+  const status=document.getElementById('all-status')?.value||'';
+  const ent=document.getElementById('all-ent')?.value||'';
+  const sp=document.getElementById('all-sp')?.value||'';
+  const bank=document.getElementById('all-bank')?.value||'';
+  const from=document.getElementById('all-from')?.value||'';
+  const to=document.getElementById('all-to')?.value||'';
 
-async function rejectEntry(id) {
-  const reason = prompt('Rejection reason:','');
-  if(reason===null) return;
-  await fetch(`${API}/paygate_entries?id=eq.${id}`, { method:'PATCH', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify({status:'rejected',rejection_reason:reason,verified_by:PGU.name,verified_at:new Date().toISOString()}) });
-  showToast('Payment rejected','❌'); await loadData();
-}
-
-async function postJournal(id) {
-  if(!confirm('Post this payment to journal? This action marks it as final.')) return;
-  await fetch(`${API}/paygate_entries?id=eq.${id}`, { method:'PATCH', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify({journaled:true,status:'posted',journaled_by:PGU.name,journaled_at:new Date().toISOString()}) });
-  showToast('Posted to journal','📒'); await loadData();
-}
-
-// ── All Payments ───────────────────────────────────────────────
-function renderAll() {
-  const q      = (document.getElementById('allSearch').value||'').toLowerCase();
-  const status = document.getElementById('allStatus').value;
-  const ent    = document.getElementById('allEnt').value;
-  const list   = allEntries.filter(e => {
-    if(q && !e.customer?.toLowerCase().includes(q)) return false;
-    if(status==='posted' && !e.journaled) return false;
-    if(status && status!=='posted' && e.status!==status) return false;
-    if(ent && e.entity!==ent) return false;
+  let src=allEntries.filter(e=>{
+    if(q&&!e.customer?.toLowerCase().includes(q)&&!e.submitted_by?.toLowerCase().includes(q))return false;
+    if(status==='posted'&&!e.journaled)return false;
+    if(status&&status!=='posted'&&e.status!==status)return false;
+    if(ent&&e.entity!==ent)return false;
+    if(sp&&e.submitted_by!==sp)return false;
+    if(bank&&e.bank_name!==bank)return false;
+    const d=(e.payment_date||e.created_at||'').slice(0,10);
+    if(from&&d<from)return false;
+    if(to&&d>to)return false;
     return true;
   });
-  const tbody = document.getElementById('allList');
-  if(!list.length) { tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-title">No entries</div></div></td></tr>`; return; }
-  const fmt = n => Number(n||0).toLocaleString('en-PK');
-  const statusBadge = e => {
-    if(e.journaled) return '<span class="badge badge-green">Posted</span>';
-    if(e.status==='verified') return '<span class="badge badge-blue">Verified</span>';
-    if(e.status==='rejected') return '<span class="badge badge-red">Rejected</span>';
-    return '<span class="badge badge-yellow">Pending</span>';
-  };
-  tbody.innerHTML = list.map(e => `
-    <tr class="clickable" onclick="showDetail('${e.id}','all')">
-      <td><div class="strong">${e.customer}</div></td>
-      <td class="num strong">PKR ${fmt(e.amount)}</td>
-      <td><span class="badge badge-${e.entity==='CNC'?'red':e.entity==='CST'?'blue':'green'}">${e.entity}</span></td>
-      <td style="font-size:11px">${e.payment_type}</td>
-      <td style="font-size:11px;color:var(--text-3)">${e.submitted_by||'—'}</td>
-      <td>${statusBadge(e)}</td>
-      <td style="font-size:11px;color:var(--text-3)">${e.created_at?new Date(e.created_at).toLocaleDateString('en-GB'):''}</td>
-      <td>${e.status==='pending'&&canDo('paygate.verify')?`<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();verifyEntry('${e.id}')">Verify</button>`:''}</td>
-    </tr>`).join('');
+
+  const sps=[...new Set(allEntries.map(e=>e.submitted_by).filter(Boolean))].sort();
+  const banks=[...new Set(allEntries.map(e=>e.bank_name).filter(Boolean))].sort();
+
+  const stMap={pending:'badge-yellow',verified:'badge-blue',posted:'badge-green',rejected:'badge-red'};
+  const stTxt={pending:'Pending',verified:'Verified',posted:'Posted',rejected:'Rejected'};
+
+  return `
+  <div class="filter-bar">
+    <input class="input" style="width:200px" id="all-q" placeholder="Search client, salesperson..." value="${q}" oninput="render()"/>
+    <select class="input" style="width:130px" id="all-status" onchange="render()">
+      <option value="">All Status</option>
+      <option value="pending">Pending</option>
+      <option value="verified">Verified</option>
+      <option value="posted">Posted</option>
+      <option value="rejected">Rejected</option>
+    </select>
+    <select class="input" style="width:110px" id="all-ent" onchange="render()">
+      <option value="">All</option>
+      <option>CNC</option><option>CST</option><option>CSPL</option>
+    </select>
+    <select class="input" style="width:150px" id="all-sp" onchange="render()">
+      <option value="">All Sales Reps</option>
+      ${sps.map(s=>`<option value="${s}">${s}</option>`).join('')}
+    </select>
+    <select class="input" style="width:160px" id="all-bank" onchange="render()">
+      <option value="">All Banks</option>
+      ${banks.map(b=>`<option value="${b}">${b}</option>`).join('')}
+    </select>
+    <input class="input" style="width:130px" id="all-from" type="date" value="${from}" onchange="render()" title="From date"/>
+    <input class="input" style="width:130px" id="all-to" type="date" value="${to}" onchange="render()" title="To date"/>
+    <span style="font-size:12px;color:var(--text-3)">${src.length} · ${PKR(src.reduce((s,e)=>s+(e.amount||0),0))}</span>
+    <button class="btn btn-secondary btn-sm" onclick="exportPayments(${JSON.stringify(src)})">📥 Export CSV</button>
+  </div>
+  <div class="report-card">
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>Client</th><th class="num">Amount</th><th>Bank</th><th>Date</th>
+          <th>Entity</th><th>Type</th><th>Sales Rep</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody>${src.map(e=>{
+          const st=e.journaled?'posted':e.status||'pending';
+          return `<tr class="clickable" onclick="showDetail('${e.id}')">
+            <td><div class="strong">${esc(e.customer)}</div>${e.transaction_id?`<div style="font-size:10px;color:var(--text-3);font-family:var(--font-mono)">${e.transaction_id}</div>`:''}</td>
+            <td class="num strong">${PKR(e.amount)}</td>
+            <td style="font-size:11px">${e.bank_name||'—'}<br><span style="color:var(--text-3);font-family:var(--font-mono)">${e.account_number||''}</span></td>
+            <td style="font-size:11px">${fmtDate(e.payment_date||e.created_at)}</td>
+            <td><span class="badge badge-${e.entity==='CNC'?'red':e.entity==='CST'?'blue':'green'}">${e.entity}</span></td>
+            <td style="font-size:11px">${e.payment_type||'—'}</td>
+            <td style="font-size:11px;color:var(--text-3)">${e.submitted_by||'—'}</td>
+            <td><span class="badge ${stMap[st]||'badge-gray'}">${stTxt[st]||st}</span></td>
+            <td>
+              ${st==='pending'&&canDo('paygate.verify')?`<button class="btn btn-success btn-sm" onclick="event.stopPropagation();verifyEntry('${e.id}')">✓</button>`:''}
+              ${canDo('users.manage')?`<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="event.stopPropagation();deleteEntry('${e.id}')">🗑</button>`:''}
+            </td>
+          </tr>`;
+        }).join('')||'<tr><td colspan="9"><div class="empty"><div class="empty-title">No payments found</div></div></td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
 }
 
-// ── Detail Modal ───────────────────────────────────────────────
-function showDetail(id, src) {
-  const e = allEntries.find(x=>x.id===id); if(!e) return;
-  const fmt = n => Number(n||0).toLocaleString('en-PK');
-  const statusMap = {pending:'⏳ Pending',verified:'✅ Verified',posted:'📒 Posted',rejected:'❌ Rejected'};
-  const status = e.journaled?'posted':e.status;
-  const dt = e.created_at ? new Date(e.created_at).toLocaleString('en-GB') : '';
+// ── Review Queue ──────────────────────────────────────────────
+function renderReview(){
+  const src=allEntries.filter(e=>e.status==='pending'&&!e.journaled);
+  return `
+  <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:13px;font-weight:600">${src.length} pending payments</span>
+    <span style="font-size:12px;color:var(--text-3)">${PKR(src.reduce((s,e)=>s+(e.amount||0),0))} total</span>
+  </div>
+  ${src.length?src.map(e=>reviewCard(e)).join(''):'<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">All clear! No pending payments</div></div>'}`;
+}
 
-  document.getElementById('pgDetailContent').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
-      <div>
-        <div style="font-size:18px;font-weight:800">${e.customer}</div>
-        <div style="font-size:12px;color:var(--text-3)">${e.submitted_by} · ${dt}</div>
+function reviewCard(e){
+  return `
+  <div class="pay-card" style="border-left:3px solid var(--yellow)">
+    <div class="pay-card-top">
+      <div style="flex:1">
+        <div class="pay-name">${esc(e.customer)}</div>
+        <div class="pay-meta">Submitted by: <b>${e.submitted_by||'—'}</b> · ${fmtDT(e.created_at)}</div>
+        <div class="pay-meta">${e.bank_name||'—'} ${e.account_number?'· Acc: '+e.account_number:''} ${e.transaction_id?'· TXN: '+e.transaction_id:''}</div>
       </div>
-      <button onclick="document.getElementById('pgDetailModal').classList.add('hidden')" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:20px">✕</button>
+      <div style="text-align:right">
+        <div class="pay-amt">${PKR(e.amount)}</div>
+        <span class="badge badge-${e.entity==='CNC'?'red':e.entity==='CST'?'blue':'green'}">${e.entity}</span>
+      </div>
     </div>
-    <div style="font-size:28px;font-weight:800;margin-bottom:6px">PKR ${fmt(e.amount)}</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
-      <span class="badge badge-${e.entity==='CNC'?'red':e.entity==='CST'?'blue':'green'}">${e.entity}</span>
-      <span class="badge badge-gray">${e.payment_type}</span>
-      <span class="status-pill ${status}">${statusMap[status]||status}</span>
+    ${e.bank_message?`<div style="margin-top:8px;padding:8px;background:var(--surface-2);border-radius:6px;font-size:11px;font-family:var(--font-mono);color:var(--text-2)">${esc(e.bank_message.slice(0,200))}</div>`:''}
+    ${e.photo_url?`<img src="${e.photo_url}" style="max-width:120px;border-radius:6px;margin-top:8px;cursor:pointer" onclick="window.open('${e.photo_url}')"/>`:''}
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-success btn-sm" onclick="verifyEntry('${e.id}')">✅ Verify</button>
+      <button class="btn btn-danger btn-sm" onclick="rejectEntry('${e.id}')">❌ Reject</button>
+      ${canDo('paygate.journal')?`<button class="btn btn-primary btn-sm" onclick="postJournal('${e.id}')">📒 Post Journal</button>`:''}
+      <button class="btn btn-secondary btn-sm" onclick="showDetail('${e.id}')">View Detail</button>
     </div>
-    ${e.rejection_reason?`<div style="padding:10px;background:var(--red-50);border:1px solid var(--red-100);border-radius:8px;font-size:12px;color:var(--red);margin-bottom:12px"><b>Rejection reason:</b> ${e.rejection_reason}</div>`:''}
-    ${e.phone?`<div style="margin-bottom:6px;font-size:13px"><b>Phone:</b> ${e.phone}</div>`:''}
-    ${e.invoice_ref?`<div style="margin-bottom:6px;font-size:13px"><b>Invoice:</b> ${e.invoice_ref}</div>`:''}
-    ${e.note?`<div style="margin-bottom:6px;font-size:13px"><b>Note:</b> ${e.note}</div>`:''}
-    ${e.verified_by?`<div style="font-size:11px;color:var(--text-3);margin-bottom:6px">Verified by: ${e.verified_by}</div>`:''}
-    ${e.journaled_by?`<div style="font-size:11px;color:var(--text-3);margin-bottom:6px">Posted by: ${e.journaled_by}</div>`:''}
-    ${e.photo_url?`<img src="${e.photo_url}" style="max-width:100%;border-radius:8px;margin:10px 0;max-height:250px;object-fit:cover;cursor:pointer" onclick="window.open(this.src)"/>`:''}
-    ${e.bank_message?`<div style="padding:10px;background:var(--surface-2);border-radius:8px;font-size:11px;font-family:var(--font-mono);line-height:1.6;margin-top:8px">${e.bank_message}</div>`:''}
-    ${e.status==='pending'&&canDo('paygate.verify') ? `
-    <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn btn-success" onclick="verifyEntry('${e.id}');document.getElementById('pgDetailModal').classList.add('hidden')">✅ Verify</button>
-      <button class="btn btn-danger" onclick="rejectEntry('${e.id}');document.getElementById('pgDetailModal').classList.add('hidden')">❌ Reject</button>
-    </div>` : ''}
-    ${e.status==='verified'&&canDo('paygate.journal') ? `
-    <div style="margin-top:16px">
-      <button class="btn btn-primary" onclick="postJournal('${e.id}');document.getElementById('pgDetailModal').classList.add('hidden')">📒 Post to Journal</button>
-    </div>` : ''}
+  </div>`;
+}
+
+// ── By Salesperson ────────────────────────────────────────────
+function renderBySP(){
+  const grp={};
+  allEntries.forEach(e=>{
+    const sp=e.submitted_by||'Unknown';
+    if(!grp[sp])grp[sp]={count:0,amount:0,posted:0,pending:0,rejected:0,banks:new Set()};
+    grp[sp].count++;
+    grp[sp].amount+=(e.amount||0);
+    if(e.journaled)grp[sp].posted++;
+    else if(e.status==='rejected')grp[sp].rejected++;
+    else grp[sp].pending++;
+    if(e.bank_name)grp[sp].banks.add(e.bank_name);
+  });
+
+  const rows=Object.entries(grp).sort((a,b)=>b[1].amount-a[1].amount).map(([sp,d])=>`
+  <tr>
+    <td style="font-weight:600">${sp}</td>
+    <td class="num">${d.count}</td>
+    <td class="num strong">${PKR(d.amount)}</td>
+    <td class="num" style="color:var(--green)">${PKR(d.posted)}</td>
+    <td class="num" style="color:var(--yellow)">${d.pending}</td>
+    <td class="num" style="color:var(--red)">${d.rejected}</td>
+    <td style="font-size:11px;color:var(--text-3)">${[...d.banks].join(', ')}</td>
+  </tr>`).join('');
+
+  return `
+  <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+    <button class="btn btn-secondary btn-sm" onclick="exportSP(${JSON.stringify(Object.fromEntries(Object.entries(grp).map(([k,v])=>[k,{...v,banks:[...v.banks]}])))})">📥 Export</button>
+  </div>
+  <div class="report-card">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Sales Person</th><th class="num">Payments</th><th class="num">Total Amount</th><th class="num">Posted</th><th class="num">Pending</th><th class="num">Rejected</th><th>Banks Used</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="7"><div class="empty"><div class="empty-title">No data</div></div></td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ── By Bank ───────────────────────────────────────────────────
+function renderByBank(){
+  const grp={};
+  allEntries.forEach(e=>{
+    const b=e.bank_name||'Unknown';
+    if(!grp[b])grp[b]={count:0,amount:0,accounts:new Set(),entities:{CNC:0,CST:0,CSPL:0}};
+    grp[b].count++;
+    grp[b].amount+=(e.amount||0);
+    if(e.account_number)grp[b].accounts.add(e.account_number);
+    if(e.entity)grp[b].entities[e.entity]=(grp[b].entities[e.entity]||0)+1;
+  });
+
+  const rows=Object.entries(grp).sort((a,b)=>b[1].amount-a[1].amount).map(([bank,d])=>`
+  <tr>
+    <td style="font-weight:600">${bank}</td>
+    <td class="num">${d.count}</td>
+    <td class="num strong">${PKR(d.amount)}</td>
+    <td style="font-size:11px;color:var(--text-3)">${[...d.accounts].slice(0,3).join(', ')}</td>
+    <td style="font-size:11px">
+      ${d.entities.CNC?`<span class="badge badge-red">CNC: ${d.entities.CNC}</span> `:''}
+      ${d.entities.CST?`<span class="badge badge-blue">CST: ${d.entities.CST}</span> `:''}
+      ${d.entities.CSPL?`<span class="badge badge-green">CSPL: ${d.entities.CSPL}</span>`:''}
+    </td>
+  </tr>`).join('');
+
+  return `
+  <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+    <button class="btn btn-secondary btn-sm" onclick="exportBank()">📥 Export</button>
+  </div>
+  <div class="report-card">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Bank</th><th class="num">Payments</th><th class="num">Total Amount</th><th>Accounts Used</th><th>Entities</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="5"><div class="empty"><div class="empty-title">No data</div></div></td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ── By Client ─────────────────────────────────────────────────
+function renderByClient(){
+  const q=document.getElementById('cl-q')?.value?.toLowerCase()||'';
+  const grp={};
+  allEntries.forEach(e=>{
+    const c=e.customer||'Unknown';
+    if(!grp[c])grp[c]={count:0,amount:0,last:e.created_at,posted:0,pending:0};
+    grp[c].count++;
+    grp[c].amount+=(e.amount||0);
+    if((e.created_at||'')>(grp[c].last||''))grp[c].last=e.created_at;
+    if(e.journaled)grp[c].posted++;
+    else grp[c].pending++;
+  });
+
+  let entries=Object.entries(grp).sort((a,b)=>b[1].amount-a[1].amount);
+  if(q)entries=entries.filter(([c])=>c.toLowerCase().includes(q));
+
+  return `
+  <div class="filter-bar">
+    <input class="input" style="width:240px" id="cl-q" placeholder="Search client..." value="${q}" oninput="render()"/>
+    <span style="font-size:12px;color:var(--text-3)">${entries.length} clients</span>
+    <button class="btn btn-secondary btn-sm" onclick="exportClient()">📥 Export</button>
+  </div>
+  <div class="report-card">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Client</th><th class="num">Payments</th><th class="num">Total Amount</th><th class="num">Posted</th><th class="num">Pending</th><th>Last Payment</th></tr></thead>
+        <tbody>${entries.slice(0,200).map(([c,d])=>`
+        <tr>
+          <td style="font-weight:600">${esc(c)}</td>
+          <td class="num">${d.count}</td>
+          <td class="num strong">${PKR(d.amount)}</td>
+          <td class="num" style="color:var(--green)">${d.posted}</td>
+          <td class="num" style="color:var(--yellow)">${d.pending}</td>
+          <td style="font-size:11px;color:var(--text-3)">${fmtDate(d.last)}</td>
+        </tr>`).join('')||'<tr><td colspan="6"><div class="empty"><div class="empty-title">No data</div></div></td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ── Actions ───────────────────────────────────────────────────
+async function verifyEntry(id){
+  await fetch(`${API}/paygate_entries?id=eq.${id}`,{method:'PATCH',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify({status:'verified',verified_by:PGU.name,verified_at:new Date().toISOString()})});
+  showToast('Payment verified','✅');
+  await loadData(); render();
+}
+async function rejectEntry(id){
+  const reason=prompt('Rejection reason:');
+  if(reason===null)return;
+  await fetch(`${API}/paygate_entries?id=eq.${id}`,{method:'PATCH',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify({status:'rejected',rejection_reason:reason,verified_by:PGU.name,verified_at:new Date().toISOString()})});
+  showToast('Payment rejected','❌');
+  await loadData(); render();
+}
+async function postJournal(id){
+  if(!confirm('Post to journal? This marks it as final.'))return;
+  await fetch(`${API}/paygate_entries?id=eq.${id}`,{method:'PATCH',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify({journaled:true,status:'posted',journaled_by:PGU.name,journaled_at:new Date().toISOString()})});
+  showToast('Posted to journal','📒');
+  await loadData(); render();
+}
+async function deleteEntry(id){
+  if(!confirm('Delete this payment entry? Cannot undo.'))return;
+  await fetch(`${API}/paygate_entries?id=eq.${id}`,{method:'DELETE',headers:HDR});
+  showToast('Deleted','🗑️');
+  await loadData(); render();
+}
+
+// ── Detail Modal ──────────────────────────────────────────────
+function showDetail(id){
+  const e=allEntries.find(x=>x.id===id);if(!e)return;
+  const st=e.journaled?'posted':e.status||'pending';
+  const stTxt={pending:'⏳ Pending',verified:'✅ Verified',posted:'📒 Posted',rejected:'❌ Rejected'};
+  const stColor={pending:'var(--yellow)',verified:'var(--blue)',posted:'var(--green)',rejected:'var(--red)'};
+
+  document.getElementById('pgDetailContent').innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+    <div>
+      <div style="font-size:18px;font-weight:800">${esc(e.customer)}</div>
+      <div style="font-size:12px;color:var(--text-3)">Submitted by ${e.submitted_by||'—'} · ${fmtDT(e.created_at)}</div>
+    </div>
+    <button onclick="closeDetail()" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:18px">✕</button>
+  </div>
+
+  <div style="font-size:32px;font-weight:800;margin-bottom:8px">${PKR(e.amount)}</div>
+
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+    <span class="badge badge-${e.entity==='CNC'?'red':e.entity==='CST'?'blue':'green'}">${e.entity}</span>
+    <span class="badge badge-gray">${e.payment_type||'—'}</span>
+    <span class="status-pill ${st}">${stTxt[st]||st}</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <div style="background:var(--surface-2);padding:10px;border-radius:8px">
+      <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Bank</div>
+      <div style="font-weight:600">${e.bank_name||'—'}</div>
+      ${e.account_number?`<div style="font-size:11px;font-family:var(--font-mono);color:var(--text-3)">${e.account_number}</div>`:''}
+    </div>
+    <div style="background:var(--surface-2);padding:10px;border-radius:8px">
+      <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Payment Date</div>
+      <div style="font-weight:600">${fmtDate(e.payment_date||e.created_at)}</div>
+      ${e.transaction_id?`<div style="font-size:11px;font-family:var(--font-mono);color:var(--text-3)">TXN: ${e.transaction_id}</div>`:''}
+    </div>
+  </div>
+
+  ${e.rejection_reason?`<div style="padding:10px;background:var(--red-50);border:1px solid var(--red-100);border-radius:8px;font-size:12px;color:var(--red);margin-bottom:12px"><b>Rejection reason:</b> ${esc(e.rejection_reason)}</div>`:''}
+  ${e.phone?`<div style="margin-bottom:6px;font-size:13px">📱 ${e.phone}</div>`:''}
+  ${e.invoice_ref?`<div style="margin-bottom:6px;font-size:13px">📄 Invoice: ${e.invoice_ref}</div>`:''}
+  ${e.note?`<div style="margin-bottom:6px;font-size:13px">📝 ${esc(e.note)}</div>`:''}
+  ${e.verified_by?`<div style="font-size:11px;color:var(--text-3);margin-bottom:4px">Verified by: ${e.verified_by} · ${fmtDT(e.verified_at)}</div>`:''}
+  ${e.journaled_by?`<div style="font-size:11px;color:var(--text-3);margin-bottom:4px">Posted by: ${e.journaled_by} · ${fmtDT(e.journaled_at)}</div>`:''}
+  ${e.photo_url?`<img src="${e.photo_url}" style="max-width:100%;border-radius:8px;margin:10px 0;max-height:280px;object-fit:cover;cursor:pointer" onclick="window.open(this.src)"/>`:''}
+  ${e.bank_message?`<div style="padding:10px;background:var(--surface-2);border-radius:8px;font-size:11px;font-family:var(--font-mono);line-height:1.6;margin-top:8px">${esc(e.bank_message)}</div>`:''}
+
+  ${st==='pending'&&canDo('paygate.verify')?`
+  <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+    <button class="btn btn-success" onclick="verifyEntry('${e.id}');closeDetail()">✅ Verify</button>
+    <button class="btn btn-danger" onclick="rejectEntry('${e.id}');closeDetail()">❌ Reject</button>
+    ${canDo('paygate.journal')?`<button class="btn btn-primary" onclick="postJournal('${e.id}');closeDetail()">📒 Post Journal</button>`:''}
+  </div>`:''}
+  ${st==='verified'&&canDo('paygate.journal')?`
+  <div style="margin-top:16px">
+    <button class="btn btn-primary" onclick="postJournal('${e.id}');closeDetail()">📒 Post to Journal</button>
+  </div>`:''}
   `;
   document.getElementById('pgDetailModal').classList.remove('hidden');
 }
 
-document.getElementById('pgDetailModal').addEventListener('click', e => {
-  if(e.target===e.currentTarget) e.currentTarget.classList.add('hidden');
-});
+function closeDetail(){document.getElementById('pgDetailModal').classList.add('hidden');}
+document.getElementById('pgDetailModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeDetail();});
 
-// ── Init: wait for auth-guard to set window.currentUser ────────
-document.addEventListener('DOMContentLoaded', () => {
-  // auth-guard fires a reveal — wait for currentUser to be set
-  const wait = setInterval(() => {
-    if(window.currentUser) {
-      clearInterval(wait);
-      initFromERP();
-    }
-  }, 100);
-  // Timeout after 8s
-  setTimeout(() => clearInterval(wait), 8000);
-});
+// ── Exports ───────────────────────────────────────────────────
+function toCSV(headers,rows){
+  return [headers.join(','),...rows.map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+}
+function downloadCSV(csv,name){
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=name+'_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+
+function exportPayments(src){
+  if(!src?.length){showToast('No data','⚠️');return;}
+  const csv=toCSV(
+    ['ID','Customer','Amount','Bank','Account','TXN ID','Payment Date','Entity','Type','Status','Submitted By','Verified By','Note','Created At'],
+    src.map(e=>[e.id,e.customer,e.amount,e.bank_name,e.account_number,e.transaction_id,e.payment_date||e.created_at?.slice(0,10),e.entity,e.payment_type,e.journaled?'Posted':e.status,e.submitted_by,e.verified_by,e.note,e.created_at?.slice(0,10)])
+  );
+  downloadCSV(csv,'PayGate_Payments');
+  showToast(src.length+' records exported','📥');
+}
+
+function exportMonthly(data){
+  const csv=toCSV(['Month','Count','Total Amount','Posted','Pending','Rejected'],
+    Object.entries(data).map(([m,d])=>[m,d.count,d.amount,d.posted,d.pending,d.rejected]));
+  downloadCSV(csv,'PayGate_Monthly');
+}
+
+function exportSP(data){
+  const csv=toCSV(['Salesperson','Count','Total Amount','Posted','Pending','Rejected','Banks'],
+    Object.entries(data).map(([sp,d])=>[sp,d.count,d.amount,d.posted,d.pending,d.rejected,(d.banks||[]).join('; ')]));
+  downloadCSV(csv,'PayGate_BySalesperson');
+}
+
+function exportBank(){
+  exportPayments(allEntries);
+}
+
+function exportClient(){
+  const grp={};
+  allEntries.forEach(e=>{
+    const c=e.customer||'Unknown';
+    if(!grp[c])grp[c]={count:0,amount:0,last:e.created_at,posted:0,pending:0};
+    grp[c].count++;grp[c].amount+=(e.amount||0);
+    if((e.created_at||'')>(grp[c].last||''))grp[c].last=e.created_at;
+    if(e.journaled)grp[c].posted++;else grp[c].pending++;
+  });
+  const csv=toCSV(['Client','Count','Total Amount','Posted','Pending','Last Payment'],
+    Object.entries(grp).sort((a,b)=>b[1].amount-a[1].amount).map(([c,d])=>[c,d.count,d.amount,d.posted,d.pending,fmtDate(d.last)]));
+  downloadCSV(csv,'PayGate_ByClient');
+}
 </script>
 </body>
 </html>
