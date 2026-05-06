@@ -162,9 +162,9 @@ let allEntries=[], myEntries=[], allClients=[];
 let pgState={cust:'',amt:'',ent:'CNC',typ:'Ledger Credit',bank:'',account:'',txnId:'',payDate:'',phone:'',invoice:'',bankmsg:'',note:'',photo:null};
 let showAc=false;
 
-// ── Init ──────────────────────────────────────────────────────
+// ── Init — wait for auth + permissions to fully load ──────────
 const pgWait = setInterval(()=>{
-  if(window.currentUser){ clearInterval(pgWait); initPG(); }
+  if(window.authReady){ clearInterval(pgWait); initPG(); }
 },100);
 setTimeout(()=>clearInterval(pgWait),10000);
 

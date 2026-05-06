@@ -116,6 +116,9 @@
     document.getElementById('auth-guard-hide')?.remove();
     document.getElementById('auth-loader')?.remove();
 
+    // Signal that auth + perms are fully ready
+    window.authReady = true;
+
     // Re-render sidebar now that perms are loaded
     setTimeout(() => {
       if (typeof renderSidebar === 'function') {
@@ -210,6 +213,9 @@
     // Reveal page
     document.getElementById('auth-guard-hide')?.remove();
     document.getElementById('auth-loader')?.remove();
+
+    // Signal that auth + perms are fully ready
+    window.authReady = true;
 
     // Re-render sidebar + user box
     setTimeout(() => {
