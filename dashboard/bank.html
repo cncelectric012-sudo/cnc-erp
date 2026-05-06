@@ -560,47 +560,202 @@ function renderAnalysis(){
 }
 
 // ── Setup Tab ─────────────────────────────────────────────────
+const WEBHOOK_URL = 'https://cnc-erp.vercel.app/api/bank-alert';
+const WEBHOOK_SECRET = 'cnc-bank-secret-2026';
+
+const APPS_SCRIPT = `// ═══════════════════════════════════════════════════
+// CNC Electric — Bank Email Auto-Fetch
+// script.google.com pe paste karo aur trigger lagao
+// ═══════════════════════════════════════════════════
+
+const WEBHOOK_URL = '${WEBHOOK_URL}';
+const SECRET = '${WEBHOOK_SECRET}';
+const LABEL_NAME = 'cnc-bank-processed';
+
+// Bank email sender addresses
+const BANK_SENDERS = [
+  'alerts@bankalfalah.com',
+  'noreply@bankalfalah.com',
+  'alert@bahl.com.pk',
+  'noreply@bahl.com.pk',
+  'alert@meezanbank.com',
+  'noreply@meezanbank.com',
+  'sms@hbl.com',
+  'alerts@ubl.com.pk',
+];
+
+// Keywords to catch bank emails
+const BANK_KEYWORDS = [
+  'credited', 'received', 'PKR', 'Rs.', 'IBFT',
+  'RAAST', 'Fund Transfer', 'deposited', 'account credited'
+];
+
+function getOrCreateLabel() {
+  const labels = GmailApp.getUserLabels();
+  for (const l of labels) {
+    if (l.getName() === LABEL_NAME) return l;
+  }
+  return GmailApp.createLabel(LABEL_NAME);
+}
+
+function checkBankEmails() {
+  const processedLabel = getOrCreateLabel();
+  let processed = 0;
+
+  // Search by sender
+  const senderQuery = BANK_SENDERS.map(s => 'from:' + s).join(' OR ');
+  const query = '(' + senderQuery + ') -label:' + LABEL_NAME + ' newer_than:2d';
+
+  const threads = GmailApp.search(query, 0, 20);
+
+  for (const thread of threads) {
+    const messages = thread.getMessages();
+    for (const msg of messages) {
+      try {
+        const subject = msg.getSubject() || '';
+        const body = msg.getPlainBody() || msg.getBody() || '';
+        const from = msg.getFrom() || '';
+        const date = msg.getDate().toISOString();
+
+        // Skip if no bank keywords found
+        const text = (subject + ' ' + body).toLowerCase();
+        const hasBankContent = BANK_KEYWORDS.some(k => text.includes(k.toLowerCase()));
+        if (!hasBankContent) continue;
+
+        // POST to webhook
+        const response = UrlFetchApp.fetch(WEBHOOK_URL, {
+          method: 'post',
+          contentType: 'application/json',
+          headers: { 'x-secret': SECRET },
+          payload: JSON.stringify({
+            subject: subject,
+            from: from,
+            body: body.slice(0, 3000),
+            date: date,
+            source: 'gmail'
+          }),
+          muteHttpExceptions: true
+        });
+
+        const result = JSON.parse(response.getContentText());
+        Logger.log('Processed: ' + from + ' | Amount: ' + (result.amount || 0) + ' | Match: ' + result.match_status);
+        processed++;
+      } catch(e) {
+        Logger.log('Error processing email: ' + e.toString());
+      }
+    }
+    thread.addLabel(processedLabel);
+  }
+
+  Logger.log('Total processed: ' + processed);
+}`;
+
 function renderSetup(){
   return `
-  <div class="card card-body" style="max-width:680px">
-    <div style="font-size:16px;font-weight:700;margin-bottom:6px">⚙️ Auto-Fetch Setup</div>
-    <div style="font-size:13px;color:var(--text-3);margin-bottom:20px">Bank SMS/email ko automatically fetch karne ke liye neeche diye gaye methods use karo</div>
+  <div style="max-width:720px">
 
-    <div style="background:var(--green-50);border:1px solid var(--green-100);border-radius:10px;padding:16px;margin-bottom:16px">
-      <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:8px">✅ Method 1: Manual Paste (Ready Now)</div>
-      <div style="font-size:13px;color:var(--text-2)">Jab bhi bank ka SMS ya email aaye, "+ Add Bank Alert" se paste karo — system automatically parse karega amount, date, sender sab kuch.</div>
+    <!-- Step 1: Webhook ready -->
+    <div style="background:var(--green-50);border:1px solid var(--green-100);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-weight:700;font-size:15px;color:var(--green);margin-bottom:8px">✅ Step 1 — Webhook Ready (Already Live)</div>
+      <div style="font-size:13px;color:var(--text-2);margin-bottom:10px">Aapka API endpoint already live hai. Yahan emails/SMS receive hoti hain:</div>
+      <div style="background:white;border:1px solid var(--green-100);border-radius:6px;padding:10px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <code style="font-size:12px;color:var(--green);word-break:break-all">${WEBHOOK_URL}</code>
+        <button onclick="navigator.clipboard.writeText('${WEBHOOK_URL}').then(()=>showToast('Copied!','📋'))" class="btn btn-secondary btn-sm" style="white-space:nowrap">Copy</button>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--text-3)">Secret Key: <code style="font-family:var(--font-mono)">${WEBHOOK_SECRET}</code></div>
     </div>
 
-    <div style="background:var(--blue-50);border:1px solid var(--blue-100);border-radius:10px;padding:16px;margin-bottom:16px">
-      <div style="font-weight:700;font-size:14px;color:var(--blue);margin-bottom:8px">📧 Method 2: Email Forwarding (Setup Required)</div>
-      <div style="font-size:13px;color:var(--text-2);margin-bottom:10px">Bank ka email automatically forward karo is address pe:</div>
-      <div style="background:white;border:1px solid var(--blue-100);border-radius:6px;padding:10px;font-family:var(--font-mono);font-size:13px;color:var(--blue)">bank-alerts@cncelectric.vercel.app</div>
-      <div style="font-size:12px;color:var(--text-3);margin-top:8px">
-        Gmail mein: Settings → Filters → Forward matching emails<br>
-        Outlook mein: Rules → Forward to email
+    <!-- Step 2: Google Apps Script -->
+    <div style="background:var(--blue-50);border:1px solid var(--blue-100);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-weight:700;font-size:15px;color:var(--blue);margin-bottom:8px">📧 Step 2 — Gmail Auto-Fetch Setup</div>
+      <div style="font-size:13px;color:var(--text-2);margin-bottom:12px">Yeh script Gmail mein bank emails dhundh ke automatically hamare system mein bhejti hai. <b>5 minute mein setup ho jata hai.</b></div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+        ${[
+          ['1','script.google.com','script.google.com kholo (Google account se login)'],
+          ['2','+ New Project','New Project banao, naam do: "CNC Bank Alerts"'],
+          ['3','Code paste','Neeche wala code copy karo aur paste karo (sab kuch replace karo)'],
+          ['4','Save','Ctrl+S se save karo'],
+          ['5','Run once','checkBankEmails ko Run karo — Gmail permissions allow karo'],
+          ['6','Trigger','Triggers → Add Trigger → checkBankEmails → Time-driven → Every 5 minutes'],
+        ].map(([n,title,desc])=>`
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="width:24px;height:24px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${n}</div>
+          <div><div style="font-weight:600;font-size:13px">${title}</div><div style="font-size:12px;color:var(--text-3)">${desc}</div></div>
+        </div>`).join('')}
+      </div>
+
+      <div style="position:relative">
+        <div style="background:white;border:1px solid var(--blue-100);border-radius:8px;padding:14px;font-family:var(--font-mono);font-size:11px;color:#1e293b;max-height:200px;overflow-y:auto;line-height:1.6;white-space:pre-wrap" id="scriptCode">${APPS_SCRIPT.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        <button onclick="copyScript()" class="btn btn-primary btn-sm" style="position:absolute;top:8px;right:8px">📋 Copy Code</button>
       </div>
     </div>
 
-    <div style="background:var(--yellow-50);border:1px solid var(--yellow-100);border-radius:10px;padding:16px;margin-bottom:16px">
-      <div style="font-weight:700;font-size:14px;color:var(--yellow);margin-bottom:8px">📱 Method 3: SMS Forwarding App</div>
-      <div style="font-size:13px;color:var(--text-2)">Android phone pe <b>"SMS to Email"</b> ya <b>"SMS Forwarder"</b> app install karo. Bank SMS automatically email pe forward hoga, phir Method 2 kaam karega.</div>
+    <!-- Step 3: SMS -->
+    <div style="background:var(--yellow-50);border:1px solid var(--yellow-100);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-weight:700;font-size:15px;color:var(--yellow);margin-bottom:8px">📱 Step 3 — SMS Auto-Fetch (Meezan Bank)</div>
+      <div style="font-size:13px;color:var(--text-2);margin-bottom:12px">Jo banks sirf SMS bhejti hain (Meezan), iske liye Android phone pe free app install karo:</div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+        ${[
+          ['1','Play Store','Play Store se "SMS Forwarder" app download karo (by Ectaion — free)'],
+          ['2','App open karo','New rule banao'],
+          ['3','Condition','SMS contains "PKR" ya "credited" ya "Meezan"'],
+          ['4','Action','Forward to: Webhook URL'],
+          ['5','URL daalo',"Webhook URL: " + WEBHOOK_URL],
+          ['6','Header add karo','Header: x-secret = cnc-bank-secret-2026'],
+          ['7','Save','Rule save karo — ab SMS automatic forward hogi'],
+        ].map(([n,title,desc])=>`
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="width:24px;height:24px;border-radius:50%;background:var(--yellow);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${n}</div>
+          <div><div style="font-weight:600;font-size:13px">${title}</div><div style="font-size:12px;color:var(--text-3)">${desc}</div></div>
+        </div>`).join('')}
+      </div>
+
+      <div style="background:white;border:1px solid var(--yellow-100);border-radius:8px;padding:12px;font-size:12px">
+        <b>📌 Important:</b> Jo phone pe 0323-4657406 (Shahbaz Lodhi) ya 0300-4755563 (Malik Awais) SIM hai, usi phone pe app install karo
+      </div>
     </div>
 
-    <div style="background:var(--surface-2);border-radius:10px;padding:16px">
-      <div style="font-weight:700;font-size:14px;margin-bottom:10px">🏦 Active Bank Accounts (SMS Alert)</div>
-      ${bankAccounts.filter(a=>a.sms_active).map(a=>`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
-        <div>
-          <div style="font-weight:600">${a.bank_name} — ${a.account_title}</div>
-          <div style="font-size:11px;color:var(--text-3);font-family:var(--font-mono)">${a.account_no}</div>
-        </div>
-        <div style="text-align:right;font-size:11px;color:var(--text-3)">
-          <div>${a.alert_number||'—'}</div>
-          <div>${a.alert_number_belongs_to||'—'}</div>
-        </div>
-      </div>`).join('')}
+    <!-- Test -->
+    <div style="background:var(--surface-2);border-radius:12px;padding:16px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px">🧪 Test Webhook</div>
+      <div style="font-size:13px;color:var(--text-3);margin-bottom:10px">Setup ke baad yahan test karo:</div>
+      <textarea class="input" id="testSmsText" rows="3" placeholder="Yahan bank SMS paste karo test ke liye..." style="font-family:var(--font-mono);font-size:12px"></textarea>
+      <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="testWebhook()">🧪 Test Now</button>
+      <div id="testResult" style="margin-top:8px;font-size:12px;font-family:var(--font-mono);display:none"></div>
     </div>
   </div>`;
+}
+
+function copyScript(){
+  const code = document.getElementById('scriptCode')?.innerText||'';
+  navigator.clipboard.writeText(code).then(()=>showToast('Script copied! script.google.com pe paste karo','📋'));
+}
+
+async function testWebhook(){
+  const text = document.getElementById('testSmsText').value.trim();
+  if(!text){showToast('SMS text daalo pehle','⚠️');return;}
+  const btn = event.target;
+  btn.disabled=true;btn.textContent='Testing...';
+  const resEl = document.getElementById('testResult');
+  resEl.style.display='block';resEl.style.color='var(--text-3)';resEl.textContent='Sending...';
+  try {
+    const r = await fetch('https://cnc-erp.vercel.app/api/bank-alert',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-secret':'cnc-bank-secret-2026'},
+      body:JSON.stringify({subject:'Test',from:'test@test.com',body:text,date:new Date().toISOString(),source:'test'})
+    });
+    const data = await r.json();
+    resEl.style.color = data.success?'var(--green)':'var(--yellow)';
+    resEl.textContent = JSON.stringify(data, null, 2);
+    if(data.success){showToast('Test kamyab! Amount: PKR '+data.amount,'✅');await loadData();}
+    else showToast(data.message||'Parsed but no amount found','⚠️');
+  } catch(e){
+    resEl.style.color='var(--red)';resEl.textContent='Error: '+e.message;
+    showToast('Webhook test failed','❌');
+  }
+  btn.disabled=false;btn.textContent='🧪 Test Now';
 }
 
 // ── Add Alert ─────────────────────────────────────────────────
