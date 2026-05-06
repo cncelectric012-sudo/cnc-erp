@@ -346,13 +346,6 @@ let currentTab = 'all';
 let editingId  = null;
 let importRows = [];
 
-const fmt  = n => new Intl.NumberFormat('en-PK',{maximumFractionDigits:0}).format(Math.round(n||0));
-const fmtK = n => {
-  if (n>=10000000) return (n/10000000).toFixed(1)+' Cr';
-  if (n>=100000)   return (n/100000).toFixed(1)+' L';
-  if (n>=1000)     return (n/1000).toFixed(1)+' K';
-  return Math.round(n).toString();
-};
 function cleanId(s){ return String(s).trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''); }
 
 // ── Skeleton ──────────────────────────────────────────────────
