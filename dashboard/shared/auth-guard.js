@@ -1,12 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════
    Auth Guard — Supabase
-   Loaded BEFORE core.js on every protected page.
-   Checks if user is logged in. If not → redirect to login.html.
    ═══════════════════════════════════════════════════════════════ */
 
 (function() {
   const SUPABASE_URL = 'https://knvaaxywlfpomlatpiua.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
+  const SUPABASE_KEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
 
   // Hide page until auth check completes
   const style = document.createElement('style');
@@ -36,10 +34,8 @@
 
   function reveal(user) {
     window.currentUser = user;
-    const hideStyle = document.getElementById('auth-guard-hide');
-    if (hideStyle) hideStyle.remove();
-    const loader = document.getElementById('auth-loader');
-    if (loader) loader.remove();
+    document.getElementById('auth-guard-hide')?.remove();
+    document.getElementById('auth-loader')?.remove();
 
     setTimeout(() => {
       const footer = document.querySelector('.sb-footer');
@@ -48,7 +44,7 @@
         userBox.className = 'sb-user';
         userBox.style.cssText = 'padding:8px 10px;font-size:11px;color:var(--text-3);border-top:1px solid var(--border);margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px';
         userBox.innerHTML = `
-          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${user.email}">
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">
             <div style="font-weight:600;color:var(--text-2)">Signed in</div>
             <div style="font-size:10px">${user.email}</div>
           </div>
@@ -56,33 +52,60 @@
         `;
         footer.appendChild(userBox);
       }
-    }, 100);
+    }, 150);
   }
 
-  function checkAuth() {
-    const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    window._supabase = client;
+  function goLogin() {
+    window.location.replace('login.html');
+  }
 
-    client.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        window.location.replace('login.html');
-        return;
+  async function checkAuth() {
+    try {
+      const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      window._supabase = client;
+
+      // Timeout: if Supabase doesn't respond in 6s, go to login
+      const timeout = setTimeout(goLogin, 6000);
+
+      const { data: { session }, error } = await client.auth.getSession();
+      clearTimeout(timeout);
+
+      if (error || !session) {
+        // Try refresh
+        const { data: refreshed } = await client.auth.refreshSession();
+        if (!refreshed?.session) { goLogin(); return; }
+        reveal(refreshed.session.user);
+      } else {
+        reveal(session.user);
       }
-      reveal(session.user);
-    });
+    } catch(e) {
+      console.error('Auth error:', e);
+      goLogin();
+    }
   }
 
-  if (typeof supabase !== 'undefined') {
-    checkAuth();
+  // Wait for Supabase SDK to be available
+  function waitForSupabase(attempts) {
+    if (typeof supabase !== 'undefined') {
+      checkAuth();
+    } else if (attempts > 0) {
+      setTimeout(() => waitForSupabase(attempts - 1), 200);
+    } else {
+      goLogin();
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => waitForSupabase(15));
   } else {
-    window.addEventListener('load', checkAuth);
+    waitForSupabase(15);
   }
 
   window.signOut = function() {
     if (window._supabase) {
-      window._supabase.auth.signOut().then(() => {
-        window.location.replace('login.html');
-      });
+      window._supabase.auth.signOut().then(() => goLogin());
+    } else {
+      goLogin();
     }
   };
 })();
