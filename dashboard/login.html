@@ -94,6 +94,26 @@ function showError(msg) {
   box.classList.add('show');
 }
 
+// Redirect to first accessible page based on role permissions
+const HOME_ORDER = [
+  {page:'index.html',    perm:'dashboard.view'},
+  {page:'paygate.html',  perm:'paygate.view'},
+  {page:'clients.html',  perm:'clients.view'},
+  {page:'ledgers.html',  perm:'ledgers.view'},
+  {page:'payments.html', perm:'payments.view'},
+  {page:'users.html',    perm:'users.view'},
+];
+
+async function getHomePage(roleId) {
+  try {
+    const r = await fetch(`${API}/role_permissions?role_id=eq.${encodeURIComponent(roleId)}&select=permission`, { headers: HDR });
+    const rows = await r.json();
+    const perms = (rows||[]).map(p => p.permission);
+    const found = HOME_ORDER.find(h => perms.includes(h.perm));
+    return found ? found.page : 'index.html';
+  } catch(e) { return 'index.html'; }
+}
+
 async function doLogin() {
   const input    = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value;
@@ -116,12 +136,11 @@ async function doLogin() {
 
     if(users && users.length) {
       const u = users[0];
-      // Save local session
       const session = { id:u.id, name:u.name, username:u.username, email:u.email, role_id:u.role_id, via:'app_users', ts: Date.now() };
       localStorage.setItem('cnc_app_session', JSON.stringify(session));
-      // Update last_login
       fetch(`${API}/app_users?id=eq.${u.id}`, { method:'PATCH', headers:{...HDR,'Prefer':'return=minimal'}, body:JSON.stringify({last_login:new Date().toISOString()}) });
-      window.location.href = 'index.html';
+      const home = await getHomePage(u.role_id);
+      window.location.href = home;
       return;
     }
   } catch(e) { console.warn('app_users check failed:', e); }
@@ -131,11 +150,8 @@ async function doLogin() {
     sbClient.auth.signInWithPassword({ email: input, password })
       .then(({ error }) => {
         btn.disabled = false; btn.textContent = 'Sign In';
-        if(error) {
-          showError('Wrong username/email or password');
-        } else {
-          window.location.href = 'index.html';
-        }
+        if(error) showError('Wrong username/email or password');
+        else window.location.href = 'index.html';
       });
   } else {
     btn.disabled = false; btn.textContent = 'Sign In';

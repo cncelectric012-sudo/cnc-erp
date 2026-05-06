@@ -9,18 +9,30 @@
 
   // Page → required permission mapping
   const PAGE_PERMS = {
-    'index.html':    'dashboard.view',
-    'upload.html':   'dashboard.view',
-    'clients.html':  'clients.view',
-    'ledgers.html':  'ledgers.view',
-    'payments.html': 'payments.view',
-    'approvals.html':'approvals.view',
-    'decision.html': 'dashboard.view',
-    'policy.html':   'dashboard.view',
-    'controls.html': 'dashboard.view',
-    'paygate.html':  'paygate.view',
-    'users.html':    'users.view',
+    'index.html':           'dashboard.view',
+    'upload.html':          'dashboard.view',
+    'clients.html':         'clients.view',
+    'ledgers.html':         'ledgers.view',
+    'payments.html':        'payments.view',
+    'approvals.html':       'approvals.view',
+    'decision.html':        'dashboard.view',
+    'policy.html':          'dashboard.view',
+    'controls.html':        'dashboard.view',
+    'paygate.html':         'paygate.view',
+    'users.html':           'users.view',
+    'cnc_data_manager.html':'dashboard.view',
   };
+
+  // Priority order for first-page redirect after login
+  const HOME_ORDER = [
+    {page:'index.html',    perm:'dashboard.view'},
+    {page:'paygate.html',  perm:'paygate.view'},
+    {page:'clients.html',  perm:'clients.view'},
+    {page:'ledgers.html',  perm:'ledgers.view'},
+    {page:'payments.html', perm:'payments.view'},
+    {page:'approvals.html',perm:'approvals.view'},
+    {page:'users.html',    perm:'users.view'},
+  ];
 
   // Hide page until auth + perms loaded
   const style = document.createElement('style');
@@ -104,25 +116,31 @@
     document.getElementById('auth-guard-hide')?.remove();
     document.getElementById('auth-loader')?.remove();
 
-    // Sidebar user box
+    // Re-render sidebar now that perms are loaded
     setTimeout(() => {
-      const footer = document.querySelector('.sb-footer');
-      if (footer && !footer.querySelector('.sb-user')) {
-        const displayName = appUser?.name || user.email.split('@')[0];
-        const roleName = role ? role.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()) : '';
-        const userBox = document.createElement('div');
-        userBox.className = 'sb-user';
-        userBox.style.cssText = 'padding:8px 10px;font-size:11px;color:var(--text-3);border-top:1px solid var(--border);margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px';
-        userBox.innerHTML = `
-          <div style="overflow:hidden;flex:1;min-width:0">
-            <div style="font-weight:600;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${displayName}</div>
-            <div style="font-size:10px;color:var(--text-3)">${roleName}</div>
-          </div>
-          <button onclick="signOut()" style="background:none;border:1px solid var(--border);color:var(--text-3);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-family:inherit;white-space:nowrap">Sign out</button>
-        `;
-        footer.appendChild(userBox);
+      if (typeof renderSidebar === 'function') {
+        const activePage = document.body.dataset.page || '';
+        renderSidebar(activePage);
       }
-    }, 150);
+      addUserBox(appUser?.name || user.email.split('@')[0], role);
+    }, 100);
+  }
+
+  function addUserBox(displayName, role) {
+    const footer = document.querySelector('.sb-footer');
+    if (!footer || footer.querySelector('.sb-user')) return;
+    const roleName = role ? role.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
+    const userBox = document.createElement('div');
+    userBox.className = 'sb-user';
+    userBox.style.cssText = 'padding:8px 10px;font-size:11px;color:var(--text-3);border-top:1px solid var(--border);margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px';
+    userBox.innerHTML = `
+      <div style="overflow:hidden;flex:1;min-width:0">
+        <div style="font-weight:600;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${displayName}</div>
+        <div style="font-size:10px;color:var(--text-3)">${roleName}</div>
+      </div>
+      <button onclick="signOut()" style="background:none;border:1px solid var(--border);color:var(--text-3);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-family:inherit;white-space:nowrap">Sign out</button>
+    `;
+    footer.appendChild(userBox);
   }
 
   async function checkAuth() {
@@ -193,24 +211,13 @@
     document.getElementById('auth-guard-hide')?.remove();
     document.getElementById('auth-loader')?.remove();
 
-    // Sidebar user box
+    // Re-render sidebar + user box
     setTimeout(() => {
-      const footer = document.querySelector('.sb-footer');
-      if (footer && !footer.querySelector('.sb-user')) {
-        const roleName = appSess.role_id.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
-        const userBox = document.createElement('div');
-        userBox.className = 'sb-user';
-        userBox.style.cssText = 'padding:8px 10px;font-size:11px;color:var(--text-3);border-top:1px solid var(--border);margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px';
-        userBox.innerHTML = `
-          <div style="overflow:hidden;flex:1;min-width:0">
-            <div style="font-weight:600;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${appSess.name || appSess.username}</div>
-            <div style="font-size:10px;color:var(--text-3)">${roleName}</div>
-          </div>
-          <button onclick="signOut()" style="background:none;border:1px solid var(--border);color:var(--text-3);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-family:inherit;white-space:nowrap">Sign out</button>
-        `;
-        footer.appendChild(userBox);
+      if (typeof renderSidebar === 'function') {
+        renderSidebar(document.body.dataset.page || '');
       }
-    }, 150);
+      addUserBox(appSess.name || appSess.username, appSess.role_id);
+    }, 100);
   }
 
   function waitForSupabase(attempts) {
