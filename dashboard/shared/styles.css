@@ -413,6 +413,9 @@ td.num, th.num { font-family: var(--font-mono); font-feature-settings: "tnum"; t
 .mt-3 { margin-top: 12px; }
 .mt-4 { margin-top: 16px; }
 
+/* ── Hidden ── */
+.hidden { display: none !important; }
+
 /* ── Skeleton Loader ── */
 .skeleton {
   background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);

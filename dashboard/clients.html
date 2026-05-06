@@ -318,7 +318,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script src="shared/supabase-config.js"></script>
 <script src="shared/auth-guard.js"></script>
 <script src="shared/core.js"></script>
@@ -637,6 +636,12 @@ function exportClients(){
 
 // ── Import ────────────────────────────────────────────────────
 function openImport(){
+  // Lazy load SheetJS only when needed
+  if(typeof XLSX === 'undefined') {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+    document.head.appendChild(s);
+  }
   importRows = [];
   document.getElementById('importFile').value='';
   document.getElementById('importPreview').innerHTML='';
