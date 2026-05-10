@@ -149,6 +149,8 @@
         <button class="sort-btn" id="sort-name" onclick="setSort('name')">Name</button>
         <button class="sort-btn" id="sort-risk" onclick="setSort('risk')">Risk</button>
       </div>
+      <!-- Count -->
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:10px" id="ledgerCount"></div>
 
       <!-- Grid -->
       <div id="ledgerGrid" class="client-grid">
@@ -171,9 +173,10 @@
         <div class="modal-client-name" id="m-name">—</div>
         <div class="modal-tags" id="m-badges"></div>
       </div>
-      <div style="display:flex;gap:8px;align-items:flex-start">
-        <button class="btn-export" onclick="exportClientPDF()" style="font-size:11px;padding:5px 10px">⬇ PDF</button>
+      <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap">
+        <button class="btn-export" onclick="exportClientPDF()" style="font-size:11px;padding:5px 10px">🖨️ Print</button>
         <button class="btn-export" onclick="exportClientCSV()" style="font-size:11px;padding:5px 10px">⬇ CSV</button>
+        <button class="btn-export" id="m-wa-btn" style="font-size:11px;padding:5px 10px;background:var(--green-50);border-color:var(--green-100);color:var(--green)">💬 WhatsApp</button>
         <button class="modal-close" onclick="closeModal()">✕</button>
       </div>
     </div>
@@ -190,6 +193,7 @@
         <button class="modal-tab-btn active" onclick="switchTab('all')">All Transactions</button>
         <button class="modal-tab-btn" onclick="switchTab('invoices')">Invoices</button>
         <button class="modal-tab-btn" onclick="switchTab('payments')">Payments</button>
+        <button class="modal-tab-btn" onclick="switchTab('aging')">📅 Aging</button>
         <button class="modal-tab-btn" onclick="switchTab('timeline')">Timeline</button>
       </div>
 
@@ -199,13 +203,14 @@
             <thead>
               <tr>
                 <th>#</th><th>Date</th><th>Type</th><th>Voucher</th>
-                <th style="text-align:right">Amount</th><th style="text-align:right">Payment</th><th style="text-align:right">Balance</th>
+                <th style="text-align:right">Debit</th><th style="text-align:right">Credit</th><th style="text-align:right">Balance</th>
               </tr>
             </thead>
             <tbody id="m-txn-body"></tbody>
           </table>
         </div>
       </div>
+      <div id="m-aging" style="display:none"></div>
       <div id="m-timeline" style="display:none"></div>
     </div>
   </div>
@@ -239,36 +244,31 @@ const fmtK = n => {
   return Math.round(n).toString();
 };
 
-// ── Load from Supabase ─────────────────────────────────────────
+const LAPI = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
+const LKEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
+const LHDR = { 'apikey': LKEY, 'Authorization': 'Bearer ' + LKEY };
+
+// ── Load ───────────────────────────────────────────────────────
 async function loadClients() {
   try {
-    const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-
-    let allRows = [];
-    let from = 0;
-    const pageSize = 1000;
-
-    while (true) {
-      const { data, error } = await sb.from('clients')
-        .select('*').range(from, from + pageSize - 1);
-      if (error) throw error;
-      if (!data || data.length === 0) break;
-      allRows = allRows.concat(data);
-      if (data.length < pageSize) break;
-      from += pageSize;
+    let rows = [], offset = 0;
+    while(true) {
+      const r = await fetch(`${LAPI}/clients?limit=500&offset=${offset}&order=name.asc`, { headers: LHDR });
+      const data = await r.json();
+      if(!Array.isArray(data) || !data.length) break;
+      rows = rows.concat(data);
+      if(data.length < 500) break;
+      offset += 500;
     }
-
-    allClients = allRows;
+    allClients = rows;
     populateDropdowns();
     applyFilters();
-    document.getElementById('topbarSub').textContent =
-      `${allClients.length} clients loaded from Supabase`;
+    document.getElementById('topbarSub').textContent = `${allClients.length} clients loaded`;
   } catch (err) {
-    console.error('Supabase load error:', err);
     document.getElementById('ledgerGrid').innerHTML =
       `<div class="empty" style="grid-column:1/-1">
         <div class="empty-icon">⚠️</div>
-        <div class="empty-title">Supabase load failed</div>
+        <div class="empty-title">Load failed</div>
         <div class="empty-desc">${err.message}</div>
       </div>`;
   }
@@ -299,15 +299,15 @@ function applyFilters() {
 
   filtered = allClients.filter(c => {
     if (search) {
-      const h = [c.name,c.phone,c.address,c.city,c.contactPerson,c.salesperson].join(' ').toLowerCase();
+      const h = [c.name,c.phone,c.address,c.city,c.contact_person,c.salesperson].join(' ').toLowerCase();
       if (!h.includes(search)) return false;
     }
-    if (risk && c.riskLevel !== risk) return false;
-    if (type && c.outstandingType !== type) return false;
+    if (risk && c.risk_level !== risk) return false;
+    if (type && c.outstanding_type !== type) return false;
     if (sp   && c.salesperson !== sp) return false;
     if (city && c.city !== city) return false;
     if (osRange) {
-      const os = num(c.outstandingAmount);
+      const os = num(c.outstanding_amount);
       if (osRange === '0' && os !== 0) return false;
       if (osRange === '1-50000' && (os <= 0 || os > 50000)) return false;
       if (osRange === '50000-200000' && (os <= 50000 || os > 200000)) return false;
@@ -323,7 +323,7 @@ function applyFilters() {
   else if (currentSort === 'name')   filtered.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   else if (currentSort === 'risk')   {
     const rl = {High:3,Medium:2,Low:1};
-    filtered.sort((a,b)=>(rl[b.riskLevel]||0)-(rl[a.riskLevel]||0));
+    filtered.sort((a,b)=>(rl[b.risk_level]||0)-(rl[a.risk_level]||0));
   }
 
   updateKPIs();
@@ -340,10 +340,10 @@ function setSort(key) {
 
 // ── Update KPIs ────────────────────────────────────────────────
 function updateKPIs() {
-  const totalOS    = filtered.reduce((s,c)=>s+num(c.outstandingAmount),0);
-  const totalSales = filtered.reduce((s,c)=>s+num(c.totalInvoiced),0);
-  const totalPaid  = filtered.reduce((s,c)=>s+num(c.totalPaid),0);
-  const totalPend  = filtered.reduce((s,c)=>s+(c.outstandingType==='Dr'?num(c.outstandingAmount):0),0);
+  const totalOS    = filtered.reduce((s,c)=>s+num(c.outstanding_amount),0);
+  const totalSales = filtered.reduce((s,c)=>s+num(c.total_invoiced),0);
+  const totalPaid  = filtered.reduce((s,c)=>s+num(c.total_paid),0);
+  const totalPend  = filtered.reduce((s,c)=>s+(c.outstanding_type==='Dr'?num(c.outstanding_amount):0),0);
 
   document.getElementById('kv-clients').textContent     = filtered.length;
   document.getElementById('kv-outstanding').textContent = 'PKR '+fmtK(totalOS);
@@ -364,15 +364,15 @@ function renderGrid() {
     return;
   }
 
-  const maxOS = Math.max(...filtered.map(c=>num(c.outstandingAmount)),1);
+  const maxOS = Math.max(...filtered.map(c=>num(c.outstanding_amount)),1);
 
   grid.innerHTML = filtered.map(c => {
-    const os   = num(c.outstandingAmount);
-    const paid = num(c.totalPaid);
-    const inv  = num(c.totalInvoiced);
+    const os   = num(c.outstanding_amount);
+    const paid = num(c.total_paid);
+    const inv  = num(c.total_invoiced);
     const rec  = inv > 0 ? Math.round(paid/inv*100) : 100;
     const pct  = Math.min(100,(os/maxOS)*100);
-    const risk = c.riskLevel || 'Medium';
+    const risk = c.risk_level || 'Medium';
     const zc   = risk === 'High' ? 'red' : risk === 'Medium' ? 'yellow' : 'green';
     const balColor = zc === 'red' ? 'var(--red)' : zc === 'yellow' ? 'var(--yellow)' : 'var(--green)';
     const txnCount = (c.transactions||[]).length;
@@ -388,7 +388,7 @@ function renderGrid() {
             <div class="client-name">${c.name}</div>
             <div class="client-tags">
               <span class="badge badge-${zc}">${risk} Risk</span>
-              <span class="badge badge-gray">${c.outstandingType||'Dr'}</span>
+              <span class="badge badge-gray">${c.outstanding_type||'Dr'}</span>
               ${c.salesperson?`<span class="badge badge-blue">👤 ${c.salesperson}</span>`:''}
             </div>
           </div>
@@ -425,8 +425,11 @@ function renderGrid() {
         </div>
 
         <div class="client-footer">
-          <span>${invoiceCount} invoices · ${paymentCount} payments · ${txnCount} total</span>
-          <span>${c.avgPaymentDays && c.avgPaymentDays!=='N/A'?'Avg '+c.avgPaymentDays+'d':''}</span>
+          <span>${invoiceCount} invoices · ${paymentCount} payments</span>
+          <div style="display:flex;gap:6px">
+            ${c.phone?`<a href="tel:${c.phone}" onclick="event.stopPropagation()" class="btn-export" style="padding:3px 8px;font-size:11px">📞</a>`:''}
+            ${c.phone||c.whatsapp?`<a href="https://wa.me/92${(c.whatsapp||c.phone).replace(/^0/,'').replace(/[^0-9]/g,'')}" target="_blank" onclick="event.stopPropagation()" class="btn-export" style="padding:3px 8px;font-size:11px;background:var(--green-50);border-color:var(--green-100);color:var(--green)">💬</a>`:''}
+          </div>
         </div>
       </div>
     </div>`;
@@ -440,11 +443,11 @@ function openModal(clientId) {
   currentClient = c;
   currentTab = 'all';
 
-  const os   = num(c.outstandingAmount);
-  const paid = num(c.totalPaid);
-  const inv  = num(c.totalInvoiced);
+  const os   = num(c.outstanding_amount);
+  const paid = num(c.total_paid);
+  const inv  = num(c.total_invoiced);
   const rec  = inv > 0 ? Math.round(paid/inv*100) : 100;
-  const risk = c.riskLevel || 'Medium';
+  const risk = c.risk_level || 'Medium';
   const zc   = risk === 'High' ? 'red' : risk === 'Medium' ? 'yellow' : 'green';
   const balColor = zc==='red'?'var(--red)':zc==='yellow'?'var(--yellow)':'var(--green)';
 
@@ -452,7 +455,7 @@ function openModal(clientId) {
 
   document.getElementById('m-badges').innerHTML = `
     <span class="badge badge-${zc}">${risk} Risk</span>
-    <span class="badge badge-gray">${c.outstandingType||'Dr'}</span>
+    <span class="badge badge-gray">${c.outstanding_type||'Dr'}</span>
     ${c.salesperson?`<span class="badge badge-blue">👤 ${c.salesperson}</span>`:''}
     ${c.filename?`<span class="badge badge-gray">📄 ${c.filename}</span>`:''}
   `;
@@ -461,9 +464,9 @@ function openModal(clientId) {
     <div><div class="contact-field-label">Phone</div><div class="contact-field-value">${c.phone||'—'}</div></div>
     <div><div class="contact-field-label">Address</div><div class="contact-field-value">${c.address||'—'}</div></div>
     <div><div class="contact-field-label">City</div><div class="contact-field-value">${c.city||'—'}</div></div>
-    <div><div class="contact-field-label">Contact Person</div><div class="contact-field-value">${c.contactPerson||'—'}</div></div>
+    <div><div class="contact-field-label">Contact Person</div><div class="contact-field-value">${c.contact_person||'—'}</div></div>
     <div><div class="contact-field-label">Sales Person</div><div class="contact-field-value">${c.salesperson||'—'}</div></div>
-    <div><div class="contact-field-label">Avg Payment Days</div><div class="contact-field-value">${c.avgPaymentDays||'N/A'}</div></div>
+    <div><div class="contact-field-label">Avg Payment Days</div><div class="contact-field-value">${c.avg_payment_days||'N/A'}</div></div>
   `;
 
   document.getElementById('m-kpis').innerHTML = `
@@ -479,6 +482,20 @@ function openModal(clientId) {
     b.classList.toggle('active', i===0);
   });
 
+  // WhatsApp button
+  const phone = c.phone||c.whatsapp||'';
+  const waBtn = document.getElementById('m-wa-btn');
+  if(phone) {
+    const wa = phone.replace(/^0/,'').replace(/[^0-9]/g,'');
+    const msg = encodeURIComponent(`Assalam o Alaikum ${c.name},\n\nAapka outstanding balance: PKR ${fmt(num(c.outstanding_amount))}\n\nCNC Electric`);
+    waBtn.onclick = ()=>window.open(`https://wa.me/92${wa}?text=${msg}`,'_blank');
+    waBtn.style.display='inline-flex';
+  } else {
+    waBtn.style.display='none';
+  }
+
+  // Aging div reset
+  document.getElementById('m-aging').style.display='none';
   renderTxnTable(c, 'all');
   document.getElementById('m-txn-wrap').style.display='block';
   document.getElementById('m-timeline').style.display='none';
@@ -493,17 +510,55 @@ function closeModal() {
 
 function switchTab(tab) {
   currentTab = tab;
-  const tabs = ['all','invoices','payments','timeline'];
+  const tabs = ['all','invoices','payments','aging','timeline'];
   document.querySelectorAll('.modal-tab-btn').forEach((b,i)=>b.classList.toggle('active',tabs[i]===tab));
-  if (tab==='timeline') {
-    document.getElementById('m-txn-wrap').style.display='none';
-    document.getElementById('m-timeline').style.display='block';
-    renderTimeline(currentClient);
-  } else {
-    document.getElementById('m-txn-wrap').style.display='block';
-    document.getElementById('m-timeline').style.display='none';
-    renderTxnTable(currentClient, tab);
-  }
+  document.getElementById('m-txn-wrap').style.display = 'none';
+  document.getElementById('m-timeline').style.display  = 'none';
+  document.getElementById('m-aging').style.display     = 'none';
+  if(tab==='timeline'){ document.getElementById('m-timeline').style.display='block'; renderTimeline(currentClient); }
+  else if(tab==='aging'){ document.getElementById('m-aging').style.display='block'; renderAging(currentClient); }
+  else { document.getElementById('m-txn-wrap').style.display='block'; renderTxnTable(currentClient,tab); }
+}
+
+// ── Aging Analysis ─────────────────────────────────────────────
+function renderAging(c) {
+  const today = new Date();
+  const txns = (c.transactions||[]).filter(t=>t.type==='Invoice');
+  const buckets = [{lbl:'0-30 days',min:0,max:30,color:'var(--green)',items:[]},{lbl:'31-60 days',min:31,max:60,color:'var(--yellow)',items:[]},{lbl:'61-90 days',min:61,max:90,color:'var(--orange)',items:[]},{lbl:'90+ days',min:91,max:9999,color:'var(--red)',items:[]}];
+
+  txns.forEach(t=>{
+    const d = sortDate(t.date);
+    if(!d) return;
+    const days = Math.floor((today - d)/86400000);
+    const b = buckets.find(x=>days>=x.min&&days<=x.max);
+    if(b) b.items.push({...t, days});
+  });
+
+  const total = buckets.reduce((s,b)=>s+b.items.reduce((ss,t)=>ss+num(t.amount),0),0);
+
+  const el = document.getElementById('m-aging');
+  el.innerHTML = `
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+    ${buckets.map(b=>{
+      const amt = b.items.reduce((s,t)=>s+num(t.amount),0);
+      const pct = total>0?Math.round(amt/total*100):0;
+      return `<div style="background:var(--surface-2);border-radius:8px;padding:12px;text-align:center;border-top:3px solid ${b.color}">
+        <div style="font-size:18px;font-weight:800;color:${b.color}">PKR ${fmtK(amt)}</div>
+        <div style="font-size:10px;color:var(--text-3);margin-top:3px;text-transform:uppercase">${b.lbl}</div>
+        <div style="font-size:11px;font-weight:600;margin-top:4px">${b.items.length} invoices · ${pct}%</div>
+      </div>`;
+    }).join('')}
+  </div>
+  ${buckets.filter(b=>b.items.length>0).map(b=>`
+  <div style="margin-bottom:12px">
+    <div style="font-weight:600;font-size:12px;color:${b.color};margin-bottom:6px">📅 ${b.lbl} (${b.items.length})</div>
+    <div class="txn-table-wrap" style="max-height:150px">
+      <table class="txn-table"><thead><tr><th>Date</th><th>Voucher</th><th style="text-align:right">Amount</th><th style="text-align:right">Days</th></tr></thead>
+      <tbody>${b.items.map(t=>`<tr><td>${t.date||'—'}</td><td>${t.voucher||'—'}</td><td style="text-align:right">PKR ${fmt(num(t.amount))}</td><td style="text-align:right;color:${b.color};font-weight:600">${t.days}d</td></tr>`).join('')}</tbody>
+      </table>
+    </div>
+  </div>`).join('')}
+  ${!txns.length?'<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">No invoice transactions for aging analysis</div></div>':''}`;
 }
 
 function renderTxnTable(c, filter) {
@@ -574,26 +629,26 @@ function renderTimeline(c) {
 function buildExportRows(clientList) {
   const rows = [];
   for (const c of clientList) {
-    const inv  = num(c.totalInvoiced);
-    const paid = num(c.totalPaid);
-    const os   = num(c.outstandingAmount);
+    const inv  = num(c.total_invoiced);
+    const paid = num(c.total_paid);
+    const os   = num(c.outstanding_amount);
     const rec  = inv>0?Math.round(paid/inv*100):100;
     rows.push({
       'Client Name':    c.name||'',
       'Phone':          c.phone||'',
       'Address':        c.address||'',
       'City':           c.city||'',
-      'Contact Person': c.contactPerson||'',
+      'Contact Person': c.contact_person||'',
       'Sales Person':   c.salesperson||'',
       'Outstanding (PKR)': os,
-      'Balance Type':   c.outstandingType||'',
+      'Balance Type':   c.outstanding_type||'',
       'Total Invoiced': inv,
       'Total Paid':     paid,
       'Recovery %':     rec,
-      'Risk Level':     c.riskLevel||'',
-      'Avg Payment Days': c.avgPaymentDays||'',
+      'Risk Level':     c.risk_level||'',
+      'Avg Payment Days': c.avg_payment_days||'',
       'Transactions':   (c.transactions||[]).length,
-      'Last Updated':   c.lastUpdated||''
+      'Last Updated':   c.last_updated||''
     });
   }
   return rows;
@@ -658,9 +713,9 @@ function exportClientCSV() {
 function exportClientPDF() {
   const c = currentClient;
   if (!c) return;
-  const inv  = num(c.totalInvoiced);
-  const paid = num(c.totalPaid);
-  const os   = num(c.outstandingAmount);
+  const inv  = num(c.total_invoiced);
+  const paid = num(c.total_paid);
+  const os   = num(c.outstanding_amount);
   const rec  = inv>0?Math.round(paid/inv*100):100;
   const txns = (c.transactions||[]).sort((a,b)=>sortDate(a.date)-sortDate(b.date));
 
@@ -691,7 +746,7 @@ function exportClientPDF() {
     <div><div class="info-lbl">Address</div><div class="info-val">${c.address||'—'}</div></div>
     <div><div class="info-lbl">City</div><div class="info-val">${c.city||'—'}</div></div>
     <div><div class="info-lbl">Sales Person</div><div class="info-val">${c.salesperson||'—'}</div></div>
-    <div><div class="info-lbl">Risk Level</div><div class="info-val">${c.riskLevel||'—'}</div></div>
+    <div><div class="info-lbl">Risk Level</div><div class="info-val">${c.risk_level||'—'}</div></div>
   </div>
   <div class="kpi-row">
     <div class="kpi"><div class="kpi-val">PKR ${fmt(os)}</div><div class="kpi-lbl">Outstanding</div></div>
