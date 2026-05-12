@@ -363,6 +363,65 @@ async function findPayGateMatch(parsed) {
   } catch(e) { return null; }
 }
 
+// ── Update client ledger when payment received ────────────────
+async function updateClientLedger(customerName, paymentAmount, paymentDate, bankName, txnId) {
+  if (!customerName || !paymentAmount) return;
+
+  try {
+    // Find client by name (fuzzy match)
+    const searchName = customerName.trim().toLowerCase();
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/clients?select=id,name,outstanding_amount,total_paid,transactions&order=name.asc&limit=500`,
+      { headers: HDR }
+    );
+    const clients = await r.json();
+    if (!Array.isArray(clients)) return;
+
+    // Find best match
+    const client = clients.find(c => {
+      const cn = (c.name || '').toLowerCase();
+      return cn === searchName || cn.includes(searchName) || searchName.includes(cn);
+    });
+
+    if (!client) return; // client not found in ledger
+
+    const currentOs = parseFloat(client.outstanding_amount) || 0;
+    const currentPaid = parseFloat(client.total_paid) || 0;
+    const newOs = Math.max(0, currentOs - paymentAmount);
+    const newPaid = currentPaid + paymentAmount;
+
+    // Add payment to transactions JSONB
+    const transactions = Array.isArray(client.transactions) ? client.transactions : [];
+    const newTxn = {
+      date: paymentDate || new Date().toISOString().slice(0, 10),
+      type: 'Payment',
+      voucher: txnId || `BANK-${Date.now()}`,
+      amount: paymentAmount,
+      description: `Bank payment via ${bankName || 'bank'} — Auto-matched`,
+      source: 'bank_auto'
+    };
+
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/clients?id=eq.${client.id}`,
+      {
+        method: 'PATCH',
+        headers: HDR,
+        body: JSON.stringify({
+          outstanding_amount: newOs,
+          total_paid: newPaid,
+          transactions: [...transactions, newTxn],
+          last_updated: new Date().toISOString()
+        })
+      }
+    );
+
+    return { clientId: client.id, clientName: client.name, oldOs: currentOs, newOs, paymentAmount };
+  } catch(e) {
+    console.error('Ledger update error:', e);
+    return null;
+  }
+}
+
 // ── Get existing alerts for risk context ──────────────────────
 async function getRecentAlerts() {
   try {
@@ -442,10 +501,21 @@ module.exports = async function handler(req, res) {
       if (matchedEntry) {
         matchedId = matchedEntry.id;
         matchStatus = 'matched';
+
+        // Verify PayGate entry
         await fetch(`${SUPABASE_URL}/rest/v1/paygate_entries?id=eq.${matchedEntry.id}`, {
           method: 'PATCH', headers: HDR,
           body: JSON.stringify({ status: 'verified', verified_by: 'Bank Auto-Match', verified_at: new Date().toISOString() })
         });
+
+        // ── Update client ledger (reduce outstanding) ──────────
+        await updateClientLedger(
+          matchedEntry.customer,
+          Math.abs(parsed.amount),
+          parsed.alert_date,
+          parsed.bank_name,
+          parsed.txn_id
+        );
       }
     }
 
