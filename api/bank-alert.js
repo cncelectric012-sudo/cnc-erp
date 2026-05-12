@@ -247,6 +247,46 @@ function analyzeRisk(parsed, existingAlerts = []) {
   return { flags, score: Math.min(score, 100) };
 }
 
+// ── Adjust risk after PayGate match ───────────────────────────
+function adjustRiskForMatch(flags, score, parsed, matchedEntry) {
+  const bankAmt = Math.abs(parsed.amount);
+
+  if (!matchedEntry) {
+    // No invoice found for credit > 10K = suspicious
+    if (parsed.direction === 'credit' && bankAmt > 10000) {
+      flags.push('No invoice/PayGate submission found'); score += 20;
+    }
+    return { flags, score: Math.min(score, 100) };
+  }
+
+  // Match found — remove amount-explainable flags
+  const removeIfMatched = ['Suspiciously round amount', 'Threshold avoidance', 'Individual sender'];
+  const cleanedFlags = flags.filter(f => !removeIfMatched.some(r => f.includes(r)));
+  let s = score;
+  if (flags.length !== cleanedFlags.length) s = Math.max(0, s - 20); // deduct for removed flags
+
+  // Amount mismatch
+  const invoiceAmt = matchedEntry.amount || 0;
+  const diff = Math.abs(invoiceAmt - bankAmt);
+  const pct = invoiceAmt > 0 ? (diff / invoiceAmt) * 100 : 0;
+
+  if (diff === 0) {
+    cleanedFlags.unshift('✅ Exact match with invoice');
+    s = Math.max(0, s - 20); // reward for exact match
+  } else if (pct <= 1) {
+    cleanedFlags.push(`Minor discrepancy: PKR ${diff.toLocaleString()} (${pct.toFixed(1)}%)`);
+    s += 5;
+  } else if (pct <= 5) {
+    cleanedFlags.push(`Amount mismatch: invoice PKR ${invoiceAmt.toLocaleString()} vs bank PKR ${bankAmt.toLocaleString()} (${pct.toFixed(1)}%)`);
+    s += 15;
+  } else if (pct > 5) {
+    cleanedFlags.push(`⚠️ Large mismatch: invoice PKR ${invoiceAmt.toLocaleString()} vs bank PKR ${bankAmt.toLocaleString()} (${pct.toFixed(1)}%)`);
+    s += 35;
+  }
+
+  return { flags: cleanedFlags, score: Math.min(s, 100) };
+}
+
 // ── Duplicate check ───────────────────────────────────────────
 async function isDuplicate(parsed) {
   // Check 1: same TXN ID
@@ -389,30 +429,30 @@ module.exports = async function handler(req, res) {
       continue;
     }
 
-    // Risk analysis
-    const { flags, score } = analyzeRisk(parsed, existingAlerts);
+    // Initial risk analysis
+    let { flags, score } = analyzeRisk(parsed, existingAlerts);
 
-    // No PayGate match for unmatched = higher risk
+    // PayGate/Invoice matching
     let matchedId = '';
     let matchStatus = 'unmatched';
+    let matchedEntry = null;
+
     if (parsed.direction === 'credit') {
-      const match = await findPayGateMatch(parsed);
-      if (match) {
-        matchedId = match.id;
+      matchedEntry = await findPayGateMatch(parsed);
+      if (matchedEntry) {
+        matchedId = matchedEntry.id;
         matchStatus = 'matched';
-        // Auto-verify PayGate entry
-        await fetch(`${SUPABASE_URL}/rest/v1/paygate_entries?id=eq.${match.id}`, {
+        await fetch(`${SUPABASE_URL}/rest/v1/paygate_entries?id=eq.${matchedEntry.id}`, {
           method: 'PATCH', headers: HDR,
           body: JSON.stringify({ status: 'verified', verified_by: 'Bank Auto-Match', verified_at: new Date().toISOString() })
         });
-      } else {
-        flags.push('No PayGate submission found');
-        // Add 20 risk for unmatched credit > 10000
-        if (parsed.amount > 10000) { flags.push('Large unmatched credit'); }
       }
     }
 
-    const finalScore = Math.min(score + (matchStatus === 'unmatched' && parsed.amount > 10000 ? 15 : 0), 100);
+    // Adjust risk based on invoice match (removes false positives, adds mismatch flags)
+    const adjusted = adjustRiskForMatch(flags, score, parsed, matchedEntry);
+    flags = adjusted.flags;
+    const finalScore = adjusted.score;
     const { ok, id } = await saveAlert(parsed, flags, finalScore, matchedId, matchStatus, source, from);
 
     results.push({
