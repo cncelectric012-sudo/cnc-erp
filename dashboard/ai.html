@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Integration · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.ai-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.ai-tab{padding:9px 18px;font-size:13px;font-weight:500;color:var(--text-3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.ai-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+.config-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.config-card-title{font-size:14px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.config-card-sub{font-size:12px;color:var(--text-3);margin-bottom:16px}
+.status-dot-ai{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.status-dot-ai.connected{background:var(--green);box-shadow:0 0 4px var(--green)}
+.status-dot-ai.disconnected{background:var(--red)}
+.status-dot-ai.unknown{background:var(--yellow)}
+.key-field{position:relative}
+.key-field input{font-family:var(--font-mono);letter-spacing:.05em}
+.key-field button{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);font-size:12px}
+.test-result{margin-top:10px;padding:10px;border-radius:6px;font-size:12px;font-family:var(--font-mono);display:none}
+.test-result.ok{background:var(--green-50);border:1px solid var(--green-100);color:var(--green)}
+.test-result.err{background:var(--red-50);border:1px solid var(--red-100);color:var(--red)}
+.wa-group-card{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.log-box{background:#0f172a;color:#94a3b8;font-family:var(--font-mono);font-size:11px;border-radius:8px;padding:14px;max-height:200px;overflow-y:auto;line-height:1.6}
+.log-line.ok{color:#4ade80}.log-line.err{color:#f87171}.log-line.info{color:#60a5fa}
+.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.feature-item{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:flex-start;gap:10px}
+.feature-item label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500}
+.feature-item input[type=checkbox]{width:16px;height:16px;accent-color:var(--brand)}
+.feature-desc{font-size:11px;color:var(--text-3);margin-top:3px;margin-left:24px}
+</style>
+</head>
+<body data-page="ai">
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">🤖 AI Integration</div>
+        <div class="topbar-sub" id="aiSub">Configure AI & automation connections</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="saveAll()">💾 Save All Settings</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="ai-tabs">
+        <div class="ai-tab active" onclick="aiTab('claude',this)">🧠 Claude AI</div>
+        <div class="ai-tab" onclick="aiTab('whatsapp',this)">💬 WhatsApp Bot</div>
+        <div class="ai-tab" onclick="aiTab('automation',this)">⚡ Automation Rules</div>
+        <div class="ai-tab" onclick="aiTab('logs',this)">📋 Activity Logs</div>
+      </div>
+
+      <!-- Claude AI Tab -->
+      <div id="tab-claude">
+        <div class="config-card">
+          <div class="config-card-title">
+            🧠 Claude API (Anthropic)
+            <span id="claude-status"><span class="status-dot-ai unknown"></span>Not tested</span>
+          </div>
+          <div class="config-card-sub">Invoice analysis, risk assessment, payment verification — powered by Claude</div>
+
+          <div class="field">
+            <label>API Key <span style="color:var(--brand)">*</span></label>
+            <div class="key-field">
+              <input class="input" id="claude-key" type="password" placeholder="sk-ant-api03-..." style="padding-right:60px"/>
+              <button onclick="toggleKey('claude-key')">Show</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Model</label>
+            <select class="input" id="claude-model">
+              <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (Recommended)</option>
+              <option value="claude-opus-4-7">Claude Opus 4.7 (Most capable)</option>
+              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (Fastest)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Max tokens per request</label>
+            <input class="input" id="claude-tokens" type="number" value="1000" placeholder="1000"/>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="testClaude()" style="margin-top:4px">🧪 Test Connection</button>
+          <div class="test-result" id="claude-test-result"></div>
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-title">📊 AI Analysis Features</div>
+          <div class="config-card-sub">Select karo kahan AI use karni hai</div>
+          <div class="feature-grid">
+            ${[
+              ['ai-invoice','Invoice auto-analysis','Discount check, client risk, payment history'],
+              ['ai-payment','Payment risk analysis','Bank SMS patterns, fraud detection'],
+              ['ai-client','Client behavior analysis','Payment patterns, risk scoring'],
+              ['ai-ledger','Ledger summarization','Monthly reports, trend analysis'],
+              ['ai-approval','Smart approval suggestions','Based on history + risk factors'],
+              ['ai-alerts','Anomaly alerts','Unusual payment patterns, velocity'],
+            ].map(([id,label,desc])=>`
+            <div class="feature-item">
+              <div>
+                <label><input type="checkbox" id="${id}" checked/> ${label}</label>
+                <div class="feature-desc">${desc}</div>
+              </div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- WhatsApp Bot Tab -->
+      <div id="tab-whatsapp" class="hidden">
+        <div class="config-card">
+          <div class="config-card-title">
+            💬 WhatsApp Bot Status
+            <span id="wa-status"><span class="status-dot-ai unknown"></span>Unknown</span>
+          </div>
+          <div class="config-card-sub">WhatsApp bot Z840 server pe run hota hai — yahan settings manage karo</div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+            <div style="background:var(--surface-2);padding:12px;border-radius:8px">
+              <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Bot Number</div>
+              <div style="font-weight:600" id="wa-number">+92 321 7198443</div>
+            </div>
+            <div style="background:var(--surface-2);padding:12px;border-radius:8px">
+              <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Server</div>
+              <div style="font-weight:600">Z840 PC (Local)</div>
+            </div>
+          </div>
+
+          <div class="config-card-title" style="margin-top:16px;margin-bottom:8px">WhatsApp Groups</div>
+          ${[
+            ['💳','Payments Group','Payment screenshots → auto-parse + alert bosses','PAYMENTS_GROUP'],
+            ['📄','CS Invoices Approval','Invoice PDFs → discount check → auto/manual approve','INVOICE_GROUP'],
+            ['📊','Account Group','Account alerts and updates','ACCOUNT_GROUP'],
+          ].map(([ico,name,desc,env])=>`
+          <div class="wa-group-card">
+            <div style="display:flex;gap:10px;align-items:center">
+              <span style="font-size:20px">${ico}</span>
+              <div>
+                <div style="font-weight:600;font-size:13px">${name}</div>
+                <div style="font-size:11px;color:var(--text-3)">${desc}</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:10px;color:var(--text-3);font-family:var(--font-mono)">${env}</div>
+              <span class="badge badge-green" style="margin-top:4px">Active</span>
+            </div>
+          </div>`).join('')}
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-title">Boss Alert Numbers</div>
+          <div class="config-card-sub">Yeh numbers ko payment + invoice alerts jaate hain</div>
+          <div class="field">
+            <label>COO (Muddasir Waheed)</label>
+            <input class="input" id="wa-muddasir" value="923228064444" style="font-family:var(--font-mono)"/>
+          </div>
+          <div class="field">
+            <label>CEO (Awais Malik)</label>
+            <input class="input" id="wa-awais" value="923004755563" style="font-family:var(--font-mono)"/>
+          </div>
+          <div class="field">
+            <label>Discount Threshold (auto-approve below this %)</label>
+            <input class="input" id="wa-discount" type="number" value="25" min="0" max="100"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Automation Rules Tab -->
+      <div id="tab-automation" class="hidden">
+        <div class="config-card">
+          <div class="config-card-title">⚡ Automation Rules</div>
+          <div class="config-card-sub">Kaunsi cheezein automatically ho jaayein</div>
+
+          ${[
+            ['auto-bank-match','Bank SMS → PayGate auto-match','Bank payment aate hi PayGate entry se match karo','payments.view'],
+            ['auto-ledger-update','Payment → Ledger auto-update','Verified payment pe client outstanding reduce karo','payments.view'],
+            ['auto-invoice-approve','Invoice auto-approval','Payment + policy check ke baad auto approve/reject','approvals.manage'],
+            ['auto-risk-score','Daily risk recalculation','Har raat clients ka risk score update karo','dashboard.view'],
+            ['auto-overdue-alert','Overdue WhatsApp alerts','60+ din overdue clients pe boss ko alert','approvals.manage'],
+            ['auto-duplicate-check','Duplicate payment detection','Same amount same day → flag karo','payments.view'],
+          ].map(([id,label,desc,perm])=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--surface-2);border-radius:8px;margin-bottom:8px">
+            <div>
+              <div style="font-weight:600;font-size:13px">${label}</div>
+              <div style="font-size:11px;color:var(--text-3)">${desc}</div>
+            </div>
+            <label style="cursor:pointer">
+              <input type="checkbox" id="${id}" checked style="width:18px;height:18px;accent-color:var(--brand)"/>
+            </label>
+          </div>`).join('')}
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-title">🔗 Webhook Settings</div>
+          <div class="config-card-sub">External systems se data receive karne ke liye</div>
+          <div class="field">
+            <label>Bank Alert Webhook URL</label>
+            <div style="display:flex;gap:8px">
+              <input class="input" value="https://cnc-erp.vercel.app/api/bank-alert" readonly style="font-family:var(--font-mono);font-size:12px"/>
+              <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('https://cnc-erp.vercel.app/api/bank-alert').then(()=>showToast('Copied!','📋'))">Copy</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Webhook Secret Key</label>
+            <div class="key-field">
+              <input class="input" value="cnc-bank-secret-2026" type="password" style="font-family:var(--font-mono);padding-right:60px" id="webhook-secret"/>
+              <button onclick="toggleKey('webhook-secret')">Show</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logs Tab -->
+      <div id="tab-logs" class="hidden">
+        <div class="config-card">
+          <div class="config-card-title" style="justify-content:space-between">
+            📋 Recent Activity
+            <button class="btn btn-secondary btn-sm" onclick="loadLogs()">🔄 Refresh</button>
+          </div>
+          <div class="log-box" id="logBox">
+            <div class="log-line info">[ System ] Loading logs...</div>
+          </div>
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-title">📊 AI Usage Stats</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+            <div style="background:var(--surface-2);padding:12px;border-radius:8px;text-align:center">
+              <div style="font-size:22px;font-weight:800" id="stat-invoices">—</div>
+              <div style="font-size:10px;color:var(--text-3);text-transform:uppercase">Invoices Analyzed</div>
+            </div>
+            <div style="background:var(--surface-2);padding:12px;border-radius:8px;text-align:center">
+              <div style="font-size:22px;font-weight:800;color:var(--green)" id="stat-approved">—</div>
+              <div style="font-size:10px;color:var(--text-3);text-transform:uppercase">Auto Approved</div>
+            </div>
+            <div style="background:var(--surface-2);padding:12px;border-radius:8px;text-align:center">
+              <div style="font-size:22px;font-weight:800;color:var(--blue)" id="stat-payments">—</div>
+              <div style="font-size:10px;color:var(--text-3);text-transform:uppercase">Payments Matched</div>
+            </div>
+            <div style="background:var(--surface-2);padding:12px;border-radius:8px;text-align:center">
+              <div style="font-size:22px;font-weight:800;color:var(--red)" id="stat-risk">—</div>
+              <div style="font-size:10px;color:var(--text-3);text-transform:uppercase">Risk Alerts</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script>
+const API = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
+const KEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
+const HDR = { 'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json' };
+
+const SETTINGS_KEY = 'cnc_ai_settings';
+
+function aiTab(tab, el) {
+  document.querySelectorAll('.ai-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  ['claude','whatsapp','automation','logs'].forEach(t => {
+    document.getElementById('tab-'+t)?.classList.toggle('hidden', t!==tab);
+  });
+  if(tab==='logs') loadLogs();
+}
+
+function toggleKey(id) {
+  const el = document.getElementById(id);
+  const btn = el.nextElementSibling;
+  if(el.type==='password'){el.type='text';btn.textContent='Hide';}
+  else{el.type='password';btn.textContent='Show';}
+}
+
+// ── Load/Save Settings ────────────────────────────────────────
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}');
+    if(s.claudeKey) document.getElementById('claude-key').value = s.claudeKey;
+    if(s.claudeModel) document.getElementById('claude-model').value = s.claudeModel;
+    if(s.claudeTokens) document.getElementById('claude-tokens').value = s.claudeTokens;
+    if(s.waMuddasir) document.getElementById('wa-muddasir').value = s.waMuddasir;
+    if(s.waAwais) document.getElementById('wa-awais').value = s.waAwais;
+    if(s.waDiscount) document.getElementById('wa-discount').value = s.waDiscount;
+    // Checkboxes
+    ['ai-invoice','ai-payment','ai-client','ai-ledger','ai-approval','ai-alerts',
+     'auto-bank-match','auto-ledger-update','auto-invoice-approve','auto-risk-score','auto-overdue-alert','auto-duplicate-check'].forEach(id=>{
+      if(id in s) { const el=document.getElementById(id); if(el) el.checked=s[id]; }
+    });
+  } catch(e){}
+}
+
+function saveAll() {
+  const s = {
+    claudeKey:    document.getElementById('claude-key').value.trim(),
+    claudeModel:  document.getElementById('claude-model').value,
+    claudeTokens: document.getElementById('claude-tokens').value,
+    waMuddasir:   document.getElementById('wa-muddasir').value,
+    waAwais:      document.getElementById('wa-awais').value,
+    waDiscount:   document.getElementById('wa-discount').value,
+  };
+  ['ai-invoice','ai-payment','ai-client','ai-ledger','ai-approval','ai-alerts',
+   'auto-bank-match','auto-ledger-update','auto-invoice-approve','auto-risk-score','auto-overdue-alert','auto-duplicate-check'].forEach(id=>{
+    const el=document.getElementById(id); if(el) s[id]=el.checked;
+  });
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  showToast('Settings saved','✅');
+}
+
+// ── Test Claude API ───────────────────────────────────────────
+async function testClaude() {
+  const key = document.getElementById('claude-key').value.trim();
+  if(!key){ showToast('API key daalo pehle','⚠️'); return; }
+  const result = document.getElementById('claude-test-result');
+  result.style.display='block'; result.className='test-result';
+  result.textContent='Testing...';
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json' },
+      body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:50, messages:[{role:'user',content:'Reply: OK'}] })
+    });
+    const data = await r.json();
+    if(data.content) {
+      result.className='test-result ok'; result.textContent='✅ Connected! Model: '+data.model;
+      document.getElementById('claude-status').innerHTML='<span class="status-dot-ai connected"></span>Connected';
+    } else {
+      result.className='test-result err'; result.textContent='❌ Error: '+(data.error?.message||JSON.stringify(data));
+      document.getElementById('claude-status').innerHTML='<span class="status-dot-ai disconnected"></span>Failed';
+    }
+  } catch(e) {
+    result.className='test-result err'; result.textContent='❌ Network error: '+e.message;
+  }
+}
+
+// ── Logs ──────────────────────────────────────────────────────
+async function loadLogs() {
+  const box = document.getElementById('logBox');
+  try {
+    const [alerts, pg, approvals] = await Promise.all([
+      fetch(`${API}/bank_alerts?select=id,amount,bank_name,match_status,created_at&order=created_at.desc&limit=20`,{headers:HDR}).then(r=>r.json()),
+      fetch(`${API}/paygate_entries?select=id,customer,amount,status,created_at&order=created_at.desc&limit=10`,{headers:HDR}).then(r=>r.json()),
+      fetch(`${API}/approvals?select=invoice_no,client_name,bot_decision,created_at&order=created_at.desc&limit=10`,{headers:HDR}).then(r=>r.json()),
+    ]);
+
+    const lines = [];
+    (alerts||[]).forEach(a => {
+      const t = new Date(a.created_at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      const cls = a.match_status==='matched'?'ok':a.match_status==='verified'?'ok':'info';
+      lines.push(`<div class="log-line ${cls}">[${t}] Bank Alert: PKR ${Number(a.amount||0).toLocaleString()} · ${a.bank_name||'Unknown Bank'} · ${a.match_status}</div>`);
+    });
+    (pg||[]).forEach(p => {
+      const t = new Date(p.created_at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      lines.push(`<div class="log-line info">[${t}] PayGate: ${p.customer} · PKR ${Number(p.amount||0).toLocaleString()} · ${p.status}</div>`);
+    });
+
+    box.innerHTML = lines.length ? lines.join('') : '<div class="log-line info">[ No activity yet ]</div>';
+
+    // Stats
+    document.getElementById('stat-invoices').textContent = (approvals||[]).length;
+    document.getElementById('stat-approved').textContent = (approvals||[]).filter(a=>a.bot_decision==='APPROVED').length;
+    document.getElementById('stat-payments').textContent = (alerts||[]).filter(a=>a.match_status==='matched'||a.match_status==='verified').length;
+    document.getElementById('stat-risk').textContent     = (alerts||[]).filter(a=>a.risk_score>=50).length||0;
+  } catch(e) {
+    box.innerHTML = `<div class="log-line err">[ Error loading logs: ${e.message} ]</div>`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadSettings);
+</script>
+</body>
+</html>
