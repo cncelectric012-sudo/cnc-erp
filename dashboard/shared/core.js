@@ -131,61 +131,146 @@ function showToast(msg, icon = '✓') {
 // ── Sidebar Render ───────────────────────────────────────────
 function renderSidebar(activePage) {
   const can = (p) => !window.userPerms || window.userPerms.includes(p);
-  const pendingApprovals = (approvals || []).filter(a => a.status === 'pending').length;
 
-  const sbItem = (page, ico, label, badge, perm) => {
+  const item = (page, ico, label, perm) => {
     if (perm && !can(perm)) return '';
-    return `<a class="sb-item ${activePage===page?'active':''}" href="${page}.html">
-      <span class="ico">${ico}</span>${label}
-      ${badge !== undefined ? `<span class="badge-count">${badge}</span>` : ''}
-    </a>`;
+    return `<a class="sb-item ${activePage===page?'active':''}" href="${page}.html"><span class="ico">${ico}</span>${label}</a>`;
   };
 
-  const workspaceItems = [
-    sbItem('upload',    '📥', 'Load Data',      undefined,   'dashboard.view'),
-    sbItem('portfolio', '📊', 'Portfolio',      customers.length||0, 'dashboard.view'),
-    sbItem('clients',   '👥', 'Clients',        undefined,   'clients.view'),
-    sbItem('ledgers',   '📒', 'Client Ledgers', undefined,   'ledgers.view'),
-    sbItem('payments',  '💳', 'Payments',       payments.length||0, 'payments.view'),
-    sbItem('approvals', '✓',  'Approvals',      pendingApprovals,   'approvals.view'),
-  ].filter(Boolean).join('');
+  // Build groups — only show if at least one item visible
+  const groups = [
+    {
+      id:'g1', ico:'🔐', label:'Users & Roles',
+      perm:'users.view',
+      items:[
+        item('users','👥','Users & Permissions','users.view'),
+      ]
+    },
+    {
+      id:'g2', ico:'👤', label:'Clients',
+      perm:'clients.view',
+      items:[
+        item('clients','📋','All Clients','clients.view'),
+        item('clients','⚠️','Overdue','clients.view'),
+        item('clients','🔴','Blacklisted','clients.view'),
+      ]
+    },
+    {
+      id:'g3', ico:'📒', label:'Ledgers',
+      perm:'ledgers.view',
+      items:[
+        item('ledgers','📒','Client Ledgers','ledgers.view'),
+        item('upload','📥','Upload Data','dashboard.view'),
+      ]
+    },
+    {
+      id:'g4', ico:'✅', label:'Invoice Approval',
+      perm:'approvals.view',
+      items:[
+        item('approvals','⏳','Pending Approvals','approvals.view'),
+        item('approvals','📋','Approval History','approvals.view'),
+      ]
+    },
+    {
+      id:'g5', ico:'⚡', label:'Decision Engine',
+      perm:'dashboard.view',
+      items:[
+        item('decision','⚡','Invoice Decision','dashboard.view'),
+        item('policy','⚙️','Policy Settings','dashboard.view'),
+        item('controls','🎛️','Parameters','dashboard.view'),
+      ]
+    },
+    {
+      id:'g6', ico:'💰', label:'PayGate',
+      perm:'paygate.view',
+      items:[
+        item('paygate','💰','Submit & Review','paygate.view'),
+        item('bank','🏦','Bank Verification','payments.view'),
+      ]
+    },
+    {
+      id:'g7', ico:'💳', label:'Payments',
+      perm:'payments.view',
+      items:[
+        item('paygate','📊','Payment Reports','paygate.view'),
+        item('bank','🔍','Bank Alerts','payments.view'),
+      ]
+    },
+    {
+      id:'g8', ico:'🤖', label:'AI Integration',
+      perm:'users.manage',
+      items:[
+        item('ai','🤖','AI Settings','users.manage'),
+        item('ai','💬','WhatsApp Bot','users.manage'),
+      ]
+    },
+  ];
 
-  const engineItems = [
-    sbItem('decision',  '⚡',  'Invoice Decision', undefined, 'dashboard.view'),
-    sbItem('policy',    '⚙️', 'Policy Settings',  undefined, 'dashboard.view'),
-    sbItem('controls',  '🎛️', 'Parameters',       undefined, 'dashboard.view'),
-  ].filter(Boolean).join('');
+  // Determine which group is open (based on active page)
+  const pageToGroup = {
+    users:'g1',
+    clients:'g2',
+    ledgers:'g3', upload:'g3',
+    approvals:'g4',
+    decision:'g5', policy:'g5', controls:'g5',
+    paygate:'g6', bank:'g6',
+    payments:'g7',
+    ai:'g8'
+  };
+  const openGroup = pageToGroup[activePage] || '';
 
-  const financeItems = [
-    sbItem('paygate', '💰', 'PayGate',            undefined, 'paygate.view'),
-    sbItem('bank',    '🏦', 'Bank Verification',  undefined, 'payments.view'),
-  ].filter(Boolean).join('');
-
-  const adminItems = [
-    sbItem('users', '🔐', 'Users & Roles', undefined, 'users.view'),
-  ].filter(Boolean).join('');
+  const groupsHtml = groups.map(g => {
+    if (g.perm && !can(g.perm)) return '';
+    const validItems = g.items.filter(Boolean).join('');
+    if (!validItems) return '';
+    const isOpen = openGroup === g.id;
+    return `
+    <div class="sb-group">
+      <div class="sb-group-header ${isOpen?'open':''}" onclick="toggleSbGroup('${g.id}',this)">
+        <span class="sb-gico">${g.ico}</span>
+        <span>${g.label}</span>
+        <span class="sb-arrow">›</span>
+      </div>
+      <div class="sb-sub ${isOpen?'open':''}" id="${g.id}">
+        ${validItems}
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
 
   const html = `
     <div class="sb-brand">
       <div class="sb-logo">C</div>
       <div>
         <div class="sb-brand-name">CNC Electric</div>
-        <div class="sb-brand-sub">Credit Engine v2.0</div>
+        <div class="sb-brand-sub">ERP v2.0</div>
       </div>
     </div>
-    ${workspaceItems ? `<div class="sb-section"><div class="sb-section-label">Workspace</div>${workspaceItems}</div>` : ''}
-    ${engineItems   ? `<div class="sb-section"><div class="sb-section-label">Engine</div>${engineItems}</div>` : ''}
-    ${financeItems  ? `<div class="sb-section"><div class="sb-section-label">Finance</div>${financeItems}</div>` : ''}
-    ${adminItems    ? `<div class="sb-section"><div class="sb-section-label">Administration</div>${adminItems}</div>` : ''}
+    <div style="padding:8px 12px;overflow-y:auto;flex:1">
+      ${groupsHtml}
+    </div>
     <div class="sb-footer">
       <div class="sb-status">
         <div class="sb-status-dot"></div>
-        <span>${customers.length ? 'Portfolio Active' : 'System Ready'}</span>
+        <span>System Ready</span>
       </div>
     </div>
   `;
   const el = document.getElementById('sidebar');
   if (el) el.innerHTML = html;
+}
+
+function toggleSbGroup(id, headerEl) {
+  const sub = document.getElementById(id);
+  if (!sub) return;
+  const isOpen = sub.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.sb-sub').forEach(s => s.classList.remove('open'));
+  document.querySelectorAll('.sb-group-header').forEach(h => h.classList.remove('open'));
+  // Open clicked (if was closed)
+  if (!isOpen) {
+    sub.classList.add('open');
+    headerEl.classList.add('open');
+  }
 }
 
 // ── Init on every page load ──────────────────────────────────
