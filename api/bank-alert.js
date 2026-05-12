@@ -142,14 +142,33 @@ module.exports = async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { subject = '', from = '', body = '', date = '', source = 'email' } = req.body || {};
+  const rawBody = req.body || {};
 
-  if (!body && !subject) {
-    return res.status(400).json({ error: 'body or subject required' });
+  // Extract text — handle iOS Shortcuts sending various formats
+  let bodyText = '';
+  if (typeof rawBody === 'string') {
+    bodyText = rawBody;
+  } else if (typeof rawBody.body === 'string') {
+    bodyText = rawBody.body;
+  } else if (typeof rawBody.body === 'object' && rawBody.body !== null) {
+    // iOS might send Message object: { messageText, body, content, text }
+    bodyText = rawBody.body.messageText || rawBody.body.body || rawBody.body.text || rawBody.body.content || JSON.stringify(rawBody.body);
+  } else if (rawBody.messageText) {
+    bodyText = rawBody.messageText;
+  } else if (rawBody.text) {
+    bodyText = rawBody.text;
+  }
+
+  const subject = rawBody.subject || '';
+  const from    = rawBody.from || '';
+  const source  = rawBody.source || 'iphone';
+
+  if (!bodyText && !subject) {
+    return res.status(400).json({ error: 'body or subject required', received: JSON.stringify(rawBody).slice(0,200) });
   }
 
   // Combine subject + body for parsing
-  const fullText = `${subject}\n${body}`.trim();
+  const fullText = `${subject}\n${bodyText}`.trim();
 
   // Parse
   const parsed = parseAlert(fullText);
