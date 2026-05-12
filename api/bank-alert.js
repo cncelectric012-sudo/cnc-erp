@@ -127,44 +127,123 @@ function parseAlert(text) {
   return result;
 }
 
-// ── Risk Analysis ─────────────────────────────────────────────
+// ── Pakistani Public Holidays (approximate) ───────────────────
+const PK_HOLIDAYS = [
+  '02-05','03-23','05-01','07-05','08-14','11-09','12-25', // fixed
+];
+
+// ── International Risk Analysis Engine ───────────────────────
 function analyzeRisk(parsed, existingAlerts = []) {
   const flags = [];
+  const details = [];
   let score = 0;
 
-  // Basic missing info
-  if (!parsed.txn_id)    { flags.push('No TXN ID');         score += 20; }
-  if (!parsed.sender)    { flags.push('Sender unknown');     score += 15; }
-  if (!parsed.alert_date){ flags.push('Date missing');       score += 15; }
-  if (!parsed.bank_name) { flags.push('Bank undetected');    score += 10; }
+  const amt = Math.abs(parsed.amount || 0);
+  const now = new Date();
 
-  // Debit alert
+  // ── CATEGORY 1: Data Integrity ───────────────────────────
+  if (!parsed.txn_id)    { flags.push('No Transaction ID');     score += 20; }
+  if (!parsed.sender)    { flags.push('Sender unidentified');   score += 15; }
+  if (!parsed.alert_date){ flags.push('Payment date missing');  score += 15; }
+  if (!parsed.bank_name) { flags.push('Bank undetected');       score += 10; }
+  if (!parsed.account_last4){ flags.push('Account number missing'); score += 5; }
+
+  // ── CATEGORY 2: Transaction Type ─────────────────────────
   if (parsed.direction === 'debit') {
-    flags.push('Debit transaction'); score += 30;
+    flags.push('DEBIT — money left account'); score += 40;
+  }
+  if (parsed.transfer_type === 'Cash Deposit') {
+    flags.push('Cash deposit — unverifiable source'); score += 20;
   }
 
-  // Round large amount (possible fake)
-  if (parsed.amount > 0 && parsed.amount % 10000 === 0 && parsed.amount > 100000) {
-    flags.push('Suspiciously round amount'); score += 15;
+  // ── CATEGORY 3: Amount Analysis ──────────────────────────
+  // Very large
+  if (amt > 5000000)      { flags.push('Extremely large: >50 Lakh');   score += 25; }
+  else if (amt > 1000000) { flags.push('Very large: >10 Lakh');        score += 15; }
+  else if (amt > 500000)  { flags.push('Large amount: >5 Lakh');       score += 8; }
+
+  // Threshold avoidance (just below round millions — structuring indicator)
+  const thresholds = [100000, 500000, 1000000, 5000000];
+  for (const t of thresholds) {
+    if (amt > t * 0.95 && amt < t && amt > t * 0.90) {
+      flags.push(`Threshold avoidance: just below ${(t/1000).toFixed(0)}K`); score += 30; break;
+    }
   }
 
-  // Very large amount
-  if (parsed.amount > 1000000) { flags.push('Amount > 1 million'); score += 10; }
+  // Round number suspicion
+  if (amt > 50000 && amt % 10000 === 0) {
+    flags.push('Suspiciously round amount'); score += 10;
+  }
 
-  // Weekend
+  // ── CATEGORY 4: Time Analysis ─────────────────────────────
   if (parsed.alert_date) {
-    const day = new Date(parsed.alert_date).getDay();
-    if (day === 0 || day === 6) { flags.push('Weekend payment'); score += 5; }
+    const d = new Date(parsed.alert_date);
+    const dow = d.getDay();
+    const mmdd = `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+    if (dow === 0) { flags.push('Sunday transaction'); score += 10; }
+    else if (dow === 6) { flags.push('Saturday transaction'); score += 5; }
+
+    if (PK_HOLIDAYS.includes(mmdd)) {
+      flags.push('Public holiday transaction'); score += 15;
+    }
   }
 
-  // Duplicate amount same day (from existing alerts)
-  const dupsToday = existingAlerts.filter(a => {
-    if (!a.alert_date || !parsed.alert_date) return false;
-    return a.alert_date === parsed.alert_date && Math.abs(a.amount - parsed.amount) < 1;
-  });
-  if (dupsToday.length > 0) { flags.push('Duplicate amount same day'); score += 35; }
+  // After banking hours (before 8am or after 9pm)
+  if (parsed.alert_time) {
+    const hr = parseInt(parsed.alert_time.split(':')[0]);
+    if (hr < 8 || hr >= 21) {
+      flags.push(`Unusual hour: ${parsed.alert_time} (outside 8am-9pm)`); score += 10;
+    }
+  }
 
-  // No PayGate match will increase risk (handled after matching)
+  // ── CATEGORY 5: Velocity & Pattern ───────────────────────
+  // Same account multiple payments in 1 hour
+  if (parsed.account_last4) {
+    const recentSameAcc = existingAlerts.filter(a =>
+      a.account_last4 === parsed.account_last4 &&
+      a.created_at && (now - new Date(a.created_at)) < 3600000
+    );
+    if (recentSameAcc.length >= 3) {
+      flags.push(`High velocity: ${recentSameAcc.length} txns from same account in 1hr`); score += 35;
+    } else if (recentSameAcc.length >= 2) {
+      flags.push('Multiple transactions same account, 1hr'); score += 15;
+    }
+  }
+
+  // Same amount appeared today already (potential duplicate)
+  const sameAmtToday = existingAlerts.filter(a =>
+    a.alert_date === parsed.alert_date && Math.abs((a.amount||0) - amt) < 1
+  );
+  if (sameAmtToday.length > 0) {
+    flags.push(`Duplicate amount (${sameAmtToday.length}x same day)`); score += 35;
+  }
+
+  // Small payment splitting (smurfing — multiple <50K payments)
+  if (amt > 0 && amt < 50000) {
+    const recentSmall = existingAlerts.filter(a =>
+      a.created_at && (now - new Date(a.created_at)) < 3600000 &&
+      Math.abs(a.amount||0) < 50000
+    );
+    if (recentSmall.length >= 3) {
+      flags.push('Potential smurfing: multiple small payments'); score += 40;
+    }
+  }
+
+  // ── CATEGORY 6: Sender Analysis ──────────────────────────
+  // Third-party payment indicator (sender looks like a person not business)
+  if (parsed.sender) {
+    const s = parsed.sender.toUpperCase();
+    // Very short sender name (initials only)
+    if (s.length < 5) { flags.push('Very short sender name'); score += 10; }
+    // Sender is a person name (no company keywords)
+    const bizKeywords = ['PVT','LTD','TRADERS','ENTERPRISE','COMPANY','CORP','INC','INDUSTRIES','WORKS'];
+    const isBiz = bizKeywords.some(k => s.includes(k));
+    if (!isBiz && parsed.amount > 100000) {
+      flags.push('Individual sender (not company) for large amount'); score += 10;
+    }
+  }
+
   return { flags, score: Math.min(score, 100) };
 }
 
