@@ -175,9 +175,12 @@
             </select>
           </div>
         </div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
-          <button type="button" class="btn btn-secondary" onclick="closeUserModal()">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="userSaveBtn">Save User</button>
+        <div style="display:flex;gap:10px;justify-content:space-between;margin-top:20px;align-items:center">
+          <button type="button" class="btn btn-ghost btn-sm" id="userDeleteBtn" style="color:var(--red);display:none" onclick="deleteUserFromModal()">🗑 Delete User</button>
+          <div style="display:flex;gap:10px">
+            <button type="button" class="btn btn-secondary" onclick="closeUserModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="userSaveBtn">Save User</button>
+          </div>
         </div>
       </form>
     </div>
@@ -394,7 +397,6 @@ function renderUsers() {
           ${u.active?'🚫 Deactivate':'✅ Activate'}
         </button>
         <button class="btn btn-ghost btn-sm" onclick="resetPass('${u.id}','${u.name.replace(/'/g,"\\'")}')">🔑 Reset Pass</button>
-        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteUser('${u.id}','${u.name.replace(/'/g,"\\'")}')">🗑 Delete</button>
       </div>
     </div>`;
   }).join('');
@@ -468,7 +470,19 @@ function openUserModal(userId=null) {
     document.getElementById('u-pass').value     = '';
     document.getElementById('u-pass2').value    = '';
   }
+  // Show delete button only in edit mode
+  document.getElementById('userDeleteBtn').style.display = userId ? 'block' : 'none';
   document.getElementById('userModal').classList.remove('hidden');
+}
+
+async function deleteUserFromModal() {
+  if(!editingUserId) return;
+  const u = allUsers.find(x=>x.id===editingUserId);
+  if(!confirm(`"${u?.name||editingUserId}" ko permanently delete karo?`)) return;
+  await fetch(`${API}/app_users?id=eq.${editingUserId}`, { method:'DELETE', headers:HDR });
+  showToast('User deleted','🗑️');
+  closeUserModal();
+  loadAll();
 }
 
 function editUser(id) { openUserModal(id); }
