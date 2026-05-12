@@ -135,6 +135,85 @@
   </div>
 </div>
 
+<!-- Edit Alert Modal -->
+<div class="modal-bg hidden" id="editAlertModal">
+  <div class="modal-sheet" style="max-width:600px">
+    <div class="modal-handle"></div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:14px;display:flex;justify-content:space-between">
+      ✏️ Edit Bank Alert
+      <button onclick="document.getElementById('editAlertModal').classList.add('hidden')" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-3)">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="field full" style="grid-column:1/-1">
+        <label>Amount (PKR) <span style="color:var(--brand)">*</span></label>
+        <input class="input" id="ea-amount" type="number" placeholder="0" style="font-size:20px;font-weight:700;text-align:center;font-family:var(--font-mono)"/>
+      </div>
+      <div class="field">
+        <label>Bank Name</label>
+        <select class="input" id="ea-bank">
+          <option value="">Unknown</option>
+          <option>Bank Al Habib</option>
+          <option>Bank Alfalah</option>
+          <option>Meezan Bank</option>
+          <option>HBL</option>
+          <option>UBL</option>
+          <option>MCB</option>
+          <option>JS Bank</option>
+          <option>NBP</option>
+          <option>Faysal Bank</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Account Last 4 Digits</label>
+        <input class="input" id="ea-account" placeholder="e.g. 3392" style="font-family:var(--font-mono)" maxlength="4"/>
+      </div>
+      <div class="field">
+        <label>Sender Name</label>
+        <input class="input" id="ea-sender" placeholder="e.g. AHMED ALI"/>
+      </div>
+      <div class="field">
+        <label>TXN / Reference ID</label>
+        <input class="input" id="ea-txn" placeholder="Transaction ID" style="font-family:var(--font-mono)"/>
+      </div>
+      <div class="field">
+        <label>Payment Date</label>
+        <input class="input" id="ea-date" type="date"/>
+      </div>
+      <div class="field">
+        <label>Payment Time</label>
+        <input class="input" id="ea-time" type="time"/>
+      </div>
+      <div class="field">
+        <label>Transfer Type</label>
+        <select class="input" id="ea-type">
+          <option value="">Unknown</option>
+          <option>IBFT</option>
+          <option>RAAST</option>
+          <option>Fund Transfer</option>
+          <option>Internal Transfer</option>
+          <option>Cash Deposit</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <select class="input" id="ea-status">
+          <option value="unmatched">Unmatched</option>
+          <option value="matched">Matched</option>
+          <option value="verified">Verified</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <label>Notes</label>
+        <input class="input" id="ea-notes" placeholder="Any notes..."/>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-secondary" onclick="document.getElementById('editAlertModal').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-primary" id="editSaveBtn" onclick="saveEditAlert()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="shared/supabase-config.js"></script>
 <script src="shared/auth-guard.js"></script>
@@ -418,6 +497,11 @@ function alertCard(a){
     </div>
     ${flags.length?`<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">${flags.slice(0,3).map(f=>`<span class="badge badge-yellow" style="font-size:10px">⚠️ ${f}</span>`).join('')}</div>`:''}
     ${a.txn_id?`<div style="font-size:10px;color:var(--text-4);margin-top:4px;font-family:var(--font-mono)">TXN: ${a.txn_id}</div>`:''}
+    <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)" onclick="event.stopPropagation()">
+      <button class="btn btn-secondary btn-sm" onclick="openEditAlert('${a.id}')">✏️ Edit</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteAlert('${a.id}')">🗑 Delete</button>
+      ${a.match_status==='unmatched'?`<button class="btn btn-success btn-sm" onclick="verifyAlert('${a.id}','${a.matched_paygate_id||''}')">✅ Verify</button>`:''}
+    </div>
   </div>`;
 }
 
@@ -928,9 +1012,70 @@ async function deleteAlert(id){
 }
 
 function manualLink(alertId){
-  // TODO: show payment selector
   showToast('Pehle PayGate mein payment dhundo, phir amount match confirm karo','ℹ️');
 }
+
+// ── Edit Alert ────────────────────────────────────────────────
+let editingAlertId = null;
+
+function openEditAlert(id){
+  const a = allAlerts.find(x=>x.id===id);
+  if(!a) return;
+  editingAlertId = id;
+
+  document.getElementById('ea-amount').value  = Math.abs(a.amount||0);
+  document.getElementById('ea-bank').value    = a.bank_name||'';
+  document.getElementById('ea-account').value = a.account_last4||'';
+  document.getElementById('ea-sender').value  = a.sender||'';
+  document.getElementById('ea-txn').value     = a.txn_id||'';
+  document.getElementById('ea-date').value    = a.alert_date||'';
+  document.getElementById('ea-time').value    = a.alert_time||'';
+  document.getElementById('ea-type').value    = a.transfer_type||'';
+  document.getElementById('ea-status').value  = a.match_status||'unmatched';
+  document.getElementById('ea-notes').value   = a.notes||'';
+
+  document.getElementById('editAlertModal').classList.remove('hidden');
+  document.getElementById('detailModal').classList.add('hidden');
+}
+
+async function saveEditAlert(){
+  if(!editingAlertId) return;
+  const btn = document.getElementById('editSaveBtn');
+  btn.disabled=true; btn.textContent='Saving...';
+
+  const update = {
+    amount:        parseFloat(document.getElementById('ea-amount').value)||0,
+    bank_name:     document.getElementById('ea-bank').value,
+    account_last4: document.getElementById('ea-account').value.trim(),
+    sender:        document.getElementById('ea-sender').value.trim(),
+    txn_id:        document.getElementById('ea-txn').value.trim(),
+    alert_date:    document.getElementById('ea-date').value,
+    alert_time:    document.getElementById('ea-time').value,
+    transfer_type: document.getElementById('ea-type').value,
+    match_status:  document.getElementById('ea-status').value,
+    notes:         document.getElementById('ea-notes').value.trim(),
+  };
+
+  try {
+    const r = await fetch(`${API}/bank_alerts?id=eq.${editingAlertId}`,{
+      method:'PATCH',
+      headers:{...HDR,'Prefer':'return=minimal'},
+      body:JSON.stringify(update)
+    });
+    if(!r.ok) throw new Error(await r.text());
+    showToast('Alert updated','✅');
+    document.getElementById('editAlertModal').classList.add('hidden');
+    editingAlertId = null;
+    await loadData();
+  } catch(e) {
+    showToast('Error: '+e.message,'❌');
+  }
+  btn.disabled=false; btn.textContent='Save Changes';
+}
+
+document.getElementById('editAlertModal')?.addEventListener('click',e=>{
+  if(e.target===e.currentTarget) e.currentTarget.classList.add('hidden');
+});
 
 async function exportAlerts(){
   if(!allAlerts.length){showToast('No data','⚠️');return;}
