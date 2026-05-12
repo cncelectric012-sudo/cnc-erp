@@ -402,7 +402,12 @@ function alertCard(a){
         <div style="font-weight:700;font-size:15px">${PKR(a.amount)}</div>
         <div style="font-size:12px;color:var(--text-3);margin-top:2px">${a.bank_name||'Unknown Bank'} ${a.account_last4?'· **'+a.account_last4:''}</div>
         <div style="font-size:11px;color:var(--text-3)">${a.sender||'Unknown sender'} ${a.transfer_type?'· '+a.transfer_type:''}</div>
-        <div style="font-size:11px;color:var(--text-3)">${a.alert_date||''} ${a.alert_time?'at '+a.alert_time:''}</div>
+        <div style="font-size:11px;color:var(--text-3)">
+          💳 Payment: ${a.alert_date||'Unknown date'} ${a.alert_time?'at '+a.alert_time:''}
+        </div>
+        <div style="font-size:10px;color:var(--text-4);margin-top:2px">
+          📥 Received: ${a.created_at?new Date(a.created_at).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—'}
+        </div>
       </div>
       <div style="text-align:right;flex-shrink:0">
         <span class="badge ${matchClass==='verified'?'badge-blue':matchClass==='matched'?'badge-green':matchClass==='partial'?'badge-yellow':'badge-red'}">${matchTxt[a.match_status]||'Unknown'}</span>
