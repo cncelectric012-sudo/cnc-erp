@@ -177,6 +177,8 @@
         <button class="btn-export" onclick="exportClientPDF()" style="font-size:11px;padding:5px 10px">🖨️ Print</button>
         <button class="btn-export" onclick="exportClientCSV()" style="font-size:11px;padding:5px 10px">⬇ CSV</button>
         <button class="btn-export" id="m-wa-btn" style="font-size:11px;padding:5px 10px;background:var(--green-50);border-color:var(--green-100);color:var(--green)">💬 WhatsApp</button>
+        <button class="btn-export" id="m-edit-btn" style="font-size:11px;padding:5px 10px;background:var(--blue-50);border-color:var(--blue-100);color:var(--blue)">✏️ Edit</button>
+        <button class="btn-export" id="m-del-btn" style="font-size:11px;padding:5px 10px;background:var(--red-50);border-color:var(--red-100);color:var(--red)">🗑 Delete</button>
         <button class="modal-close" onclick="closeModal()">✕</button>
       </div>
     </div>
@@ -494,6 +496,11 @@ function openModal(clientId) {
     waBtn.style.display='none';
   }
 
+  // Edit button
+  document.getElementById('m-edit-btn').onclick = () => openLedgerEdit(c.id);
+  // Delete button
+  document.getElementById('m-del-btn').onclick = () => deleteLedgerClient(c.id, c.name);
+
   // Aging div reset
   document.getElementById('m-aging').style.display='none';
   renderTxnTable(c, 'all');
@@ -506,6 +513,84 @@ function openModal(clientId) {
 function closeModal() {
   document.getElementById('clientModal').classList.add('hidden');
   document.body.style.overflow='';
+}
+
+// ── Ledger Edit ───────────────────────────────────────────────
+function openLedgerEdit(id) {
+  const c = allClients.find(x=>x.id===id);
+  if(!c) return;
+  const fields = [
+    ['Name',         'name',              c.name||''],
+    ['City',         'city',              c.city||''],
+    ['Phone',        'phone',             c.phone||''],
+    ['Address',      'address',           c.address||''],
+    ['Contact Person','contact_person',   c.contact_person||''],
+    ['Email',        'email',             c.email||''],
+    ['Salesperson',  'salesperson',       c.salesperson||''],
+    ['Outstanding (PKR)','outstanding_amount', c.outstanding_amount||0],
+    ['Risk Level',   'risk_level',        c.risk_level||'Medium'],
+    ['Avg Pay Days', 'avg_payment_days',  c.avg_payment_days||''],
+  ];
+  const form = fields.map(([lbl,key,val])=>`
+    <div class="field">
+      <label>${lbl}</label>
+      <input class="input" id="le-${key}" value="${String(val).replace(/"/g,'&quot;')}" ${key==='risk_level'?'':''}/>
+    </div>`).join('');
+
+  // Show inline edit panel below modal header
+  const existing = document.getElementById('ledger-edit-panel');
+  if(existing) existing.remove();
+  const panel = document.createElement('div');
+  panel.id = 'ledger-edit-panel';
+  panel.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px';
+  panel.innerHTML = `
+    <div style="background:var(--surface);border-radius:14px;padding:24px;width:100%;max-width:580px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700">✏️ Edit Ledger — ${c.name}</div>
+        <button onclick="document.getElementById('ledger-edit-panel').remove()" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${form}</div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+        <button class="btn btn-secondary" onclick="document.getElementById('ledger-edit-panel').remove()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveLedgerEdit('${id}')">Save Changes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(panel);
+}
+
+async function saveLedgerEdit(id) {
+  const fields = ['name','city','phone','address','contact_person','email','salesperson','outstanding_amount','risk_level','avg_payment_days'];
+  const update = {};
+  fields.forEach(k => {
+    const el = document.getElementById('le-'+k);
+    if(el) update[k] = k==='outstanding_amount' ? parseFloat(el.value)||0 : el.value.trim();
+  });
+  update.last_updated = new Date().toISOString();
+
+  const r = await fetch(`${LAPI}/clients?id=eq.${id}`, {
+    method:'PATCH', headers:{...LHDR,'Content-Type':'application/json','Prefer':'return=minimal'},
+    body: JSON.stringify(update)
+  });
+  if(r.ok) {
+    showToast('Ledger updated','✅');
+    document.getElementById('ledger-edit-panel').remove();
+    closeModal();
+    await loadClients();
+  } else {
+    showToast('Save failed','❌');
+  }
+}
+
+async function deleteLedgerClient(id, name) {
+  if(!confirm(`"${name}" ka ledger delete karo? Saari transactions bhi hat jaayengi.`)) return;
+  const r = await fetch(`${LAPI}/clients?id=eq.${id}`, { method:'DELETE', headers:LHDR });
+  if(r.ok) {
+    showToast(`${name} deleted`,'🗑️');
+    closeModal();
+    await loadClients();
+  } else {
+    showToast('Delete failed','❌');
+  }
 }
 
 function switchTab(tab) {

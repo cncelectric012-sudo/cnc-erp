@@ -394,6 +394,7 @@ function renderUsers() {
           ${u.active?'🚫 Deactivate':'✅ Activate'}
         </button>
         <button class="btn btn-ghost btn-sm" onclick="resetPass('${u.id}','${u.name.replace(/'/g,"\\'")}')">🔑 Reset Pass</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteUser('${u.id}','${u.name.replace(/'/g,"\\'")}')">🗑 Delete</button>
       </div>
     </div>`;
   }).join('');
@@ -517,6 +518,13 @@ async function saveUser(e) {
     showToast('Error: '+err.message,'❌');
   }
   btn.disabled=false; btn.textContent=editingUserId?'Update User':'Save User';
+}
+
+async function deleteUser(id, name) {
+  if(!confirm(`"${name}" ko permanently delete karo? Yeh undo nahi ho sakta.`)) return;
+  await fetch(`${API}/app_users?id=eq.${id}`, { method:'DELETE', headers:HDR });
+  showToast(`${name} deleted`,'🗑️');
+  loadAll();
 }
 
 async function toggleActive(id, current) {
