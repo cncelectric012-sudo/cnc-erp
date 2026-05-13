@@ -389,12 +389,15 @@ async function saveAlert(parsed, flags, score, matchedId, matchStatus, source, f
     created_at: new Date().toISOString()
   };
 
-  // ON CONFLICT DO NOTHING — database-level duplicate prevention
+  // ON CONFLICT (text_hash) DO NOTHING — database-level duplicate prevention
   const saveHDR = { ...HDR, 'Prefer': 'resolution=ignore-duplicates,return=minimal' };
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/bank_alerts`, {
-    method: 'POST', headers: saveHDR, body: JSON.stringify(record)
-  });
-  return { ok: r.ok, id: record.id };
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/bank_alerts?on_conflict=text_hash`,
+    { method: 'POST', headers: saveHDR, body: JSON.stringify(record) }
+  );
+  // 200 = saved, 201 = inserted, anything else = log but don't fail
+  const saved = r.status === 200 || r.status === 201;
+  return { ok: saved, id: record.id };
 }
 
 // ── PayGate match ─────────────────────────────────────────────
