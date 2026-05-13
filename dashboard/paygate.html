@@ -145,7 +145,7 @@ const HDR = {'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'applicat
 
 const BANKS = ['Meezan Bank','HBL','UBL','MCB','Allied Bank','Bank Alfalah (BAFL)','Bank Al-Habib (BAH)','NBP','Faysal Bank','Askari Bank','JS Bank','Silk Bank','Habib Metro','Dubai Islamic Bank','Other'];
 const BANK_ROUTING = {CNC:'BAH AOP ya Meezan Pvt',CST:'BAFL AOP (705) ya BAH AOP',CSPL:'BAFL 989 ya BAH Pvt'};
-const PAY_TYPES = ['Ledger Credit','For Dispatch','Outward Payment','Advance','Security Deposit'];
+const PAY_TYPES = ['Ledger Client','Regular Client','Walking Customer','Advance Payment','New Client','GST Client'];
 
 async function apiFetch(path,opts={}){
   const r=await fetch(API+path,{headers:HDR,...opts});
@@ -159,7 +159,7 @@ const fmtDT   = d => d?new Date(d).toLocaleString('en-GB',{day:'2-digit',month:'
 
 let PGU=null, pgView='field', pgTab='submit';
 let allEntries=[], myEntries=[], allClients=[];
-let pgState={cust:'',amt:'',ent:'CNC',typ:'Ledger Credit',bank:'',account:'',txnId:'',payDate:'',phone:'',invoice:'',bankmsg:'',note:'',photo:null};
+let pgState={cust:'',amt:'',ent:'CNC',typ:'Ledger Client',bank:'',account:'',txnId:'',payDate:'',phone:'',invoice:'',bankmsg:'',note:'',photo:null};
 let showAc=false;
 
 // ── Init — wait for auth + permissions to fully load ──────────
@@ -313,8 +313,9 @@ function renderSubmit(){
         <input class="input" id="pg-txn" value="${esc(pgState.txnId)}" placeholder="Bank TXN reference" style="font-family:var(--font-mono)" oninput="pgState.txnId=this.value"/>
       </div>
       <div class="field">
-        <label>Phone</label>
-        <input class="input" id="pg-phone" type="tel" value="${esc(pgState.phone)}" placeholder="03XX-XXXXXXX" oninput="pgState.phone=this.value"/>
+        <label>Client Phone <span style="color:var(--brand)">*</span></label>
+        <input class="input" id="pg-phone" type="tel" value="${esc(pgState.phone)}" placeholder="03XX-XXXXXXX" oninput="pgState.phone=this.value;checkSubmit()" style="${!pgState.phone?'border-color:var(--yellow)':''}"/>
+        ${!pgState.phone?'<div style="font-size:11px;color:var(--yellow);margin-top:3px">⚠️ Phone number mandatory hai</div>':''}
       </div>
 
       <div class="field full">
@@ -324,7 +325,7 @@ function renderSubmit(){
         </div>
       </div>
 
-      ${pgState.typ==='For Dispatch'?`
+      ${pgState.typ==='For Dispatch'||pgState.typ==='New Client'?`
       <div class="field full">
         <label>Invoice / Order Ref <span style="color:var(--brand)">*</span></label>
         <input class="input" id="pg-invoice" value="${esc(pgState.invoice)}" placeholder="INV-XXXX or order ref" oninput="pgState.invoice=this.value"/>
@@ -355,7 +356,7 @@ function renderSubmit(){
       ✅ <b>Required:</b> Customer, Amount, Date, Bank Name, Payment Type
     </div>
 
-    <button class="submit-btn" id="pg-submit-btn" onclick="submitPayment()" ${pgState.cust&&pgState.amt&&pgState.bank?'':'disabled'}>
+    <button class="submit-btn" id="pg-submit-btn" onclick="submitPayment()" ${pgState.cust&&pgState.amt&&pgState.bank&&pgState.phone?'':'disabled'}>
       💰 Submit Payment
     </button>
   </div>`;
@@ -414,7 +415,7 @@ async function submitPayment(){
   try{
     await fetch(`${API}/paygate_entries`,{method:'POST',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify(entry)});
     showToast('Payment submitted!','✅');
-    pgState={cust:'',amt:'',ent:'CNC',typ:'Ledger Credit',bank:'',account:'',txnId:'',payDate:'',phone:'',invoice:'',bankmsg:'',note:'',photo:null};
+    pgState={cust:'',amt:'',ent:'CNC',typ:'Ledger Client',bank:'',account:'',txnId:'',payDate:'',phone:'',invoice:'',bankmsg:'',note:'',photo:null};
     await loadData();
     pgTab='history';
     render();
