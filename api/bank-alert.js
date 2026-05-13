@@ -471,25 +471,38 @@ module.exports = async function handler(req, res) {
     return res.status(200).end();
   }
 
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  // Allow GET (for iOS Shortcuts URL parameter approach) and POST
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-  // Secret check
-  const secret = req.headers['x-secret'] || req.body?.secret;
+  // Secret check — from header, body, or query param
+  const secret = req.headers['x-secret'] || req.body?.secret || req.query?.secret;
   if (secret !== WEBHOOK_SECRET) return res.status(401).json({ error: 'Unauthorized' });
 
-  // Extract text from various iOS Shortcuts formats
-  const rawBody = req.body || {};
   let bodyText = '';
-  if (typeof rawBody === 'string')                          bodyText = rawBody;
-  else if (typeof rawBody.body === 'string')                bodyText = rawBody.body;
-  else if (typeof rawBody.body === 'object' && rawBody.body)
-    bodyText = rawBody.body.messageText || rawBody.body.body || rawBody.body.text || rawBody.body.content || JSON.stringify(rawBody.body);
-  else if (rawBody.messageText) bodyText = rawBody.messageText;
-  else if (rawBody.text)        bodyText = rawBody.text;
+  let subject = '';
+  let from = '';
+  let source = 'iphone';
 
-  const subject = rawBody.subject || '';
-  const from    = rawBody.from || '';
-  const source  = rawBody.source || 'iphone';
+  if (req.method === 'GET') {
+    // iOS GET request — message in URL query param
+    bodyText = req.query?.body || req.query?.msg || req.query?.text || '';
+    source = req.query?.source || 'iphone_get';
+  } else {
+    // POST request — various body formats
+    const rawBody = req.body || {};
+    if (typeof rawBody === 'string')                          bodyText = rawBody;
+    else if (typeof rawBody.body === 'string')                bodyText = rawBody.body;
+    else if (typeof rawBody.body === 'object' && rawBody.body)
+      bodyText = rawBody.body.messageText || rawBody.body.body || rawBody.body.text || rawBody.body.content || JSON.stringify(rawBody.body);
+    else if (rawBody.messageText) bodyText = rawBody.messageText;
+    else if (rawBody.text)        bodyText = rawBody.text;
+    subject = rawBody.subject || '';
+    from    = rawBody.from || '';
+    source  = rawBody.source || 'iphone';
+  }
+
   const fullText = `${subject}\n${bodyText}`.trim();
 
   if (!fullText) {
