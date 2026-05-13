@@ -492,12 +492,26 @@ module.exports = async function handler(req, res) {
   } else {
     // POST request — various body formats
     const rawBody = req.body || {};
-    if (typeof rawBody === 'string')                          bodyText = rawBody;
-    else if (typeof rawBody.body === 'string')                bodyText = rawBody.body;
-    else if (typeof rawBody.body === 'object' && rawBody.body)
+    if (typeof rawBody === 'string') {
+      bodyText = rawBody;
+    } else if (typeof rawBody.body === 'string' && rawBody.body) {
+      bodyText = rawBody.body;
+    } else if (typeof rawBody.body === 'object' && rawBody.body) {
       bodyText = rawBody.body.messageText || rawBody.body.body || rawBody.body.text || rawBody.body.content || JSON.stringify(rawBody.body);
-    else if (rawBody.messageText) bodyText = rawBody.messageText;
-    else if (rawBody.text)        bodyText = rawBody.text;
+    } else if (rawBody.messageText) {
+      bodyText = rawBody.messageText;
+    } else if (rawBody.text) {
+      bodyText = rawBody.text;
+    } else {
+      // iOS Shortcuts bug: concatenates field name + value as key
+      // e.g. {"bodyPkr 5000 is credited": "", "secret": "..."}
+      // Find key starting with "body" and extract text after "body"
+      const keys = Object.keys(rawBody);
+      const bodyKey = keys.find(k => k.startsWith('body') && k.length > 4);
+      if (bodyKey) {
+        bodyText = bodyKey.slice(4).trim(); // remove "body" prefix
+      }
+    }
     subject = rawBody.subject || '';
     from    = rawBody.from || '';
     source  = rawBody.source || 'iphone';
