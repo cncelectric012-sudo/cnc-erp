@@ -367,6 +367,7 @@ async function isDuplicate(parsed) {
 
 // ── Save one alert ────────────────────────────────────────────
 async function saveAlert(parsed, flags, score, matchedId, matchStatus, source, from) {
+  const hash = parsed._hash || simpleHash(parsed.raw_text || '');
   const record = {
     id: 'ALT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5),
     raw_text: parsed.raw_text.slice(0, 2000),
@@ -383,12 +384,15 @@ async function saveAlert(parsed, flags, score, matchedId, matchStatus, source, f
     match_status: matchStatus,
     risk_flags: flags,
     risk_score: score,
-    notes: `Auto-fetched via ${source} from ${from}${parsed._hash?` | hash:${parsed._hash}`:''}`,
+    text_hash: hash,
+    notes: `Auto-fetched via ${source} from ${from}`,
     created_at: new Date().toISOString()
   };
 
+  // ON CONFLICT DO NOTHING — database-level duplicate prevention
+  const saveHDR = { ...HDR, 'Prefer': 'resolution=ignore-duplicates,return=minimal' };
   const r = await fetch(`${SUPABASE_URL}/rest/v1/bank_alerts`, {
-    method: 'POST', headers: HDR, body: JSON.stringify(record)
+    method: 'POST', headers: saveHDR, body: JSON.stringify(record)
   });
   return { ok: r.ok, id: record.id };
 }
