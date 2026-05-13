@@ -316,8 +316,31 @@ function adjustRiskForMatch(flags, score, parsed, matchedEntry) {
   return { flags: cleanedFlags, score: Math.min(s, 100) };
 }
 
+// ── Text hash ─────────────────────────────────────────────────
+function simpleHash(str) {
+  let h = 0;
+  for (let i = 0; i < Math.min(str.length, 200); i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i); h |= 0;
+  }
+  return Math.abs(h).toString(36);
+}
+
 // ── Duplicate check ───────────────────────────────────────────
 async function isDuplicate(parsed) {
+  // Check 0: same raw text hash within 60 seconds (catches iOS dual-automation race)
+  if (parsed.raw_text && parsed.raw_text.length > 10) {
+    const hash = simpleHash(parsed.raw_text);
+    const since = new Date(Date.now() - 60000).toISOString();
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/bank_alerts?notes=like.*hash:${hash}*&created_at=gte.${since}&select=id`,
+      { headers: HDR }
+    );
+    const rows = await r.json();
+    if (Array.isArray(rows) && rows.length > 0) return { isDup: true, reason: 'duplicate_text_hash' };
+    // Store hash in notes for future checks
+    parsed._hash = hash;
+  }
+
   // Check 1: same TXN ID
   if (parsed.txn_id) {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/bank_alerts?txn_id=eq.${parsed.txn_id}&select=id`, { headers: HDR });
@@ -360,7 +383,7 @@ async function saveAlert(parsed, flags, score, matchedId, matchStatus, source, f
     match_status: matchStatus,
     risk_flags: flags,
     risk_score: score,
-    notes: `Auto-fetched via ${source} from ${from}`,
+    notes: `Auto-fetched via ${source} from ${from}${parsed._hash?` | hash:${parsed._hash}`:''}`,
     created_at: new Date().toISOString()
   };
 
