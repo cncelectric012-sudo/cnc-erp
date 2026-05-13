@@ -506,7 +506,20 @@ module.exports = async function handler(req, res) {
   const fullText = `${subject}\n${bodyText}`.trim();
 
   if (!fullText) {
-    return res.status(400).json({ error: 'Empty body', received: JSON.stringify(rawBody).slice(0, 200) });
+    // Save debug record to see what iOS actually sends
+    const debugRaw = JSON.stringify({ method: req.method, query: req.query, body: req.body, headers: { ct: req.headers['content-type'] } });
+    await fetch(`${SUPABASE_URL}/rest/v1/bank_alerts`, {
+      method: 'POST', headers: HDR,
+      body: JSON.stringify({
+        id: 'DBG-' + Date.now(),
+        raw_text: debugRaw.slice(0, 2000),
+        amount: 0, match_status: 'unmatched',
+        risk_flags: ['DEBUG - empty body'],
+        risk_score: 0, notes: 'DEBUG: empty body from iOS',
+        created_at: new Date().toISOString()
+      })
+    });
+    return res.status(200).json({ success: false, debug: debugRaw.slice(0, 500) });
   }
 
   // Split combined SMS (1. msg1 2. msg2 3. msg3)
