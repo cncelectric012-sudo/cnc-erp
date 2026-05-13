@@ -244,6 +244,35 @@ function analyzeRisk(parsed, existingAlerts = []) {
     }
   }
 
+  // ── CATEGORY 7: Sender History ────────────────────────────
+  // Check 1: First time sender (never seen before)
+  if (parsed.sender && existingAlerts.length > 0) {
+    const senderNorm = parsed.sender.toLowerCase().replace(/\s+/g,'');
+    const seenBefore = existingAlerts.some(a => {
+      const s = (a.sender||'').toLowerCase().replace(/\s+/g,'');
+      return s.length > 3 && (s === senderNorm || s.includes(senderNorm) || senderNorm.includes(s));
+    });
+    if (!seenBefore) { flags.push('First-time sender — never seen before'); score += 15; }
+  }
+
+  // Check 2: Sender using unusual bank (different from their history)
+  if (parsed.sender && parsed.bank_name && existingAlerts.length > 0) {
+    const senderNorm = parsed.sender.toLowerCase().replace(/\s+/g,'');
+    const senderHistory = existingAlerts.filter(a => {
+      const s = (a.sender||'').toLowerCase().replace(/\s+/g,'');
+      return s.length > 3 && (s === senderNorm || s.includes(senderNorm));
+    });
+    if (senderHistory.length >= 2) {
+      const usualBanks = senderHistory.map(a => a.bank_name).filter(Boolean);
+      const commonBank = usualBanks.sort((a,b) =>
+        usualBanks.filter(v=>v===b).length - usualBanks.filter(v=>v===a).length)[0];
+      if (commonBank && commonBank !== parsed.bank_name) {
+        flags.push(`Unusual bank: usually pays via ${commonBank}, now via ${parsed.bank_name}`);
+        score += 20;
+      }
+    }
+  }
+
   return { flags, score: Math.min(score, 100) };
 }
 
@@ -252,9 +281,9 @@ function adjustRiskForMatch(flags, score, parsed, matchedEntry) {
   const bankAmt = Math.abs(parsed.amount);
 
   if (!matchedEntry) {
-    // No invoice found for credit > 10K = suspicious
+    // No PayGate submission AND no pending invoice = payment before invoice
     if (parsed.direction === 'credit' && bankAmt > 10000) {
-      flags.push('No invoice/PayGate submission found'); score += 20;
+      flags.push('⚠️ Payment before invoice — no pending submission found'); score += 25;
     }
     return { flags, score: Math.min(score, 100) };
   }
