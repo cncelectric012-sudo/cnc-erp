@@ -332,13 +332,14 @@ function renderSubmit(){
       </div>`:''}
 
       <div class="field full">
-        <label>Receipt Photo</label>
+        <label>Receipt Photo <span style="color:var(--brand)">*</span> <span style="font-size:11px;color:var(--text-3)">(AI se auto-verify hoga)</span></label>
         <div class="photo-zone" onclick="document.getElementById('pg-photo-input').click()">
           <input type="file" id="pg-photo-input" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
           ${pgState.photo
             ?`<img src="${pgState.photo}"/>`
-            :`<div style="font-size:28px">📸</div><div style="font-size:12px;color:var(--text-3);margin-top:4px">Tap to attach receipt photo</div>`}
+            :`<div style="font-size:28px">📸</div><div style="font-size:12px;color:var(--text-3);margin-top:4px">Tap to attach receipt photo — AI automatically verify karega</div>`}
         </div>
+        <div id="pg-analysis-result" style="margin-top:8px;display:none"></div>
       </div>
 
       <div class="field full">
@@ -381,8 +382,95 @@ function selClient(name){
 function handlePhoto(e){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=ev=>{pgState.photo=ev.target.result;render();};
+  reader.onload=ev=>{
+    pgState.photo=ev.target.result;
+    pgState.analysisResult=null;
+    render();
+    // Auto-analyze after render
+    setTimeout(()=>analyzeScreenshot(ev.target.result, file.type||'image/jpeg'), 300);
+  };
   reader.readAsDataURL(file);
+}
+
+async function analyzeScreenshot(dataUrl, mimeType) {
+  const resultEl = document.getElementById('pg-analysis-result');
+  if(!resultEl) return;
+
+  // Get Claude API key from settings
+  let claudeKey = '';
+  try { claudeKey = JSON.parse(localStorage.getItem('cnc_ai_settings')||'{}').claudeKey||''; } catch(e){}
+
+  if(!claudeKey) {
+    resultEl.style.display='block';
+    resultEl.innerHTML=`<div style="padding:10px;background:var(--yellow-50);border:1px solid var(--yellow-100);border-radius:8px;font-size:12px;color:var(--yellow)">
+      ⚠️ Claude API key nahi mili — <a href="ai.html" style="color:var(--brand)">AI Integration settings</a> mein add karo.
+    </div>`;
+    return;
+  }
+
+  resultEl.style.display='block';
+  resultEl.innerHTML=`<div style="padding:10px;background:var(--surface-2);border-radius:8px;font-size:12px;color:var(--text-3)">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="width:16px;height:16px;border:2px solid var(--brand);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite"></div>
+      🤖 AI screenshot analyze kar raha hai...
+    </div>
+  </div>`;
+
+  try {
+    // Extract base64 data (remove data:image/xxx;base64, prefix)
+    const base64 = dataUrl.split(',')[1];
+    const amt = parseFloat(document.getElementById('pg-amt')?.value)||0;
+
+    const r = await fetch('https://cnc-erp.vercel.app/api/analyze-screenshot', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-claude-key':claudeKey},
+      body:JSON.stringify({
+        image_base64: base64,
+        image_type: mimeType,
+        customer_name: pgState.cust,
+        submitted_amount: amt
+      })
+    });
+    const data = await r.json();
+
+    if(!data.success) {
+      resultEl.innerHTML=`<div style="padding:10px;background:var(--red-50);border:1px solid var(--red-100);border-radius:8px;font-size:12px;color:var(--red)">
+        ❌ Analysis failed: ${data.error||'Unknown error'}
+      </div>`;
+      return;
+    }
+
+    pgState.analysisResult = data;
+
+    const decisionColor = data.auto_approve?'var(--green)':data.decision==='partial_match'?'var(--yellow)':'var(--red)';
+    const decisionIcon = data.auto_approve?'✅':data.decision==='partial_match'?'⚠️':'❓';
+    const ext = data.extracted||{};
+
+    resultEl.innerHTML=`
+    <div style="background:${data.auto_approve?'var(--green-50)':data.decision==='partial_match'?'var(--yellow-50)':'var(--surface-2)'};border:1px solid ${data.auto_approve?'var(--green-100)':data.decision==='partial_match'?'var(--yellow-100)':'var(--border)'};border-radius:8px;padding:12px">
+      <div style="font-weight:700;color:${decisionColor};margin-bottom:8px;font-size:13px">${decisionIcon} ${data.auto_approve?'Auto-Approved! Bank SMS match mila':'Manual Review Needed'}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;margin-bottom:8px">
+        ${ext.amount?`<div><span style="color:var(--text-3)">Amount: </span><b>PKR ${ext.amount?.toLocaleString()}</b></div>`:''}
+        ${ext.bank?`<div><span style="color:var(--text-3)">Bank: </span><b>${ext.bank}</b></div>`:''}
+        ${ext.sender?`<div><span style="color:var(--text-3)">Sender: </span><b>${ext.sender}</b></div>`:''}
+        ${ext.date?`<div><span style="color:var(--text-3)">Date: </span><b>${ext.date}</b></div>`:''}
+        ${ext.txn_id?`<div style="grid-column:1/-1"><span style="color:var(--text-3)">TXN: </span><b style="font-family:monospace">${ext.txn_id}</b></div>`:''}
+      </div>
+      ${data.bank_match?`<div style="background:var(--green-50);border-radius:6px;padding:6px 8px;font-size:11px;color:var(--green)">🏦 Bank SMS Match: PKR ${data.bank_match.amount?.toLocaleString()} · ${data.bank_match.bank_name||'Bank'} · Score: ${data.bank_match.match_score}%</div>`:''}
+      <div style="margin-top:8px">${(data.decision_reasons||[]).map(r=>`<div style="font-size:11px">${r}</div>`).join('')}</div>
+    </div>`;
+
+    // Auto-fill fields from screenshot
+    if(ext.amount && !document.getElementById('pg-amt')?.value) {
+      pgState.amt = ext.amount; render();
+    }
+    if(ext.bank && !pgState.bank) {
+      pgState.bank = ext.bank; render();
+    }
+
+  } catch(err) {
+    resultEl.innerHTML=`<div style="padding:10px;background:var(--red-50);border-radius:8px;font-size:12px;color:var(--red)">❌ ${err.message}</div>`;
+  }
 }
 
 async function submitPayment(){
@@ -390,16 +478,21 @@ async function submitPayment(){
   if(!pgState.cust||!pgState.amt||!pgState.bank){return;}
   btn.disabled=true;btn.textContent='Submitting...';
 
+  // Check AI analysis result for auto-approve
+  const analysis = pgState.analysisResult;
+  const autoApprove = analysis?.auto_approve === true;
+  const bankMatchId = analysis?.bank_match?.id || '';
+
   const entry={
     id:'PG-'+Date.now(),
     customer:pgState.cust,
     amount:parseFloat(pgState.amt)||0,
     entity:pgState.ent,
     payment_type:pgState.typ,
-    bank_name:pgState.bank,
-    account_number:pgState.account,
-    transaction_id:pgState.txnId,
-    payment_date:pgState.payDate||new Date().toISOString().slice(0,10),
+    bank_name:pgState.bank || analysis?.extracted?.bank || '',
+    account_number:pgState.account || analysis?.extracted?.account_last4 || '',
+    transaction_id:pgState.txnId || analysis?.extracted?.txn_id || '',
+    payment_date:pgState.payDate || analysis?.extracted?.date || new Date().toISOString().slice(0,10),
     phone:pgState.phone,
     invoice_ref:pgState.invoice,
     bank_message:pgState.bankmsg,
@@ -408,13 +501,28 @@ async function submitPayment(){
     submitted_by:PGU.name,
     submitted_by_role:PGU.role,
     salesperson_id:PGU.id,
-    status:'pending',
+    status: autoApprove ? 'verified' : 'pending',
+    verified_by: autoApprove ? 'AI Screenshot Analysis' : '',
+    verified_at: autoApprove ? new Date().toISOString() : null,
     journaled:false,
     created_at:new Date().toISOString()
   };
+
+  // Clean null fields
+  Object.keys(entry).forEach(k => { if(entry[k]===null||entry[k]==='') delete entry[k]; });
+
   try{
     await fetch(`${API}/paygate_entries`,{method:'POST',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify(entry)});
-    showToast('Payment submitted!','✅');
+
+    // If auto-approved, also update matching bank alert
+    if(autoApprove && bankMatchId){
+      await fetch(`${API}/bank_alerts?id=eq.${bankMatchId}`,{
+        method:'PATCH', headers:{...HDR,'Prefer':'return=minimal'},
+        body:JSON.stringify({match_status:'verified',verified_by:'PayGate AI Match',verified_at:new Date().toISOString()})
+      });
+    }
+
+    showToast(autoApprove?'✅ Payment submitted & Auto-Approved!':'Payment submitted!', autoApprove?'✅':'✅');
     pgState={cust:'',amt:'',ent:'CNC',typ:'Ledger Client',bank:'',account:'',txnId:'',payDate:'',phone:'',invoice:'',bankmsg:'',note:'',photo:null};
     await loadData();
     pgTab='history';
