@@ -409,17 +409,25 @@ async function saveAlert(parsed, flags, score, matchedId, matchStatus, source, f
   };
 
   try {
-    const saveHDR = { ...HDR, 'Prefer': 'return=minimal' };
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/bank_alerts`, {
-      method: 'POST', headers: saveHDR, body: JSON.stringify(record)
-    });
+    // Use upsert with ON CONFLICT (text_hash) DO NOTHING
+    // This prevents duplicates at DB level — both iOS automations can fire simultaneously, only 1 saves
+    const saveHDR = { ...HDR, 'Prefer': 'resolution=ignore-duplicates,return=minimal' };
+    const url = record.text_hash
+      ? `${SUPABASE_URL}/rest/v1/bank_alerts?on_conflict=text_hash`
+      : `${SUPABASE_URL}/rest/v1/bank_alerts`;
+
+    const r = await fetch(url, { method: 'POST', headers: saveHDR, body: JSON.stringify(record) });
+
+    // 201 = inserted, 200 = conflict ignored (duplicate skipped), both are ok
     if (r.status === 201 || r.status === 200) return { ok: true, id: record.id };
-    // Unique constraint violation = duplicate, that's ok
-    if (r.status === 409) return { ok: true, id: record.id, dup: true };
+
     const err = await r.text();
-    // If duplicate key error, treat as ok
-    if (err.includes('duplicate') || err.includes('unique')) return { ok: true, id: record.id, dup: true };
-    return { ok: false, id: record.id, err };
+    // Any duplicate/unique error = silent skip
+    if (err.includes('duplicate') || err.includes('unique') || err.includes('23505')) {
+      return { ok: true, id: record.id, dup: true };
+    }
+    console.error('Save error:', r.status, err.slice(0, 200));
+    return { ok: false, id: record.id, err: err.slice(0, 100) };
   } catch(e) {
     return { ok: false, id: record.id, err: e.message };
   }
