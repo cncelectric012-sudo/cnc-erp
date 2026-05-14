@@ -299,10 +299,13 @@ function renderSubmit(){
 
       <div class="field">
         <label>Bank Name <span style="color:var(--brand)">*</span></label>
-        <select class="input" id="pg-bank" onchange="pgState.bank=this.value">
-          <option value="">Select bank...</option>
-          ${BANKS.map(b=>`<option value="${b}" ${pgState.bank===b?'selected':''}>${b}</option>`).join('')}
-        </select>
+        <div class="ac-wrap">
+          <input class="input" id="pg-bank" value="${esc(pgState.bank)}"
+            placeholder="Select ya type karein..."
+            autocomplete="off" autocorrect="off"
+            style="font-size:15px"/>
+          <div class="ac-drop hidden" id="bankDrop" style="max-height:220px;overflow-y:auto"></div>
+        </div>
       </div>
       <div class="field">
         <label>Account / Ref No.</label>
@@ -383,6 +386,25 @@ function bindSubmitListeners(){
     }, 300);
   });
 
+  // Bank name autocomplete
+  const bankInp = document.getElementById('pg-bank');
+  if(bankInp){
+    bankInp.addEventListener('input', function(){
+      pgState.bank = this.value;
+      updateBankDropdown(this.value);
+      checkSubmit();
+    });
+    bankInp.addEventListener('focus', function(){
+      updateBankDropdown(this.value);
+    });
+    bankInp.addEventListener('blur', function(){
+      setTimeout(()=>{
+        const drop = document.getElementById('bankDrop');
+        if(drop) drop.classList.add('hidden');
+      }, 300);
+    });
+  }
+
   // Amount input
   document.getElementById('pg-amt')?.addEventListener('input', function(){
     pgState.amt = this.value; checkSubmit();
@@ -390,6 +412,34 @@ function bindSubmitListeners(){
   document.getElementById('pg-phone')?.addEventListener('input', function(){
     pgState.phone = this.value; checkSubmit();
   });
+}
+
+function updateBankDropdown(q){
+  const drop = document.getElementById('bankDrop');
+  if(!drop) return;
+  const results = q.length < 1
+    ? BANKS
+    : BANKS.filter(b => b.toLowerCase().includes(q.toLowerCase()));
+  if(!results.length){ drop.classList.add('hidden'); return; }
+  drop.classList.remove('hidden');
+  drop.innerHTML = results.map(b=>`
+    <div class="ac-item" data-bank="${b.replace(/"/g,'&quot;')}">
+      <div style="font-size:14px;font-weight:500">${b}</div>
+    </div>`).join('');
+  drop.querySelectorAll('.ac-item').forEach(item=>{
+    const bank = item.dataset.bank;
+    item.addEventListener('mousedown', e=>{ e.preventDefault(); selBank(bank); });
+    item.addEventListener('touchend', e=>{ e.preventDefault(); selBank(bank); });
+  });
+}
+
+function selBank(name){
+  pgState.bank = name;
+  const inp = document.getElementById('pg-bank');
+  if(inp) inp.value = name;
+  const drop = document.getElementById('bankDrop');
+  if(drop) drop.classList.add('hidden');
+  checkSubmit();
 }
 
 function updateAcDropdown(q){
