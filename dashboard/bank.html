@@ -83,10 +83,12 @@
       </div>
 
       <div class="bk-tabs">
-        <div class="bk-tab active" onclick="bkTab('alerts',this)">📨 Bank Alerts</div>
+        <div class="bk-tab active" onclick="bkTab('real',this)">✅ Real Payments</div>
+        <div class="bk-tab" onclick="bkTab('suspicious',this)">⚠️ Suspicious <span id="sus-count"></span></div>
+        <div class="bk-tab" onclick="bkTab('alerts',this)">📨 All Alerts</div>
         <div class="bk-tab" onclick="bkTab('accounts',this)">🏦 Bank Accounts</div>
         <div class="bk-tab" onclick="bkTab('analysis',this)">📊 Risk Analysis</div>
-        <div class="bk-tab" onclick="bkTab('setup',this)">⚙️ Auto-Fetch Setup</div>
+        <div class="bk-tab" onclick="bkTab('setup',this)">⚙️ Auto-Fetch</div>
       </div>
 
       <div id="bkContent"></div>
@@ -233,7 +235,7 @@ const PKR = n => 'PKR '+Number(n||0).toLocaleString('en-PK');
 const fmtDate = d => d?new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'-';
 const fmtDT = d => d?new Date(d).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'-';
 
-let allAlerts=[], bankAccounts=[], pgEntries=[], currentTab='alerts';
+let allAlerts=[], bankAccounts=[], pgEntries=[], currentTab='real';
 let parsedAlert=null, matchedEntry=null;
 
 // ── SMS Parser ────────────────────────────────────────────────
@@ -399,13 +401,19 @@ async function loadData(){
   bankAccounts=accounts||[];
   pgEntries=pg||[];
 
-  document.getElementById('st-total').textContent=allAlerts.length;
-  document.getElementById('st-matched').textContent=allAlerts.filter(a=>a.match_status==='matched').length;
-  document.getElementById('st-unmatched').textContent=allAlerts.filter(a=>a.match_status==='unmatched').length;
-  document.getElementById('st-verified').textContent=allAlerts.filter(a=>a.match_status==='verified').length;
-  document.getElementById('st-risk').textContent=allAlerts.filter(a=>a.risk_score>=50).length;
+  const realAlerts = allAlerts.filter(a=>!isSuspicious(a));
+  const susAlerts  = allAlerts.filter(a=>isSuspicious(a));
 
-  document.getElementById('bkSub').textContent=`${allAlerts.length} alerts · ${bankAccounts.filter(a=>a.sms_active).length} accounts active`;
+  document.getElementById('st-total').textContent=realAlerts.length;
+  document.getElementById('st-matched').textContent=allAlerts.filter(a=>a.match_status==='matched').length;
+  document.getElementById('st-unmatched').textContent=realAlerts.filter(a=>a.match_status==='unmatched').length;
+  document.getElementById('st-verified').textContent=allAlerts.filter(a=>a.match_status==='verified').length;
+  document.getElementById('st-risk').textContent=susAlerts.length;
+
+  const susBadge = document.getElementById('sus-count');
+  if(susBadge) susBadge.innerHTML = susAlerts.length>0?`<span class="badge badge-red" style="font-size:9px">${susAlerts.length}</span>`:'';
+
+  document.getElementById('bkSub').textContent=`${realAlerts.length} real · ${susAlerts.length} suspicious · ${bankAccounts.filter(a=>a.sms_active).length} accounts`;
   renderTab();
 }
 
@@ -418,20 +426,33 @@ function bkTab(tab,el){
 
 function renderTab(){
   const el=document.getElementById('bkContent');
-  if(currentTab==='alerts')   el.innerHTML=renderAlerts();
-  if(currentTab==='accounts') el.innerHTML=renderAccounts();
-  if(currentTab==='analysis') el.innerHTML=renderAnalysis();
-  if(currentTab==='setup')    el.innerHTML=renderSetup();
+  if(currentTab==='real')       el.innerHTML=renderAlerts('real');
+  if(currentTab==='suspicious') el.innerHTML=renderAlerts('suspicious');
+  if(currentTab==='alerts')     el.innerHTML=renderAlerts('all');
+  if(currentTab==='accounts')   el.innerHTML=renderAccounts();
+  if(currentTab==='analysis')   el.innerHTML=renderAnalysis();
+  if(currentTab==='setup')      el.innerHTML=renderSetup();
+}
+
+// ── Suspicious check ─────────────────────────────────────────
+function isSuspicious(a){
+  if(!a) return false;
+  const flags = a.risk_flags||[];
+  return a.risk_score>=70 ||
+    flags.some(f=>f.includes('Possible duplicate')||f.includes('SUSPICIOUS')||f.includes('Potential smurfing')||f.includes('⚠️ Possible'));
 }
 
 // ── Alerts Tab ────────────────────────────────────────────────
-function renderAlerts(){
+function renderAlerts(filterType='all'){
   const statusF=document.getElementById('af-status')?.value||'';
   const bankF=document.getElementById('af-bank')?.value||'';
   const dateF=document.getElementById('af-date')?.value||'';
   const q=(document.getElementById('af-q')?.value||'').toLowerCase();
 
   let src=allAlerts.filter(a=>{
+    // Apply category filter
+    if(filterType==='real' && isSuspicious(a)) return false;
+    if(filterType==='suspicious' && !isSuspicious(a)) return false;
     if(statusF&&a.match_status!==statusF)return false;
     if(bankF&&a.bank_name!==bankF)return false;
     if(dateF&&a.alert_date!==dateF)return false;
@@ -462,9 +483,9 @@ function renderAlerts(){
 
   ${src.length ? src.map(a => alertCard(a)).join('') : `
   <div class="empty">
-    <div class="empty-icon">📨</div>
-    <div class="empty-title">No bank alerts yet</div>
-    <div class="empty-desc">Bank ka SMS paste karo "+ Add Bank Alert" button se</div>
+    <div class="empty-icon">${filterType==='suspicious'?'✅':'📨'}</div>
+    <div class="empty-title">${filterType==='real'?'No real payments yet':filterType==='suspicious'?'No suspicious alerts — all clear!':'No alerts yet'}</div>
+    <div class="empty-desc">${filterType==='suspicious'?'Koi suspicious ya duplicate payment nahi mili':'Bank ka SMS paste karo "+ Add Bank Alert" button se'}</div>
   </div>`}`;
 }
 

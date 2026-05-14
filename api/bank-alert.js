@@ -325,47 +325,62 @@ function simpleHash(str) {
   return Math.abs(h).toString(36);
 }
 
-// ── Duplicate check ───────────────────────────────────────────
-async function isDuplicate(parsed) {
-  // Check 0: same text + same minute = duplicate (catches iOS dual-automation race condition)
+// ── Sanity Check — 3 layers ───────────────────────────────────
+async function sanityCheck(parsed) {
+  // Layer 1 (HARD SKIP): Same text + same minute = iOS automation race
   if (parsed.raw_text && parsed.raw_text.length > 10) {
-    const minuteWindow = new Date().toISOString().slice(0, 16); // "2026-05-14T06:23"
+    const minuteWindow = new Date().toISOString().slice(0, 16);
     const hash = simpleHash(parsed.raw_text + minuteWindow);
     parsed._hash = hash;
     try {
-      const since = new Date(Date.now() - 90000).toISOString(); // 90 second window
+      const since = new Date(Date.now() - 90000).toISOString();
       const r = await fetch(
         `${SUPABASE_URL}/rest/v1/bank_alerts?text_hash=eq.${encodeURIComponent(hash)}&created_at=gte.${since}&select=id`,
         { headers: HDR }
       );
       if (r.ok) {
         const rows = await r.json();
-        if (Array.isArray(rows) && rows.length > 0) return { isDup: true, reason: 'duplicate_text_minute' };
+        if (Array.isArray(rows) && rows.length > 0) {
+          return { action: 'skip', reason: 'iOS_race_condition' };
+        }
       }
-    } catch(e) { /* ignore check error, allow save */ }
+    } catch(e) {}
   }
 
-  // Check 1: same TXN ID
+  // Layer 2 (HARD SKIP): Same TXN ID = exact duplicate
   if (parsed.txn_id) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/bank_alerts?txn_id=eq.${parsed.txn_id}&select=id`, { headers: HDR });
-    const rows = await r.json();
-    if (Array.isArray(rows) && rows.length > 0) return { isDup: true, reason: 'duplicate_txn' };
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/bank_alerts?txn_id=eq.${encodeURIComponent(parsed.txn_id)}&select=id`, { headers: HDR });
+      const rows = await r.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        return { action: 'skip', reason: 'duplicate_txn_id' };
+      }
+    } catch(e) {}
   }
 
-  // Check 2: same amount + same account + within 10 minutes
-  if (parsed.amount > 0) {
-    const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const q = `amount=eq.${parsed.amount}&created_at=gte.${tenMinsAgo}&select=id,account_last4`;
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/bank_alerts?${q}`, { headers: HDR });
-    const rows = await r.json();
-    if (Array.isArray(rows) && rows.length > 0) {
-      const sameAcc = parsed.account_last4 ?
-        rows.some(x => x.account_last4 === parsed.account_last4) :
-        true; // no account info → assume duplicate if same amount in 10 mins
-      if (sameAcc) return { isDup: true, reason: 'duplicate_amount_time' };
-    }
+  // Layer 3 (SAVE AS SUSPICIOUS): Same amount + account + date = possible duplicate
+  if (parsed.amount > 0 && parsed.alert_date && parsed.account_last4) {
+    try {
+      const q = `amount=eq.${parsed.amount}&alert_date=eq.${parsed.alert_date}&account_last4=eq.${parsed.account_last4}&select=id`;
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/bank_alerts?${q}`, { headers: HDR });
+      const rows = await r.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        return { action: 'save_suspicious', reason: 'same_amount_account_date' };
+      }
+    } catch(e) {}
   }
 
+  return { action: 'save', reason: 'ok' };
+}
+
+// ── Keep old isDuplicate as alias ─────────────────────────────
+async function isDuplicate(parsed) {
+  const check = await sanityCheck(parsed);
+  if (check.action === 'skip') return { isDup: true, reason: check.reason };
+  if (check.action === 'save_suspicious') {
+    parsed._suspicious = true;
+    parsed._suspiciousReason = check.reason;
+  }
   return { isDup: false };
 }
 
@@ -386,10 +401,10 @@ async function saveAlert(parsed, flags, score, matchedId, matchStatus, source, f
     transfer_type: parsed.transfer_type || '',
     matched_paygate_id: matchedId,
     match_status: matchStatus,
-    risk_flags: flags,
-    risk_score: score,
+    risk_flags: parsed._suspicious ? ['⚠️ Possible duplicate: '+parsed._suspiciousReason, ...flags] : flags,
+    risk_score: parsed._suspicious ? Math.min(score + 40, 100) : score,
     text_hash: hash,
-    notes: `Auto-fetched via ${source} from ${from}`,
+    notes: `Auto-fetched via ${source} from ${from}${parsed._suspicious?' | SUSPICIOUS':''}`,
     created_at: new Date().toISOString()
   };
 
