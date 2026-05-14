@@ -143,7 +143,7 @@ const API = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
 const KEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
 const HDR = {'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':'return=representation'};
 
-const BANKS = ['Meezan Bank','HBL','UBL','MCB','Allied Bank','Bank Alfalah (BAFL)','Bank Al-Habib (BAH)','NBP','Faysal Bank','Askari Bank','JS Bank','Silk Bank','Habib Metro','Dubai Islamic Bank','Other'];
+const BANKS = ['Meezan Bank','HBL','UBL','MCB','Allied Bank','Bank Alfalah (BAFL)','Bank Al-Habib (BAH)','NBP','Faysal Bank','Askari Bank','JS Bank','Habib Metro','Dubai Islamic Bank','JazzCash','EasyPaisa','NayaPay','SadaPay','Raast','Other'];
 const BANK_ROUTING = {CNC:'BAH AOP ya Meezan Pvt',CST:'BAFL AOP (705) ya BAH AOP',CSPL:'BAFL 989 ya BAH Pvt'};
 const PAY_TYPES = ['Ledger Client','Regular Client','Walking Customer','Advance Payment','New Client','GST Client'];
 
@@ -270,12 +270,23 @@ function renderSubmit(){
       <div class="field full">
         <label>Customer / Client Name <span style="color:var(--brand)">*</span></label>
         <div class="ac-wrap">
-          <input class="input" id="pg-cust" value="${esc(pgState.cust)}" placeholder="Search 4000+ clients..." autocomplete="off" oninput="pgState.cust=this.value;showAc=true;render()" onfocus="showAc=true;render()"/>
-          ${showAc&&sugg.length?`<div class="ac-drop" id="acDrop">${sugg.map(c=>`
-            <div class="ac-item" onclick="selClient('${esc(c.name)}')">
-              <div><div style="font-weight:600">${c.name}</div><div style="font-size:10px;color:var(--text-3)">${c.city||''} ${c.salesperson?'· '+c.salesperson:''}</div></div>
+          <input class="input" id="pg-cust" value="${esc(pgState.cust)}"
+            placeholder="Type client name ya naya naam..."
+            autocomplete="off"
+            inputmode="text"
+            oninput="pgState.cust=this.value;showAc=true;render()"
+            onfocus="showAc=true;render()"
+            onblur="setTimeout(()=>{showAc=false;render();},300)"
+            style="font-size:16px"/>
+          ${showAc&&sugg.length?`<div class="ac-drop" id="acDrop" style="max-height:260px;overflow-y:auto">${sugg.map(c=>`
+            <div class="ac-item" ontouchstart="selClient('${esc(c.name)}')" onclick="selClient('${esc(c.name)}')">
+              <div>
+                <div style="font-weight:600;font-size:14px">${c.name}</div>
+                <div style="font-size:11px;color:var(--text-3)">${c.city||''} ${c.salesperson?'· '+c.salesperson:''}</div>
+              </div>
             </div>`).join('')}</div>`:''}
         </div>
+        ${pgState.cust&&!sugg.length&&showAc?`<div style="font-size:11px;color:var(--text-3);margin-top:4px">✏️ Naya naam: "${pgState.cust}"</div>`:''}
       </div>
 
       <div class="field">
@@ -343,11 +354,6 @@ function renderSubmit(){
       </div>
 
       <div class="field full">
-        <label>Bank SMS / WhatsApp Message</label>
-        <textarea class="input" id="pg-bankmsg" rows="3" placeholder="Paste bank confirmation message..." oninput="pgState.bankmsg=this.value">${esc(pgState.bankmsg)}</textarea>
-      </div>
-
-      <div class="field full">
         <label>Note (optional)</label>
         <input class="input" id="pg-note" value="${esc(pgState.note)}" placeholder="Any additional info..." oninput="pgState.note=this.value"/>
       </div>
@@ -401,10 +407,8 @@ async function analyzeScreenshot(dataUrl, mimeType) {
   try { claudeKey = JSON.parse(localStorage.getItem('cnc_ai_settings')||'{}').claudeKey||''; } catch(e){}
 
   if(!claudeKey) {
-    resultEl.style.display='block';
-    resultEl.innerHTML=`<div style="padding:10px;background:var(--yellow-50);border:1px solid var(--yellow-100);border-radius:8px;font-size:12px;color:var(--yellow)">
-      ⚠️ Claude API key nahi mili — <a href="ai.html" style="color:var(--brand)">AI Integration settings</a> mein add karo.
-    </div>`;
+    // Silently skip - salesperson doesn't need to know about API settings
+    resultEl.style.display='none';
     return;
   }
 
