@@ -389,15 +389,21 @@ async function saveAlert(parsed, flags, score, matchedId, matchStatus, source, f
     created_at: new Date().toISOString()
   };
 
-  // ON CONFLICT (text_hash) DO NOTHING — database-level duplicate prevention
-  const saveHDR = { ...HDR, 'Prefer': 'resolution=ignore-duplicates,return=minimal' };
-  const r = await fetch(
-    `${SUPABASE_URL}/rest/v1/bank_alerts?on_conflict=text_hash`,
-    { method: 'POST', headers: saveHDR, body: JSON.stringify(record) }
-  );
-  // 200 = saved, 201 = inserted, anything else = log but don't fail
-  const saved = r.status === 200 || r.status === 201;
-  return { ok: saved, id: record.id };
+  try {
+    const saveHDR = { ...HDR, 'Prefer': 'return=minimal' };
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/bank_alerts`, {
+      method: 'POST', headers: saveHDR, body: JSON.stringify(record)
+    });
+    if (r.status === 201 || r.status === 200) return { ok: true, id: record.id };
+    // Unique constraint violation = duplicate, that's ok
+    if (r.status === 409) return { ok: true, id: record.id, dup: true };
+    const err = await r.text();
+    // If duplicate key error, treat as ok
+    if (err.includes('duplicate') || err.includes('unique')) return { ok: true, id: record.id, dup: true };
+    return { ok: false, id: record.id, err };
+  } catch(e) {
+    return { ok: false, id: record.id, err: e.message };
+  }
 }
 
 // ── PayGate match ─────────────────────────────────────────────
