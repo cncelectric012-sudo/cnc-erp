@@ -330,15 +330,14 @@ async function isDuplicate(parsed) {
   // Check 0: same raw text hash within 60 seconds (catches iOS dual-automation race)
   if (parsed.raw_text && parsed.raw_text.length > 10) {
     const hash = simpleHash(parsed.raw_text);
+    parsed._hash = hash;
     const since = new Date(Date.now() - 60000).toISOString();
     const r = await fetch(
-      `${SUPABASE_URL}/rest/v1/bank_alerts?notes=like.*hash:${hash}*&created_at=gte.${since}&select=id`,
+      `${SUPABASE_URL}/rest/v1/bank_alerts?text_hash=eq.${hash}&created_at=gte.${since}&select=id`,
       { headers: HDR }
     );
     const rows = await r.json();
-    if (Array.isArray(rows) && rows.length > 0) return { isDup: true, reason: 'duplicate_text_hash' };
-    // Store hash in notes for future checks
-    parsed._hash = hash;
+    if (Array.isArray(rows) && rows.length > 0) return { isDup: true, reason: 'duplicate_text_60s' };
   }
 
   // Check 1: same TXN ID
