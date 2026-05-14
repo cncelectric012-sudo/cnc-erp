@@ -47,9 +47,20 @@ body { display:grid; place-items:center; min-height:100vh; background:var(--bg);
   </div>
   <div class="field">
     <label>Password</label>
-    <input class="input" type="password" id="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()"/>
+    <div style="position:relative">
+      <input class="input" type="password" id="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()" style="padding-right:42px"/>
+      <button type="button" onclick="togglePass()" id="passToggle" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:18px;padding:0;line-height:1">👁</button>
+    </div>
   </div>
 
+  <script>
+  function togglePass(){
+    const inp=document.getElementById('password');
+    const btn=document.getElementById('passToggle');
+    if(inp.type==='password'){inp.type='text';btn.textContent='🙈';}
+    else{inp.type='password';btn.textContent='👁';}
+  }
+  </script>
   <button class="btn btn-primary btn-lg" style="width:100%;justify-content:center" id="loginBtn" onclick="doLogin()">Sign In</button>
 
   <div class="login-footer">Authorized users only · CNC Electric Pakistan</div>
