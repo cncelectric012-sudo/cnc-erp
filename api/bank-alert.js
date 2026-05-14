@@ -327,17 +327,22 @@ function simpleHash(str) {
 
 // ── Duplicate check ───────────────────────────────────────────
 async function isDuplicate(parsed) {
-  // Check 0: same raw text hash within 60 seconds (catches iOS dual-automation race)
+  // Check 0: same text + same minute = duplicate (catches iOS dual-automation race condition)
   if (parsed.raw_text && parsed.raw_text.length > 10) {
-    const hash = simpleHash(parsed.raw_text);
+    const minuteWindow = new Date().toISOString().slice(0, 16); // "2026-05-14T06:23"
+    const hash = simpleHash(parsed.raw_text + minuteWindow);
     parsed._hash = hash;
-    const since = new Date(Date.now() - 60000).toISOString();
-    const r = await fetch(
-      `${SUPABASE_URL}/rest/v1/bank_alerts?text_hash=eq.${hash}&created_at=gte.${since}&select=id`,
-      { headers: HDR }
-    );
-    const rows = await r.json();
-    if (Array.isArray(rows) && rows.length > 0) return { isDup: true, reason: 'duplicate_text_60s' };
+    try {
+      const since = new Date(Date.now() - 90000).toISOString(); // 90 second window
+      const r = await fetch(
+        `${SUPABASE_URL}/rest/v1/bank_alerts?text_hash=eq.${encodeURIComponent(hash)}&created_at=gte.${since}&select=id`,
+        { headers: HDR }
+      );
+      if (r.ok) {
+        const rows = await r.json();
+        if (Array.isArray(rows) && rows.length > 0) return { isDup: true, reason: 'duplicate_text_minute' };
+      }
+    } catch(e) { /* ignore check error, allow save */ }
   }
 
   // Check 1: same TXN ID
@@ -499,12 +504,17 @@ async function getRecentAlerts() {
 
 // ── Main Handler ──────────────────────────────────────────────
 module.exports = async function handler(req, res) {
+  // Always return 200 to iOS — prevent "Automation failed" notification
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-secret');
     return res.status(200).end();
   }
+
+  // Wrap everything — any error returns 200 to iOS (not 500)
+  try {
 
   // Allow GET (for iOS Shortcuts URL parameter approach) and POST
   if (req.method !== 'POST' && req.method !== 'GET') {
@@ -650,4 +660,10 @@ module.exports = async function handler(req, res) {
     skipped: results.filter(r => r.skipped).length,
     results
   });
+
+  } catch(globalErr) {
+    // Never return 500 to iOS — always 200
+    console.error('Global error:', globalErr);
+    return res.status(200).json({ success: false, error: globalErr.message });
+  }
 };
