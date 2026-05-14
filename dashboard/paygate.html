@@ -272,21 +272,11 @@ function renderSubmit(){
         <div class="ac-wrap">
           <input class="input" id="pg-cust" value="${esc(pgState.cust)}"
             placeholder="Type client name ya naya naam..."
-            autocomplete="off"
-            inputmode="text"
-            oninput="pgState.cust=this.value;showAc=true;render()"
-            onfocus="showAc=true;render()"
-            onblur="setTimeout(()=>{showAc=false;render();},300)"
+            autocomplete="off" autocorrect="off" autocapitalize="off"
             style="font-size:16px"/>
-          ${showAc&&sugg.length?`<div class="ac-drop" id="acDrop" style="max-height:260px;overflow-y:auto">${sugg.map(c=>`
-            <div class="ac-item" ontouchstart="selClient('${esc(c.name)}')" onclick="selClient('${esc(c.name)}')">
-              <div>
-                <div style="font-weight:600;font-size:14px">${c.name}</div>
-                <div style="font-size:11px;color:var(--text-3)">${c.city||''} ${c.salesperson?'· '+c.salesperson:''}</div>
-              </div>
-            </div>`).join('')}</div>`:''}
+          <div class="ac-drop hidden" id="acDrop" style="max-height:260px;overflow-y:auto"></div>
         </div>
-        ${pgState.cust&&!sugg.length&&showAc?`<div style="font-size:11px;color:var(--text-3);margin-top:4px">✏️ Naya naam: "${pgState.cust}"</div>`:''}
+        <div id="pg-cust-hint" style="font-size:11px;color:var(--text-3);margin-top:4px;display:none"></div>
       </div>
 
       <div class="field">
@@ -372,7 +362,74 @@ function renderSubmit(){
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 function bindSubmitListeners(){
-  document.getElementById('pg-cust')?.addEventListener('blur',()=>{setTimeout(()=>{showAc=false;},200)});
+  // Attach autocomplete to input — no render() call, only update dropdown
+  const inp = document.getElementById('pg-cust');
+  if(!inp) return;
+
+  inp.addEventListener('input', function(){
+    pgState.cust = this.value;
+    updateAcDropdown(this.value);
+    checkSubmit();
+  });
+
+  inp.addEventListener('focus', function(){
+    updateAcDropdown(this.value);
+  });
+
+  inp.addEventListener('blur', function(){
+    setTimeout(()=>{
+      const drop = document.getElementById('acDrop');
+      if(drop) drop.classList.add('hidden');
+    }, 300);
+  });
+
+  // Amount input
+  document.getElementById('pg-amt')?.addEventListener('input', function(){
+    pgState.amt = this.value; checkSubmit();
+  });
+  document.getElementById('pg-phone')?.addEventListener('input', function(){
+    pgState.phone = this.value; checkSubmit();
+  });
+}
+
+function updateAcDropdown(q){
+  const drop = document.getElementById('acDrop');
+  const hint = document.getElementById('pg-cust-hint');
+  if(!drop) return;
+
+  if(!q || q.length < 2){
+    drop.classList.add('hidden');
+    if(hint) hint.style.display='none';
+    return;
+  }
+
+  const results = allClients.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())).slice(0,8);
+
+  if(results.length === 0){
+    drop.classList.add('hidden');
+    if(hint){
+      hint.style.display='block';
+      hint.textContent='✏️ Naya naam: "'+q+'"';
+    }
+    return;
+  }
+
+  if(hint) hint.style.display='none';
+  drop.classList.remove('hidden');
+  drop.innerHTML = results.map(c=>`
+    <div class="ac-item" data-name="${c.name.replace(/"/g,'&quot;')}">
+      <div>
+        <div style="font-weight:600;font-size:14px">${c.name}</div>
+        <div style="font-size:11px;color:var(--text-3)">${c.city||''} ${c.salesperson?'· '+c.salesperson:''}</div>
+      </div>
+    </div>`).join('');
+
+  // Bind click/touch on each item
+  drop.querySelectorAll('.ac-item').forEach(item=>{
+    const name = item.dataset.name;
+    item.addEventListener('mousedown', e=>{ e.preventDefault(); selClient(name); });
+    item.addEventListener('touchend', e=>{ e.preventDefault(); selClient(name); });
+  });
 }
 
 function bindAc(){
@@ -380,9 +437,14 @@ function bindAc(){
 }
 
 function selClient(name){
-  pgState.cust=name;
-  showAc=false;
-  render();
+  pgState.cust = name;
+  const inp = document.getElementById('pg-cust');
+  if(inp) inp.value = name;
+  const drop = document.getElementById('acDrop');
+  if(drop) drop.classList.add('hidden');
+  const hint = document.getElementById('pg-cust-hint');
+  if(hint) hint.style.display='none';
+  checkSubmit();
 }
 
 function handlePhoto(e){
