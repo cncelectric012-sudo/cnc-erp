@@ -603,6 +603,16 @@ function applyFilters(){
   });
 
   document.getElementById('filteredCount').textContent = `${filtered.length} of ${allClients.length}`;
+
+  // Update stats based on filtered data
+  const sps   = new Set(filtered.map(c=>c.salesperson).filter(Boolean));
+  const withOs = filtered.filter(c=>(c.outstanding_amount||0)>0).length;
+  const totalOs = filtered.reduce((s,c)=>s+(c.outstanding_amount||0),0);
+  document.getElementById('st-total').textContent  = filtered.length;
+  document.getElementById('st-sp').textContent     = sps.size;
+  document.getElementById('st-os').textContent     = withOs;
+  document.getElementById('st-osamt').textContent  = 'PKR '+fmtK(totalOs);
+
   renderCurrentTab();
 }
 
