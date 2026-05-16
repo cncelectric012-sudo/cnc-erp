@@ -169,6 +169,21 @@
             <option value="inactive">Inactive</option>
             <option value="blacklisted">Blacklisted</option>
           </select>
+          <select class="input" style="width:160px" id="fMissing" onchange="applyFilters()">
+            <option value="">Missing Info: All</option>
+            <option value="no_phone">📵 No Phone</option>
+            <option value="no_address">🏠 No Address</option>
+            <option value="no_email">📧 No Email</option>
+            <option value="no_salesperson">👤 No Sales Rep</option>
+          </select>
+          <select class="input" style="width:150px" id="fDiscount" onchange="applyFilters()">
+            <option value="">Discount: All</option>
+            <option value="0">No Discount (0%)</option>
+            <option value="1-5">1% – 5%</option>
+            <option value="6-10">6% – 10%</option>
+            <option value="11-20">11% – 20%</option>
+            <option value="20+">20%+</option>
+          </select>
         </div>
         <div class="toolbar-right">
           <span id="filteredCount" class="text-3" style="font-size:12px;line-height:32px"></span>
@@ -216,6 +231,7 @@
                 <th>Risk</th>
                 <th>Avg Pay Days</th>
                 <th>Last Updated</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="ledgerBody"></tbody>
@@ -593,12 +609,27 @@ function applyFilters(){
   const branch = document.getElementById('fBranch').value;
   const status = document.getElementById('fStatus').value;
 
+  const missing  = document.getElementById('fMissing')?.value || '';
+  const discount = document.getElementById('fDiscount')?.value || '';
+
   filtered = allClients.filter(c=>{
     if(q && ![ c.name, c.phone, c.city, c.contact_person, c.email, c.ntn, c.whatsapp ].some(v=>(v||'').toLowerCase().includes(q))) return false;
     if(sp     && c.salesperson !== sp)    return false;
     if(city   && c.city !== city)         return false;
     if(branch && c.branch !== branch)     return false;
     if(status && (c.status||'active') !== status) return false;
+    // Missing info filters
+    if(missing === 'no_phone'      && (c.phone||c.whatsapp))    return false;
+    if(missing === 'no_address'    && c.address)                return false;
+    if(missing === 'no_email'      && c.email)                  return false;
+    if(missing === 'no_salesperson'&& c.salesperson)            return false;
+    // Discount filter
+    const disc = parseFloat(c.discount_pct)||0;
+    if(discount === '0'    && disc !== 0)               return false;
+    if(discount === '1-5'  && (disc < 1 || disc > 5))  return false;
+    if(discount === '6-10' && (disc < 6 || disc > 10)) return false;
+    if(discount === '11-20'&& (disc < 11||disc > 20))  return false;
+    if(discount === '20+'  && disc <= 20)               return false;
     return true;
   });
 
@@ -949,6 +980,9 @@ function renderLedger(){
       <td><span style="color:${riskColor(c.risk_level)};font-weight:600">${c.risk_level||'Medium'}</span></td>
       <td class="text-3">${c.avg_payment_days||'N/A'}</td>
       <td class="text-3" style="font-size:11px">${c.last_updated?new Date(c.last_updated).toLocaleDateString('en-GB'):'—'}</td>
+      <td onclick="event.stopPropagation()">
+        <button class="btn btn-secondary btn-sm" onclick="editClient('${c.id}')">✏️ Edit</button>
+      </td>
     </tr>`).join('');
 }
 
