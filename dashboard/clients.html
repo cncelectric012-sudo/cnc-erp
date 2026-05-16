@@ -159,8 +159,8 @@
           </select>
           <select class="input" style="width:130px" id="fBranch" onchange="applyFilters()">
             <option value="">All Branches</option>
+            <option>CNC</option>
             <option>Cognitive Solutions</option>
-            <option>CNC Pakistan</option>
             <option>CS Traders</option>
           </select>
           <select class="input" style="width:120px" id="fStatus" onchange="applyFilters()">
@@ -928,7 +928,7 @@ function renderLedger(){
   }
   const riskColor = r => r==='Low'?'var(--green)':r==='High'?'var(--red)':'var(--yellow)';
   const branchColor = s => s==='cnc_ledger'?'badge-red':s==='cst_ledger'?'badge-blue':s==='cspl_ledger'?'badge-green':'badge-gray';
-  const branchName = s => s==='cnc_ledger'?'CNC':s==='cst_ledger'?'Fico':s==='cspl_ledger'?'C-Solar':s==='pdf'?'PDF':'—';
+  const branchName = s => s==='cnc_ledger'?'CNC':s==='cst_ledger'?'CS Traders':s==='cspl_ledger'?'Cognitive Solutions':s==='pdf'?'PDF':'—';
   body.innerHTML = ledgerClients.map(c=>`
     <tr style="cursor:pointer" onclick="showProfile('${c.id}')">
       <td><div class="strong">${c.name}</div><div class="text-3" style="font-size:11px">${c.city||''}</div></td>
