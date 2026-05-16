@@ -300,15 +300,15 @@
 
         <div class="field full">
           <label>Company / Client Name <span class="req">*</span></label>
-          <input class="input" id="f-name" required placeholder="e.g. Al-Fatah Traders"/>
+          <input class="input" id="f-name" placeholder="e.g. Al-Fatah Traders"/>
         </div>
         <div class="field">
-          <label>City <span class="req">*</span></label>
-          <input class="input" id="f-city" required placeholder="Lahore"/>
+          <label>City <span id="lbl-city-req" class="req">*</span></label>
+          <input class="input" id="f-city" placeholder="Lahore"/>
         </div>
         <div class="field">
-          <label>Branch</label>
-          <input class="input" id="f-branch" placeholder="Main / Gulberg"/>
+          <label>Branch <span id="lbl-branch-req" class="req">*</span></label>
+          <input class="input" id="f-branch" placeholder="CNC / Cognitive Solutions / CS Traders"/>
         </div>
         <div class="field full">
           <label>Address</label>
@@ -322,7 +322,7 @@
           <input class="input" id="f-contact" placeholder="Mr. Ahmed"/>
         </div>
         <div class="field">
-          <label>Phone / Mobile</label>
+          <label>Phone / Mobile <span id="lbl-phone-req" class="req">*</span></label>
           <input class="input" id="f-phone" placeholder="0300-1234567"/>
         </div>
         <div class="field">
@@ -337,7 +337,7 @@
         <div class="section-divider">Sales & Credit</div>
 
         <div class="field">
-          <label>Sales Person</label>
+          <label>Sales Person <span id="lbl-sp-req" class="req">*</span></label>
           <input class="input" id="f-sp" placeholder="Sales rep name"/>
         </div>
         <div class="field">
@@ -987,11 +987,20 @@ function renderLedger(){
 }
 
 // ── Add / Edit ────────────────────────────────────────────────
+function updateRequiredMarkers(){
+  const admin = isAdmin();
+  ['lbl-city-req','lbl-phone-req','lbl-sp-req','lbl-branch-req'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = admin ? 'none' : 'inline';
+  });
+}
+
 function openAddClient(){
   editingId = null;
   document.getElementById('modalTitle').textContent = 'New Client';
   document.getElementById('saveBtn').textContent = 'Save Client';
   document.getElementById('clientForm').reset();
+  updateRequiredMarkers();
   document.getElementById('clientModal').classList.remove('hidden');
 }
 
@@ -1034,13 +1043,43 @@ function closeModal(){
   editingId = null;
 }
 
+// Admin roles — no mandatory fields
+const ADMIN_ROLES = ['super_admin','ceo','coo','accounts','admin'];
+function isAdmin(){ return ADMIN_ROLES.includes(window.userRole||''); }
+
 async function saveClient(e){
   e.preventDefault();
   const btn = document.getElementById('saveBtn');
   btn.disabled = true;
   btn.textContent = 'Saving...';
 
-  const name = document.getElementById('f-name').value.trim();
+  const name  = document.getElementById('f-name').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  const city  = document.getElementById('f-city').value.trim();
+  const sp    = document.getElementById('f-sp').value.trim();
+  const branch= document.getElementById('f-branch').value.trim();
+
+  // Non-admin: validate all required fields
+  if(!isAdmin()){
+    const missing = [];
+    if(!name)   missing.push('Client Name');
+    if(!phone)  missing.push('Phone');
+    if(!city)   missing.push('City');
+    if(!sp)     missing.push('Sales Person');
+    if(!branch) missing.push('Branch');
+    if(missing.length){
+      showToast('Zarori fields fill karein: '+missing.join(', '),'⚠️');
+      btn.disabled=false; btn.textContent=editingId?'Update Client':'Save Client';
+      return;
+    }
+  } else {
+    // Admin: only name required
+    if(!name){
+      showToast('Client Name zarori hai','⚠️');
+      btn.disabled=false; btn.textContent=editingId?'Update Client':'Save Client';
+      return;
+    }
+  }
   const record = {
     id:               editingId || cleanId(name)+'_'+Date.now(),
     name,
