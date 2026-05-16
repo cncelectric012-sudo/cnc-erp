@@ -209,6 +209,7 @@
             <thead>
               <tr>
                 <th>Client Name</th>
+                <th>Branch</th>
                 <th class="num">Outstanding</th>
                 <th class="num">Total Invoiced</th>
                 <th class="num">Total Paid</th>
@@ -916,16 +917,22 @@ function printStatement(){ generateStatement(profileClientId); }
 
 // ── Ledger View ───────────────────────────────────────────────
 function renderLedger(){
-  const ledgerClients = allClients.filter(c=>c.source==='pdf'||c.total_invoiced>0||(c.transactions&&c.transactions.length>0));
+  const ledgerClients = allClients.filter(c=>
+    c.source==='pdf'||c.source==='cnc_ledger'||c.source==='cst_ledger'||c.source==='cspl_ledger'||
+    c.total_invoiced>0||(c.transactions&&c.transactions.length>0)
+  );
   const body = document.getElementById('ledgerBody');
   if(!ledgerClients.length){
-    body.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-icon">📒</div><div class="empty-title">No ledger clients</div><div class="empty-desc">Upload PDF ledgers from Load Data page</div></div></td></tr>`;
+    body.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-icon">📒</div><div class="empty-title">No ledger clients</div><div class="empty-desc">Upload PDF ledgers from Load Data page</div></div></td></tr>`;
     return;
   }
   const riskColor = r => r==='Low'?'var(--green)':r==='High'?'var(--red)':'var(--yellow)';
+  const branchColor = s => s==='cnc_ledger'?'badge-red':s==='cst_ledger'?'badge-blue':s==='cspl_ledger'?'badge-green':'badge-gray';
+  const branchName = s => s==='cnc_ledger'?'CNC':s==='cst_ledger'?'Fico':s==='cspl_ledger'?'C-Solar':s==='pdf'?'PDF':'—';
   body.innerHTML = ledgerClients.map(c=>`
-    <tr>
+    <tr style="cursor:pointer" onclick="showProfile('${c.id}')">
       <td><div class="strong">${c.name}</div><div class="text-3" style="font-size:11px">${c.city||''}</div></td>
+      <td><span class="badge ${branchColor(c.source)}">${branchName(c.source)}</span></td>
       <td class="num strong" style="color:${(c.outstanding_amount||0)>0?'var(--red)':'var(--green)'}">PKR ${fmt(c.outstanding_amount||0)}</td>
       <td class="num">PKR ${fmt(c.total_invoiced||0)}</td>
       <td class="num">PKR ${fmt(c.total_paid||0)}</td>
