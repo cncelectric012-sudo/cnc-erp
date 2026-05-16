@@ -250,18 +250,21 @@ const LAPI = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
 const LKEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
 const LHDR = { 'apikey': LKEY, 'Authorization': 'Bearer ' + LKEY };
 
-// ── Load ───────────────────────────────────────────────────────
+// ── Load ── only ledger clients (with outstanding or transactions) ──
 async function loadClients() {
   try {
+    // Load only ledger sources — not bare excel clients
+    const LEDGER_FILTER = 'source=in.(cnc_ledger,cst_ledger,cspl_ledger,pdf)&outstanding_amount=gt.0';
     let rows = [], offset = 0;
     while(true) {
-      const r = await fetch(`${LAPI}/clients?limit=500&offset=${offset}&order=name.asc`, { headers: LHDR });
+      const r = await fetch(`${LAPI}/clients?${LEDGER_FILTER}&limit=500&offset=${offset}&order=outstanding_amount.desc`, { headers: LHDR });
       const data = await r.json();
       if(!Array.isArray(data) || !data.length) break;
       rows = rows.concat(data);
       if(data.length < 500) break;
       offset += 500;
     }
+    // Also load any PDF-uploaded clients
     allClients = rows;
     populateDropdowns();
     applyFilters();
