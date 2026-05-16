@@ -144,7 +144,7 @@ const KEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
 const HDR = {'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':'return=representation'};
 
 const BANKS = ['Meezan Bank','HBL','UBL','MCB','Allied Bank','Bank Alfalah (BAFL)','Bank Al-Habib (BAH)','NBP','Faysal Bank','Askari Bank','JS Bank','Habib Metro','Dubai Islamic Bank','JazzCash','EasyPaisa','NayaPay','SadaPay','Raast','Other'];
-const BANK_ROUTING = {CNC:'BAH AOP ya Meezan Pvt',CST:'BAFL AOP (705) ya BAH AOP',CSPL:'BAFL 989 ya BAH Pvt'};
+const BANK_ROUTING = {CNC:'BAH AOP ya Meezan Pvt',Fico:'BAFL AOP ya BAH AOP',"C-Solar":'Meezan ya BAH Pvt'};
 const PAY_TYPES = ['Ledger Client','Regular Client','Walking Customer','Advance Payment','New Client','GST Client'];
 
 async function apiFetch(path,opts={}){
@@ -291,7 +291,7 @@ function renderSubmit(){
       <div class="field full">
         <label>Entity</label>
         <div class="entity-row">
-          ${['CNC','CST','CSPL'].map(e=>`<div class="ent-btn ${pgState.ent===e?'sel':''}" onclick="pgState.ent='${e}';render()">${e}</div>`).join('')}
+          ${['CNC','Fico','C-Solar'].map(e=>`<div class="ent-btn ${pgState.ent===e?'sel':''}" onclick="pgState.ent='${e}';render()">${e}</div>`).join('')}
         </div>
       </div>
 
@@ -695,7 +695,7 @@ function payCard(e,showSP=false){
       <div style="text-align:right;flex-shrink:0">
         <div class="pay-amt">${PKR(e.amount)}</div>
         <div style="display:flex;gap:4px;justify-content:flex-end;margin-top:4px;flex-wrap:wrap">
-          <span class="badge badge-${e.entity==='CNC'?'red':e.entity==='CST'?'blue':'green'}">${e.entity}</span>
+          <span class="badge badge-${e.entity==='CNC'?'red':e.entity==='Fico'?'blue':'green'}">${e.entity}</span>
           <span class="status-pill ${st}">${stMap[st]||st}</span>
         </div>
       </div>
@@ -807,7 +807,7 @@ function renderAll(){
     </select>
     <select class="input" style="width:110px" id="all-ent" onchange="render()">
       <option value="">All</option>
-      <option>CNC</option><option>CST</option><option>CSPL</option>
+      <option>CNC</option><option>Fico</option><option>C-Solar</option>
     </select>
     <select class="input" style="width:150px" id="all-sp" onchange="render()">
       <option value="">All Sales Reps</option>
@@ -836,7 +836,7 @@ function renderAll(){
             <td class="num strong">${PKR(e.amount)}</td>
             <td style="font-size:11px">${e.bank_name||'—'}<br><span style="color:var(--text-3);font-family:var(--font-mono)">${e.account_number||''}</span></td>
             <td style="font-size:11px">${fmtDate(e.payment_date||e.created_at)}</td>
-            <td><span class="badge badge-${e.entity==='CNC'?'red':e.entity==='CST'?'blue':'green'}">${e.entity}</span></td>
+            <td><span class="badge badge-${e.entity==='CNC'?'red':e.entity==='Fico'?'blue':'green'}">${e.entity}</span></td>
             <td style="font-size:11px">${e.payment_type||'—'}</td>
             <td style="font-size:11px;color:var(--text-3)">${e.submitted_by||'—'}</td>
             <td><span class="badge ${stMap[st]||'badge-gray'}">${stTxt[st]||st}</span></td>
@@ -874,7 +874,7 @@ function reviewCard(e){
       </div>
       <div style="text-align:right">
         <div class="pay-amt">${PKR(e.amount)}</div>
-        <span class="badge badge-${e.entity==='CNC'?'red':e.entity==='CST'?'blue':'green'}">${e.entity}</span>
+        <span class="badge badge-${e.entity==='CNC'?'red':e.entity==='Fico'?'blue':'green'}">${e.entity}</span>
       </div>
     </div>
     ${e.bank_message?`<div style="margin-top:8px;padding:8px;background:var(--surface-2);border-radius:6px;font-size:11px;font-family:var(--font-mono);color:var(--text-2)">${esc(e.bank_message.slice(0,200))}</div>`:''}
@@ -932,7 +932,7 @@ function renderByBank(){
   const grp={};
   allEntries.forEach(e=>{
     const b=e.bank_name||'Unknown';
-    if(!grp[b])grp[b]={count:0,amount:0,accounts:new Set(),entities:{CNC:0,CST:0,CSPL:0}};
+    if(!grp[b])grp[b]={count:0,amount:0,accounts:new Set(),entities:{CNC:0,Fico:0,'C-Solar':0}};
     grp[b].count++;
     grp[b].amount+=(e.amount||0);
     if(e.account_number)grp[b].accounts.add(e.account_number);
@@ -947,8 +947,8 @@ function renderByBank(){
     <td style="font-size:11px;color:var(--text-3)">${[...d.accounts].slice(0,3).join(', ')}</td>
     <td style="font-size:11px">
       ${d.entities.CNC?`<span class="badge badge-red">CNC: ${d.entities.CNC}</span> `:''}
-      ${d.entities.CST?`<span class="badge badge-blue">CST: ${d.entities.CST}</span> `:''}
-      ${d.entities.CSPL?`<span class="badge badge-green">CSPL: ${d.entities.CSPL}</span>`:''}
+      ${d.entities.Fico?`<span class="badge badge-blue">Fico: ${d.entities.Fico}</span> `:''}
+      ${d.entities['C-Solar']?`<span class="badge badge-green">C-Solar: ${d.entities['C-Solar']}</span>`:''}
     </td>
   </tr>`).join('');
 
@@ -1053,7 +1053,7 @@ function showDetail(id){
   <div style="font-size:32px;font-weight:800;margin-bottom:8px">${PKR(e.amount)}</div>
 
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
-    <span class="badge badge-${e.entity==='CNC'?'red':e.entity==='CST'?'blue':'green'}">${e.entity}</span>
+    <span class="badge badge-${e.entity==='CNC'?'red':e.entity==='Fico'?'blue':'green'}">${e.entity}</span>
     <span class="badge badge-gray">${e.payment_type||'—'}</span>
     <span class="status-pill ${st}">${stTxt[st]||st}</span>
   </div>
