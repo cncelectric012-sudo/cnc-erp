@@ -739,7 +739,7 @@ function renderTable(){
 // ── Salesperson View ──────────────────────────────────────────
 function renderSpView(){
   const groups = {};
-  allClients.filter(c=>(c.status||'active')!=='blacklisted').forEach(c=>{
+  filtered.filter(c=>(c.status||'active')!=='blacklisted').forEach(c=>{
     const sp = c.salesperson||'(No Salesperson)';
     if(!groups[sp]) groups[sp]={clients:[],outstanding:0,phone:c.salesperson_number||''};
     groups[sp].clients.push(c);
@@ -774,7 +774,7 @@ function filterBySp(sp){
 
 // ── Overdue Tab ───────────────────────────────────────────────
 function renderOverdue(){
-  const overdue = allClients.filter(c=>(c.outstanding_amount||0)>0 && (c.status||'active')==='active')
+  const overdue = filtered.filter(c=>(c.outstanding_amount||0)>0 && (c.status||'active')==='active')
     .sort((a,b)=>(b.outstanding_amount||0)-(a.outstanding_amount||0));
   const body = document.getElementById('overdueBody');
   if(!overdue.length){
@@ -799,7 +799,7 @@ function renderOverdue(){
 
 // ── Top Clients Tab ───────────────────────────────────────────
 function renderTop(){
-  const top = [...allClients].filter(c=>c.total_invoiced>0).sort((a,b)=>(b.total_invoiced||0)-(a.total_invoiced||0)).slice(0,20);
+  const top = [...filtered].filter(c=>c.total_invoiced>0).sort((a,b)=>(b.total_invoiced||0)-(a.total_invoiced||0)).slice(0,20);
   const grid = document.getElementById('topGrid');
   if(!top.length){
     grid.innerHTML=`<div class="empty"><div class="empty-icon">🏆</div><div class="empty-title">No invoicing data yet</div></div>`;
@@ -821,7 +821,7 @@ function renderTop(){
 
 // ── Blacklisted Tab ───────────────────────────────────────────
 function renderBlacklisted(){
-  const bl = allClients.filter(c=>c.status==='blacklisted');
+  const bl = filtered.filter(c=>c.status==='blacklisted');
   const body = document.getElementById('blacklistBody');
   if(!bl.length){
     body.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">🔴</div><div class="empty-title">No blacklisted clients</div></div></td></tr>`;
