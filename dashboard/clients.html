@@ -748,7 +748,7 @@ function renderTable(){
       <td style="font-size:11px;color:var(--text-3)">${terms}</td>
       <td>
         <div class="action-drop">
-          <button class="btn btn-secondary btn-sm" onclick="toggleRowMenu('${sid}')">⋯</button>
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();toggleRowMenu('${sid}')">⋯</button>
           <div class="action-drop-menu" id="menu-${sid}">
             <button onclick="showProfile('${c.id}');toggleRowMenu('${sid}')">👁 View Profile</button>
             <button onclick="editClient('${c.id}');toggleRowMenu('${sid}')">✏️ Edit</button>
