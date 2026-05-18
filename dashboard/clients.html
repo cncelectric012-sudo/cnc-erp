@@ -59,7 +59,7 @@
 
 /* Row action dropdown */
 .action-drop { position:relative; }
-.action-drop-menu { position:absolute; right:0; top:32px; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow-md); min-width:170px; z-index:200; padding:4px; display:none; }
+.action-drop-menu { position:fixed; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow-lg); min-width:170px; z-index:9999; padding:4px; display:none; }
 .action-drop-menu.open { display:block; }
 .action-drop-menu button { display:block; width:100%; padding:7px 12px; text-align:left; background:none; border:none; cursor:pointer; font-size:12px; border-radius:4px; font-family:inherit; }
 .action-drop-menu button:hover { background:var(--surface-2); }
@@ -711,7 +711,15 @@ function statusBadge(s){
 // ── Row action dropdown ───────────────────────────────────────
 function toggleRowMenu(id){
   document.querySelectorAll('.action-drop-menu').forEach(m=>{ if(m.id!=='menu-'+id) m.classList.remove('open'); });
-  document.getElementById('menu-'+id)?.classList.toggle('open');
+  const menu = document.getElementById('menu-'+id);
+  if(!menu) return;
+  const btn = menu.previousElementSibling;
+  if(btn){
+    const rect = btn.getBoundingClientRect();
+    menu.style.top  = (rect.bottom + 4) + 'px';
+    menu.style.left = (rect.right - 170) + 'px';
+  }
+  menu.classList.toggle('open');
 }
 document.addEventListener('click', e=>{
   if(!e.target.closest('.action-drop')) document.querySelectorAll('.action-drop-menu').forEach(m=>m.classList.remove('open'));
