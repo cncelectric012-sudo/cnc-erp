@@ -591,6 +591,8 @@ async function loadClients(keepFilters=false) {
         if(batch.length < 500) break;
         offset += 500;
       }
+      populateFilters();
+      if(savedState) restoreFilterState(savedState);
       updateStats(); applyFilters();
       document.getElementById('topbarSub').textContent = `${allClients.length} clients loaded`;
     }
