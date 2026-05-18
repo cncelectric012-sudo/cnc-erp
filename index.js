@@ -1679,6 +1679,121 @@ async function handleBossReply(message) {
     }
 }
 
+// ─── Daily Ledger Reports ──────────────────────────────────
+const REPORT_NUMBERS = [
+    process.env.MUDDASIR_NUMBER + '@c.us',
+    process.env.AWAIS_NUMBER   + '@c.us',
+    process.env.BILAL_CTO_NUMBER + '@c.us'
+];
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+async function fetchClientsFromSupabase() {
+    if (!SUPABASE_URL || !SUPABASE_KEY) return [];
+    try {
+        const https = require('https');
+        return new Promise(resolve => {
+            const path = '/rest/v1/clients?outstanding_amount=gt.0&outstanding_type=eq.Dr&select=id,name,phone,outstanding_amount,branch,salesperson&order=outstanding_amount.desc&limit=1000';
+            const opts = { hostname: new URL(SUPABASE_URL).hostname, path, headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } };
+            https.get(opts, res => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>resolve(JSON.parse(d)||[])); }).on('error',()=>resolve([]));
+        });
+    } catch(e) { return []; }
+}
+
+function fmtPKR(n) {
+    if(n>=10000000) return (n/10000000).toFixed(2)+' Cr';
+    if(n>=100000)   return (n/100000).toFixed(2)+' L';
+    return n.toLocaleString('en-PK');
+}
+
+async function sendDailyLedgerReports() {
+    console.log('📊 Daily report starting...');
+    const clients = await fetchClientsFromSupabase();
+    if (!clients.length) { console.log('No clients found'); return; }
+
+    const today = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+    const totalOs = clients.reduce((s,c)=>s+(c.outstanding_amount||0), 0);
+
+    // Branch-wise totals
+    const branches = {};
+    clients.forEach(c => {
+        const b = c.branch || 'Other';
+        if(!branches[b]) branches[b] = 0;
+        branches[b] += (c.outstanding_amount||0);
+    });
+
+    let sent = 0, failed = 0;
+
+    // 1. Send individual statement to each client with phone
+    for (const c of clients) {
+        if (!c.phone) continue;
+        const phone = c.phone.replace(/[^0-9]/g,'');
+        const waId = (phone.startsWith('0') ? '92'+phone.slice(1) : phone) + '@c.us';
+        const msg = `*CNC Electric — Outstanding Balance*\n${'─'.repeat(30)}\n` +
+            `Client: *${c.name}*\n` +
+            `Branch: ${c.branch||'—'}\n` +
+            `Date: ${today}\n${'─'.repeat(30)}\n` +
+            `*Outstanding: PKR ${c.outstanding_amount.toLocaleString('en-PK')}*\n${'─'.repeat(30)}\n` +
+            `Please clear the above amount at your earliest.\n\n_CNC Electric Pakistan_`;
+        try {
+            await client.sendMessage(waId, msg);
+            sent++;
+            await new Promise(r=>setTimeout(r,1500)); // 1.5s delay between messages
+        } catch(e) {
+            failed++;
+            console.error(`Failed: ${c.name}`, e.message);
+        }
+    }
+
+    // 2. Send summary report to bosses
+    const topClients = clients.slice(0,10);
+    const branchLines = Object.entries(branches).sort((a,b)=>b[1]-a[1]).map(([b,t])=>`  • ${b}: PKR ${fmtPKR(t)}`).join('\n');
+    const topLines = topClients.map((c,i)=>`  ${i+1}. ${c.name} — PKR ${fmtPKR(c.outstanding_amount)}`).join('\n');
+
+    const reportMsg = `📊 *Daily Outstanding Report*\n${today}\n${'─'.repeat(35)}\n` +
+        `*Total Outstanding: PKR ${fmtPKR(totalOs)}*\n` +
+        `Clients with balance: ${clients.length}\n` +
+        `Messages sent: ${sent} ✅  Failed: ${failed}\n${'─'.repeat(35)}\n` +
+        `*Branch Wise:*\n${branchLines}\n${'─'.repeat(35)}\n` +
+        `*Top 10 Clients:*\n${topLines}\n${'─'.repeat(35)}\n` +
+        `_Generated at 8:00 AM by CNC Bot_`;
+
+    for (const num of REPORT_NUMBERS) {
+        try {
+            await client.sendMessage(num, reportMsg);
+        } catch(e) {
+            console.error('Report send failed:', num, e.message);
+        }
+    }
+    console.log(`✅ Daily report done — Sent: ${sent}, Failed: ${failed}`);
+}
+
+function scheduleDailyReport() {
+    const hour   = parseInt(process.env.DAILY_REPORT_HOUR   || '8');
+    const minute = parseInt(process.env.DAILY_REPORT_MINUTE || '0');
+
+    function msUntilNext() {
+        const now = new Date();
+        const next = new Date();
+        next.setHours(hour, minute, 0, 0);
+        if (next <= now) next.setDate(next.getDate() + 1);
+        return next - now;
+    }
+
+    function schedule() {
+        const ms = msUntilNext();
+        const h = Math.floor(ms/3600000);
+        const m = Math.floor((ms%3600000)/60000);
+        console.log(`⏰ Daily report scheduled in ${h}h ${m}m`);
+        setTimeout(async () => {
+            await sendDailyLedgerReports();
+            setInterval(sendDailyLedgerReports, 24 * 60 * 60 * 1000);
+        }, ms);
+    }
+    schedule();
+}
+
 // ─── Start ─────────────────────────────────────────────────
 async function start() {
     loadDB();
@@ -1697,6 +1812,9 @@ async function start() {
             console.error('❌ Commitment check error:', err.message);
         }
     }, 6 * 60 * 60 * 1000);
+
+    // Schedule daily ledger reports at 8 AM
+    scheduleDailyReport();
 
     console.log('🚀 Starting CNC WhatsApp Bot...');
     client.initialize();
