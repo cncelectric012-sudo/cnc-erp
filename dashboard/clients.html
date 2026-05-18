@@ -635,14 +635,17 @@ function applyFilters(){
 
   document.getElementById('filteredCount').textContent = `${filtered.length} of ${allClients.length}`;
 
-  // Update stats based on filtered data
-  const sps   = new Set(filtered.map(c=>c.salesperson).filter(Boolean));
-  const withOs = filtered.filter(c=>(c.outstanding_amount||0)>0).length;
-  const totalOs = filtered.reduce((s,c)=>s+(c.outstanding_amount||0),0);
+  // Update stats — net outstanding (Dr - Cr)
+  const sps    = new Set(filtered.map(c=>c.salesperson).filter(Boolean));
+  const withOs = filtered.filter(c=>(c.outstanding_amount||0)>0 && (c.outstanding_type||'Dr')==='Dr').length;
+  const totalOs = filtered.reduce((s,c)=>{
+    const amt = c.outstanding_amount||0;
+    return s + ((c.outstanding_type||'Dr')==='Dr' ? amt : -amt);
+  }, 0);
   document.getElementById('st-total').textContent  = filtered.length;
   document.getElementById('st-sp').textContent     = sps.size;
   document.getElementById('st-os').textContent     = withOs;
-  document.getElementById('st-osamt').textContent  = 'PKR '+fmtK(totalOs);
+  document.getElementById('st-osamt').textContent  = 'PKR '+fmtK(Math.max(0,totalOs));
 
   renderCurrentTab();
 }
