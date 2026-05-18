@@ -543,14 +543,42 @@ function showSkeleton() {
 }
 
 // ── Load ──────────────────────────────────────────────────────
-async function loadClients() {
-  showSkeleton();
+// Save/restore filter state so reload doesn't reset filters
+function saveFilterState(){
+  return {
+    q: document.getElementById('searchBox')?.value||'',
+    sp: document.getElementById('fSp')?.value||'',
+    city: document.getElementById('fCity')?.value||'',
+    branch: document.getElementById('fBranch')?.value||'',
+    status: document.getElementById('fStatus')?.value||'',
+    missing: document.getElementById('fMissing')?.value||'',
+    discount: document.getElementById('fDiscount')?.value||'',
+    tab: currentTab
+  };
+}
+function restoreFilterState(state){
+  if(!state) return;
+  if(state.q)       { const el=document.getElementById('searchBox'); if(el) el.value=state.q; }
+  if(state.sp)      { const el=document.getElementById('fSp');       if(el) el.value=state.sp; }
+  if(state.city)    { const el=document.getElementById('fCity');     if(el) el.value=state.city; }
+  if(state.branch)  { const el=document.getElementById('fBranch');   if(el) el.value=state.branch; }
+  if(state.status)  { const el=document.getElementById('fStatus');   if(el) el.value=state.status; }
+  if(state.missing) { const el=document.getElementById('fMissing');  if(el) el.value=state.missing; }
+  if(state.discount){ const el=document.getElementById('fDiscount'); if(el) el.value=state.discount; }
+  if(state.tab)     currentTab = state.tab;
+}
+
+async function loadClients(keepFilters=false) {
+  const savedState = keepFilters ? saveFilterState() : null;
+  if(!keepFilters) showSkeleton();
   document.getElementById('topbarSub').textContent = 'Loading...';
   try {
     // First 200 fast
     const first = await sbFetch('clients', 'limit=200&offset=0&order=name.asc');
     allClients = first || [];
-    updateStats(); populateFilters(); applyFilters();
+    populateFilters();
+    if(savedState) restoreFilterState(savedState);
+    updateStats(); applyFilters();
     document.getElementById('topbarSub').textContent = `${allClients.length} clients`;
 
     // Load rest in background
@@ -563,7 +591,7 @@ async function loadClients() {
         if(batch.length < 500) break;
         offset += 500;
       }
-      updateStats(); populateFilters(); applyFilters();
+      updateStats(); applyFilters();
       document.getElementById('topbarSub').textContent = `${allClients.length} clients loaded`;
     }
   } catch(err) {
@@ -848,7 +876,7 @@ async function toggleBlacklist(id, currentStatus){
     await fetch(`${API}/clients?id=eq.${id}`,{method:'PATCH',headers:{...HEADERS,'Prefer':'return=minimal'},body:JSON.stringify({status:'blacklisted',blacklist_reason:reason})});
     showToast('Client blacklisted','🔴');
   }
-  loadClients();
+  loadClients(true);
 }
 
 // ── Client Profile ────────────────────────────────────────────
@@ -1184,7 +1212,7 @@ async function saveClient(e){
   btn.textContent = editingId?'Update Client':'Save Client';
   showToast(editingId?'Client updated':'Client added','✅');
   closeModal();
-  loadClients();
+  loadClients(true);
 }
 
 async function deleteClient(id, name){
@@ -1192,7 +1220,7 @@ async function deleteClient(id, name){
   try { await sbDelete('clients', id); }
   catch(err){ showToast('Delete failed: '+err.message,'❌'); return; }
   showToast('Client deleted','🗑️');
-  loadClients();
+  loadClients(true);
 }
 
 // ── Export ────────────────────────────────────────────────────
@@ -1323,7 +1351,7 @@ async function runImport(){
   btn.textContent='Import';
   document.getElementById('importModal').classList.add('hidden');
   showToast(`Imported ${done} clients${errors?', '+errors+' errors':''}`, done?'✅':'❌');
-  loadClients();
+  loadClients(true);
 }
 
 function downloadTemplate(){
