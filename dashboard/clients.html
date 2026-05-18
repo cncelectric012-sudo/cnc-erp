@@ -1021,7 +1021,8 @@ function printStatement(){ generateStatement(profileClientId); }
 
 // ── Ledger View ───────────────────────────────────────────────
 function renderLedger(){
-  const ledgerClients = allClients.filter(c=>
+  // Use filtered (respects branch/salesperson/status filters) + only ledger sources
+  const ledgerClients = filtered.filter(c=>
     c.source==='pdf'||c.source==='cnc_ledger'||c.source==='cst_ledger'||c.source==='cspl_ledger'||
     c.total_invoiced>0||(c.transactions&&c.transactions.length>0)
   );
