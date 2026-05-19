@@ -247,8 +247,8 @@ const fmtK = n => {
 };
 
 const LAPI = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
-const LKEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
-const LHDR = { 'apikey': LKEY, 'Authorization': 'Bearer ' + LKEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+const LKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmFheHl3bGZwb21sYXRwaXVhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkzMjI4NSwiZXhwIjoyMDkzNTA4Mjg1fQ.vsCZIT5ER1DVBPvRGt8Ai-cYtUD0rosyxNEBi5T2NCo';
+const LHDR = { 'apikey': LKEY, 'Authorization': 'Bearer ' + LKEY };
 
 async function lFetch(params) {
   const r = await fetch(`${LAPI}/clients?${params}`, { headers: LHDR });
