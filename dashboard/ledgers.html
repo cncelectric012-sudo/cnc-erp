@@ -248,47 +248,45 @@ const fmtK = n => {
 
 const LAPI = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
 const LKEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
-const LHDR = { 'apikey': LKEY, 'Authorization': 'Bearer ' + LKEY };
+const LHDR = { 'apikey': LKEY, 'Authorization': 'Bearer ' + LKEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+
+async function lFetch(params) {
+  const r = await fetch(`${LAPI}/clients?${params}`, { headers: LHDR });
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+  return r.json();
+}
 
 // ── Load all clients ──────────────────────────────────────────
 async function loadClients() {
+  const sub = document.getElementById('topbarSub');
   const grid = document.getElementById('ledgerGrid');
-  const showErr = msg => {
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">⚠️</div><div class="empty-title">Error</div><div class="empty-desc" style="font-size:12px;color:red">${msg}</div></div>`;
-  };
   try {
-    grid.innerHTML = `<div class="loading-state" style="grid-column:1/-1"><div class="loading-spinner"></div><div>Connecting to Supabase...</div></div>`;
-
-    const testUrl = `${LAPI}/clients?limit=1`;
-    const testR = await fetch(testUrl, { headers: LHDR });
-    const testData = await testR.json();
-
-    if (!testR.ok) {
-      showErr(`HTTP ${testR.status}: ${JSON.stringify(testData)}`);
-      return;
-    }
-    if (!Array.isArray(testData)) {
-      showErr(`Unexpected response: ${JSON.stringify(testData).slice(0,200)}`);
-      return;
-    }
-
-    grid.innerHTML = `<div class="loading-state" style="grid-column:1/-1"><div class="loading-spinner"></div><div>Loading clients...</div></div>`;
-    let rows = [], offset = 0;
-    while(true) {
-      const r = await fetch(`${LAPI}/clients?limit=500&offset=${offset}&order=name.asc`, { headers: LHDR });
-      const data = await r.json();
-      if(!Array.isArray(data) || !data.length) break;
-      rows = rows.concat(data);
-      grid.innerHTML = `<div class="loading-state" style="grid-column:1/-1"><div class="loading-spinner"></div><div>Loaded ${rows.length} clients...</div></div>`;
-      if(data.length < 500) break;
-      offset += 500;
-    }
-    allClients = rows;
+    sub.textContent = 'Loading...';
+    // Load first 200 fast
+    const first = await lFetch('limit=200&offset=0&order=name.asc');
+    allClients = first || [];
     populateDropdowns();
     applyFilters();
-    document.getElementById('topbarSub').textContent = `${allClients.length} clients loaded`;
+    sub.textContent = `${allClients.length} clients`;
+
+    // Load rest in background
+    if (first.length === 200) {
+      let offset = 200;
+      while(true) {
+        const batch = await lFetch(`limit=500&offset=${offset}&order=name.asc`);
+        if (!batch || !batch.length) break;
+        allClients = allClients.concat(batch);
+        sub.textContent = `Loading... ${allClients.length}`;
+        if (batch.length < 500) break;
+        offset += 500;
+      }
+      populateDropdowns();
+      applyFilters();
+      sub.textContent = `${allClients.length} clients loaded`;
+    }
   } catch (err) {
-    showErr(`JS Error: ${err.message}`);
+    sub.textContent = '⚠️ ' + err.message;
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">⚠️</div><div class="empty-title">Load Failed</div><div class="empty-desc" style="color:red;font-size:12px">${err.message}</div></div>`;
   }
 }
 
