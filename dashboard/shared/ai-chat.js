@@ -69,13 +69,13 @@
       <button class="ai-close" id="ai-close-btn">✕</button>
     </div>
     <div class="ai-messages" id="ai-messages">
-      <div class="ai-msg bot">Assalam o Alaikum! 👋<br>Main aapke portal ka AI assistant hoon.<br><br>Clients, payments, outstanding, bank alerts — sab kuch pooch sakte hain!</div>
+      <div class="ai-msg bot">Assalam o Alaikum! 👋<br>Main CNC Electric ka AI assistant hoon.<br><br>🇵🇰 <b>Roman Urdu</b> ya <b>English</b> mein kuch bhi poochein!<br>Clients, payments, ledgers, bank alerts — sab available hai.</div>
     </div>
     <div class="ai-chips" id="ai-chips">
       <span class="ai-chip" onclick="aiAsk('Total outstanding kitna hai?')">💰 Total outstanding</span>
-      <span class="ai-chip" onclick="aiAsk('Top 5 overdue clients?')">⚠️ Top overdue</span>
-      <span class="ai-chip" onclick="aiAsk('Aaj ki bank payments?')">🏦 Bank alerts</span>
-      <span class="ai-chip" onclick="aiAsk('CNC branch summary?')">📊 CNC summary</span>
+      <span class="ai-chip" onclick="aiAsk('Top 5 overdue clients kaun hain?')">⚠️ Top overdue</span>
+      <span class="ai-chip" onclick="aiAsk('Aaj ki bank payments kya hain?')">🏦 Bank alerts</span>
+      <span class="ai-chip" onclick="aiAsk('Branch wise outstanding summary do')">📊 CNC summary</span>
     </div>
     <div class="ai-input-row">
       <input class="ai-input" id="ai-input" placeholder="Kuch bhi poochein..." onkeydown="if(event.key==='Enter')aiSend()"/>
@@ -177,8 +177,25 @@ ${Array.isArray(paygate)?paygate.slice(0,5).map(p=>`  ${p.customer}: PKR ${(p.am
   }
 
   // ── Chat ─────────────────────────────────────────────────────
-  const messages = [{ role:'user', content:'You are an AI assistant for CNC Electric Pakistan\'s internal ERP portal. Answer in Urdu/English mix (Romanized Urdu is fine). Be concise and helpful. Use PKR for amounts.' }];
-  messages.push({ role:'assistant', content:'Understood! I will help with CNC Electric portal data.' });
+  const messages = [{ role:'user', content:`You are the AI assistant for CNC Electric Pakistan's internal ERP portal.
+
+LANGUAGE: Reply in the SAME language as the question.
+- English question → English reply
+- Roman Urdu question → Roman Urdu reply (e.g. "Aapka outstanding 7.9 Cr hai")
+
+YOU CAN ANSWER ABOUT:
+- Clients: outstanding, overdue, blacklisted, branch-wise (CNC/Cognitive Solutions/CS Traders)
+- Payments: bank alerts, PayGate entries, verified/unmatched
+- Ledgers: transaction history, aging, statements
+- Invoices: approvals, decisions, discount checks
+- Sales Reps: performance, client assignments
+- Bank Verification: alerts, risk analysis, fraud detection
+- Reports: daily/monthly summaries
+- Bot Settings: which features are on/off
+- Any portal data
+
+Use PKR for amounts. Show large amounts as Lakh/Crore. Be concise but helpful.` }];
+  messages.push({ role:'assistant', content:'Assalam o Alaikum! Main CNC Electric ka AI assistant hoon. Kuch bhi poochein — English ya Roman Urdu mein!' });
 
   function addMsg(text, type) {
     const div = document.createElement('div');
