@@ -256,7 +256,7 @@ async function lFetch(params) {
   return r.json();
 }
 
-// ── Load ledger clients ───────────────────────────────────────
+// ── Load from ledgers table ───────────────────────────────────
 async function loadClients() {
   const sub  = document.getElementById('topbarSub');
   const grid = document.getElementById('ledgerGrid');
@@ -264,10 +264,14 @@ async function loadClients() {
   grid.innerHTML  = '<div class="loading-state" style="grid-column:1/-1"><div class="loading-spinner"></div><div>Loading ledger data...</div></div>';
 
   try {
-    // Fetch all clients in pages of 500
     let all = [], from = 0;
     while (true) {
-      const batch = await lFetch(`select=id,name,phone,city,address,salesperson,branch,outstanding_amount,outstanding_type,total_invoiced,total_paid,risk_level,transactions,whatsapp&limit=500&offset=${from}&order=outstanding_amount.desc`);
+      const r = await fetch(
+        `${LAPI}/ledgers?limit=500&offset=${from}&order=outstanding_amount.desc`,
+        { headers: LHDR }
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      const batch = await r.json();
       if (!Array.isArray(batch) || !batch.length) break;
       all = all.concat(batch);
       sub.textContent = `Loading... ${all.length}`;
@@ -275,13 +279,7 @@ async function loadClients() {
       from += 500;
     }
 
-    // Keep only clients that have ledger data
-    allClients = all.filter(c =>
-      (c.id && c.id.toLowerCase().includes('ledger')) ||
-      (c.outstanding_amount && parseFloat(c.outstanding_amount) > 0) ||
-      (c.total_invoiced && parseFloat(c.total_invoiced) > 0)
-    );
-
+    allClients = all;
     populateDropdowns();
     applyFilters();
     sub.textContent = `${allClients.length} ledger clients loaded`;
