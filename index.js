@@ -122,12 +122,17 @@ function isAlwaysApproveExtended(name) {
 
 const BOSS_NUMBERS = [
     process.env.MUDDASIR_NUMBER + '@c.us',
-    process.env.AWAIS_NUMBER   + '@c.us'
+    process.env.AWAIS_NUMBER   + '@c.us',
+    process.env.BILAL_CTO_NUMBER + '@c.us'
 ];
 const BOSS_RAW = [
     process.env.MUDDASIR_NUMBER,
-    process.env.AWAIS_NUMBER
+    process.env.AWAIS_NUMBER,
+    process.env.BILAL_CTO_NUMBER
 ];
+
+// AI Chat sessions per boss
+const aiChatSessions = {};
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -936,6 +941,11 @@ client.on('message', async (message) => {
         const senderNumber = contact.number;
 
         if (BOSS_RAW.includes(senderNumber)) {
+            // Direct message (not in group) → AI Assistant
+            if (!chat.isGroup && message.body && !message.body.startsWith('APPROVE') && !message.body.startsWith('REJECT')) {
+                await handleBossAIChat(message, senderNumber);
+                return;
+            }
             await handleBossReply(message);
             return;
         }
@@ -1028,6 +1038,59 @@ client.on('message', async (message) => {
         console.error('❌ Error:', err.message);
     }
 });
+
+// ─── Boss AI Chat (WhatsApp direct messages) ─────────────────
+async function handleBossAIChat(message, senderNumber) {
+    const q = message.body.trim();
+    if (!q) return;
+
+    // Init session
+    if (!aiChatSessions[senderNumber]) {
+        aiChatSessions[senderNumber] = [{
+            role: 'user',
+            content: 'You are the AI assistant for CNC Electric Pakistan ERP. Answer in Urdu/English mix. Be concise. Use PKR for amounts. You have access to live portal data.'
+        }, { role: 'assistant', content: 'Understood! Ready to help with CNC Electric data.' }];
+    }
+
+    try {
+        // Get live Supabase data
+        const clients = await supabaseGet('/rest/v1/clients?outstanding_amount=gt.0&outstanding_type=eq.Dr&source=in.(cnc_ledger,cspl_ledger,cst_ledger)&select=name,outstanding_amount,branch&order=outstanding_amount.desc&limit=30');
+        const totalOs = Array.isArray(clients) ? clients.reduce((s,c)=>s+(c.outstanding_amount||0),0) : 0;
+        const branches = {};
+        if (Array.isArray(clients)) clients.forEach(c=>{ const b=c.branch||'Other'; if(!branches[b])branches[b]=0; branches[b]+=(c.outstanding_amount||0); });
+
+        const bankAlerts = await supabaseGet('/rest/v1/bank_alerts?order=created_at.desc&limit=10&select=amount,bank_name,match_status,created_at');
+        const todayAlerts = Array.isArray(bankAlerts) ? bankAlerts.filter(a=>new Date(a.created_at).toDateString()===new Date().toDateString()) : [];
+
+        const context = `Live Portal Data:
+Total Outstanding: PKR ${totalOs.toLocaleString()}
+CNC: PKR ${Math.round(branches['CNC']||0).toLocaleString()} | Cognitive Solutions: PKR ${Math.round(branches['Cognitive Solutions']||0).toLocaleString()} | CS Traders: PKR ${Math.round(branches['CS Traders']||0).toLocaleString()}
+Top Clients: ${Array.isArray(clients)?clients.slice(0,5).map(c=>`${c.name}: PKR ${(c.outstanding_amount||0).toLocaleString()}`).join(', '):'N/A'}
+Today Bank Alerts: ${todayAlerts.length} (Total PKR ${todayAlerts.reduce((s,a)=>s+(a.amount||0),0).toLocaleString()})`;
+
+        const session = aiChatSessions[senderNumber];
+        session.push({ role:'user', content:`${context}\n\nQuestion: ${q}` });
+
+        const response = await anthropic.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 500,
+            messages: session.slice(-8)
+        });
+
+        const reply = response.content[0].text;
+        session.push({ role:'assistant', content:reply });
+
+        // Keep session max 20 messages
+        if (session.length > 20) aiChatSessions[senderNumber] = session.slice(-10);
+
+        await message.reply(reply);
+        console.log(`🤖 AI reply sent to boss ${senderNumber}`);
+
+    } catch(e) {
+        console.error('Boss AI chat error:', e.message);
+        await message.reply('⚠️ AI error: ' + e.message);
+    }
+}
 
 // ─── Silent Payment Reader ─────────────────────────────────
 async function readPaymentSilently(media, caption, chat) {
