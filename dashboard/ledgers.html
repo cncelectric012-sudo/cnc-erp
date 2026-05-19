@@ -229,40 +229,42 @@
         <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" id="kv-pending">—</div></div>
       </div>
 
-      <!-- Filter Bar — single row -->
-      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
-        <input class="search-input" id="s-name" placeholder="🔍  Search name, phone, city..." oninput="applyFilters()" style="flex:1;min-width:180px;max-width:280px"/>
-        <select class="select" id="s-risk" onchange="applyFilters()" style="min-width:110px">
-          <option value="">Risk: All</option>
-          <option value="Low">🟢 Low</option>
-          <option value="Medium">🟡 Medium</option>
-          <option value="High">🔴 High</option>
-        </select>
-        <select class="select" id="s-outstanding" onchange="applyFilters()" style="min-width:130px">
-          <option value="">Outstanding: All</option>
-          <option value="0">Zero</option>
-          <option value="1-50000">1–50K</option>
-          <option value="50000-200000">50K–200K</option>
-          <option value="200000-500000">200K–500K</option>
-          <option value="500000+">500K+</option>
-        </select>
-        <select class="select" id="s-salesperson" onchange="applyFilters()" style="min-width:120px">
-          <option value="">All Reps</option>
-        </select>
-        <select class="select" id="s-city" onchange="applyFilters()" style="min-width:110px">
-          <option value="">All Cities</option>
-        </select>
-        <select class="select" id="s-type" onchange="applyFilters()" style="min-width:110px">
-          <option value="">Balance: All</option>
-          <option value="Dr">Dr</option>
-          <option value="Cr">Cr</option>
-        </select>
-        <div style="width:1px;height:24px;background:var(--border);margin:0 2px"></div>
-        <button class="sort-btn active" id="sort-outstanding" onclick="setSort('outstanding')">↓ Outstanding</button>
-        <button class="sort-btn" id="sort-name" onclick="setSort('name')">Name</button>
-        <button class="sort-btn" id="sort-risk" onclick="setSort('risk')">Risk</button>
-        <span id="ledgerCount" style="margin-left:auto;font-size:11px;color:var(--text-3)"></span>
+      <!-- Filter Bar -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:12px">
+        <!-- Search row -->
+        <input class="search-input" id="s-name" placeholder="🔍  Search client name, phone, city..." oninput="applyFilters()" style="width:100%;margin-bottom:8px"/>
+        <!-- Filters row — no wrap -->
+        <div style="display:flex;gap:8px;align-items:center;overflow-x:auto;white-space:nowrap;padding-bottom:2px">
+          <select class="select" id="s-branch" onchange="applyFilters()" style="min-width:130px;flex-shrink:0">
+            <option value="">All Branches</option>
+            <option value="cnc">CNC</option>
+            <option value="cst">CS Traders</option>
+            <option value="cspl">Cog. Solutions</option>
+          </select>
+          <select class="select" id="s-salesperson" onchange="applyFilters()" style="min-width:130px;flex-shrink:0">
+            <option value="">All Sales Reps</option>
+          </select>
+          <select class="select" id="s-type" onchange="applyFilters()" style="min-width:110px;flex-shrink:0">
+            <option value="">Dr / Cr: All</option>
+            <option value="Dr">Dr (Owe Us)</option>
+            <option value="Cr">Cr (We Owe)</option>
+          </select>
+          <select class="select" id="s-risk" onchange="applyFilters()" style="min-width:110px;flex-shrink:0">
+            <option value="">Risk: All</option>
+            <option value="Low">🟢 Low</option>
+            <option value="Medium">🟡 Medium</option>
+            <option value="High">🔴 High</option>
+          </select>
+          <div style="flex:1"></div>
+          <span id="ledgerCount" style="font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0"></span>
+          <button class="sort-btn active" id="sort-outstanding" onclick="setSort('outstanding')" style="flex-shrink:0">↓ Outstanding</button>
+          <button class="sort-btn" id="sort-name" onclick="setSort('name')" style="flex-shrink:0">Name</button>
+          <button class="sort-btn" id="sort-risk" onclick="setSort('risk')" style="flex-shrink:0">Risk</button>
+        </div>
       </div>
+      <!-- hidden selects kept for applyFilters compatibility -->
+      <select id="s-outstanding" style="display:none"><option value=""></option></select>
+      <select id="s-city" style="display:none"><option value=""></option></select>
 
       <!-- Table View -->
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
@@ -442,43 +444,33 @@ async function loadClients() {
 
 // ── Populate dropdowns ─────────────────────────────────────────
 function populateDropdowns() {
-  const sps    = [...new Set(allClients.map(c=>c.salesperson).filter(Boolean))].sort();
-  const cities = [...new Set(allClients.map(c=>c.city).filter(Boolean))].sort();
-
+  const sps = [...new Set(allClients.map(c=>c.salesperson).filter(Boolean))].sort();
   const spSel = document.getElementById('s-salesperson');
-  spSel.innerHTML = '<option value="">All Sales Reps</option>' +
+  if (spSel) spSel.innerHTML = '<option value="">All Sales Reps</option>' +
     sps.map(s=>`<option value="${s}">${s}</option>`).join('');
-
-  const citySel = document.getElementById('s-city');
-  citySel.innerHTML = '<option value="">All Cities</option>' +
-    cities.map(c=>`<option value="${c}">${c}</option>`).join('');
 }
 
 // ── Apply Filters + Sort ───────────────────────────────────────
 function applyFilters() {
-  const search = (document.getElementById('s-name').value||'').toLowerCase();
-  const risk   = document.getElementById('s-risk').value;
-  const osRange= document.getElementById('s-outstanding').value;
-  const sp     = document.getElementById('s-salesperson').value;
-  const city   = document.getElementById('s-city').value;
-  const type   = document.getElementById('s-type').value;
+  const search = (document.getElementById('s-name')?.value||'').toLowerCase();
+  const risk   = document.getElementById('s-risk')?.value||'';
+  const sp     = document.getElementById('s-salesperson')?.value||'';
+  const type   = document.getElementById('s-type')?.value||'';
+  const branch = document.getElementById('s-branch')?.value||'';
 
   filtered = allClients.filter(c => {
     if (search) {
-      const h = [c.name,c.phone,c.address,c.city,c.contact_person,c.salesperson].join(' ').toLowerCase();
+      const h = [c.name,c.phone,c.address,c.city,c.salesperson].join(' ').toLowerCase();
       if (!h.includes(search)) return false;
     }
-    if (risk && c.risk_level !== risk) return false;
-    if (type && c.outstanding_type !== type) return false;
-    if (sp   && c.salesperson !== sp) return false;
-    if (city && c.city !== city) return false;
-    if (osRange) {
-      const os = num(c.outstanding_amount);
-      if (osRange === '0' && os !== 0) return false;
-      if (osRange === '1-50000' && (os <= 0 || os > 50000)) return false;
-      if (osRange === '50000-200000' && (os <= 50000 || os > 200000)) return false;
-      if (osRange === '200000-500000' && (os <= 200000 || os > 500000)) return false;
-      if (osRange === '500000+' && os <= 500000) return false;
+    if (risk   && c.risk_level !== risk) return false;
+    if (type   && c.outstanding_type !== type) return false;
+    if (sp     && c.salesperson !== sp) return false;
+    if (branch) {
+      const id = (c.id||'').toLowerCase();
+      if (branch==='cnc'  && !id.includes('_cnc'))  return false;
+      if (branch==='cst'  && !id.includes('_cst'))  return false;
+      if (branch==='cspl' && !id.includes('_cspl')) return false;
     }
     return true;
   });
