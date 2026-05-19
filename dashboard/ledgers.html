@@ -256,37 +256,42 @@ async function lFetch(params) {
   return r.json();
 }
 
-// ── Load all clients ──────────────────────────────────────────
+// ── Load ledger clients ───────────────────────────────────────
 async function loadClients() {
-  const sub = document.getElementById('topbarSub');
+  const sub  = document.getElementById('topbarSub');
   const grid = document.getElementById('ledgerGrid');
+  sub.textContent = 'Loading...';
+  grid.innerHTML  = '<div class="loading-state" style="grid-column:1/-1"><div class="loading-spinner"></div><div>Loading ledger data...</div></div>';
+
   try {
-    sub.textContent = 'Loading...';
-    // Load first 200 fast
-    const first = await lFetch('limit=200&offset=0&order=name.asc');
-    allClients = first || [];
+    // Fetch all clients in pages of 500
+    let all = [], from = 0;
+    while (true) {
+      const batch = await lFetch(`select=id,name,phone,city,address,salesperson,branch,outstanding_amount,outstanding_type,total_invoiced,total_paid,risk_level,transactions,whatsapp&limit=500&offset=${from}&order=outstanding_amount.desc`);
+      if (!Array.isArray(batch) || !batch.length) break;
+      all = all.concat(batch);
+      sub.textContent = `Loading... ${all.length}`;
+      if (batch.length < 500) break;
+      from += 500;
+    }
+
+    // Keep only clients that have ledger data
+    allClients = all.filter(c =>
+      (c.id && c.id.toLowerCase().includes('ledger')) ||
+      (c.outstanding_amount && parseFloat(c.outstanding_amount) > 0) ||
+      (c.total_invoiced && parseFloat(c.total_invoiced) > 0)
+    );
+
     populateDropdowns();
     applyFilters();
-    sub.textContent = `${allClients.length} clients`;
-
-    // Load rest in background
-    if (first.length === 200) {
-      let offset = 200;
-      while(true) {
-        const batch = await lFetch(`limit=500&offset=${offset}&order=name.asc`);
-        if (!batch || !batch.length) break;
-        allClients = allClients.concat(batch);
-        sub.textContent = `Loading... ${allClients.length}`;
-        if (batch.length < 500) break;
-        offset += 500;
-      }
-      populateDropdowns();
-      applyFilters();
-      sub.textContent = `${allClients.length} clients loaded`;
-    }
+    sub.textContent = `${allClients.length} ledger clients loaded`;
   } catch (err) {
     sub.textContent = '⚠️ ' + err.message;
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">⚠️</div><div class="empty-title">Load Failed</div><div class="empty-desc" style="color:red;font-size:12px">${err.message}</div></div>`;
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1">
+      <div class="empty-icon">⚠️</div>
+      <div class="empty-title">Load Failed</div>
+      <div class="empty-desc" style="color:red;font-size:12px;word-break:break-all">${err.message}</div>
+    </div>`;
   }
 }
 
@@ -895,12 +900,8 @@ document.addEventListener('keydown', e => {
 
 document.addEventListener('DOMContentLoaded', () => {
   renderSidebar('ledgers');
-  // Wait for auth-guard to finish before loading data
-  const tryLoad = () => {
-    if (window.authReady) { loadClients(); return; }
-    setTimeout(tryLoad, 150);
-  };
-  tryLoad();
+  // Small delay to let auth-guard initialize, then load
+  setTimeout(loadClients, 800);
 
   // Auto-open if URL has ?open=
   const p = new URLSearchParams(window.location.search);
