@@ -940,9 +940,10 @@ client.on('message', async (message) => {
         const contact = await message.getContact();
         const senderNumber = contact.number;
 
-        if (BOSS_RAW.includes(senderNumber)) {
-            // Direct message (not in group) → AI Assistant
-            if (!chat.isGroup && message.body && !message.body.startsWith('APPROVE') && !message.body.startsWith('REJECT')) {
+        // ── Direct message: ONLY bosses allowed ───────────────
+        if (!chat.isGroup) {
+            if (!BOSS_RAW.includes(senderNumber)) return; // Ignore all non-boss direct messages
+            if (message.body && !message.body.startsWith('APPROVE') && !message.body.startsWith('REJECT')) {
                 await handleBossAIChat(message, senderNumber);
                 return;
             }
