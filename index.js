@@ -718,8 +718,8 @@ function storePayment(name, data) {
     // Save to persistent DB
     savePaymentsDB();
 
-    const newPayment = paymentMemory[key];
-    const lastPay = Array.isArray(newPayment) ? newPayment[newPayment.length-1] : newPayment;
+    const savedPayment = paymentMemory[key];
+    const lastPay = Array.isArray(savedPayment) ? savedPayment[savedPayment.length-1] : savedPayment;
     if (lastPay) syncSupabaseNoId('payments', {
         client_key: cleanKey(name), client_name: name,
         amount: Number(String(lastPay.amount||0).replace(/,/g,''))||0,
