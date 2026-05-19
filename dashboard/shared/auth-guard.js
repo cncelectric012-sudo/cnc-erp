@@ -128,6 +128,12 @@
         renderSidebar(activePage);
       }
       addUserBox(appUser?.name || user.email.split('@')[0], role);
+      // Load AI chat widget
+      if (!document.getElementById('cnc-ai-btn')) {
+        const s = document.createElement('script');
+        s.src = 'shared/ai-chat.js';
+        document.head.appendChild(s);
+      }
     }, 100);
   }
 
@@ -225,6 +231,12 @@
         renderSidebar(document.body.dataset.page || '');
       }
       addUserBox(appSess.name || appSess.username, appSess.role_id);
+      // Load AI chat widget
+      if (!document.getElementById('cnc-ai-btn')) {
+        const s = document.createElement('script');
+        s.src = 'shared/ai-chat.js';
+        document.head.appendChild(s);
+      }
     }, 100);
   }
 
