@@ -254,7 +254,7 @@ const LHDR = { 'apikey': LKEY, 'Authorization': 'Bearer ' + LKEY };
 async function loadClients() {
   try {
     // Load only ledger sources — not bare excel clients
-    const LEDGER_FILTER = 'source=in.(cnc_ledger,cst_ledger,cspl_ledger,pdf)';
+    const LEDGER_FILTER = 'outstanding_amount=gt.0';
     let rows = [], offset = 0;
     while(true) {
       const r = await fetch(`${LAPI}/clients?${LEDGER_FILTER}&limit=500&offset=${offset}&order=outstanding_amount.desc`, { headers: LHDR });
