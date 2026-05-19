@@ -254,7 +254,7 @@ const LHDR = { 'apikey': LKEY, 'Authorization': 'Bearer ' + LKEY };
 async function loadClients() {
   try {
     // Load only ledger sources — not bare excel clients
-    const LEDGER_FILTER = 'source=in.(cnc_ledger,cst_ledger,cspl_ledger,pdf)&outstanding_amount=gt.0';
+    const LEDGER_FILTER = 'source=in.(cnc_ledger,cst_ledger,cspl_ledger,pdf)';
     let rows = [], offset = 0;
     while(true) {
       const r = await fetch(`${LAPI}/clients?${LEDGER_FILTER}&limit=500&offset=${offset}&order=outstanding_amount.desc`, { headers: LHDR });
@@ -323,7 +323,7 @@ function applyFilters() {
   });
 
   // Sort
-  if (currentSort === 'outstanding') filtered.sort((a,b)=>num(b.outstandingAmount)-num(a.outstandingAmount));
+  if (currentSort === 'outstanding') filtered.sort((a,b)=>num(b.outstanding_amount)-num(a.outstanding_amount));
   else if (currentSort === 'sales')  filtered.sort((a,b)=>num(b.totalInvoiced)-num(a.totalInvoiced));
   else if (currentSort === 'name')   filtered.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   else if (currentSort === 'risk')   {
