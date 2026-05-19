@@ -92,20 +92,12 @@
           <div class="config-card-title">📊 AI Analysis Features</div>
           <div class="config-card-sub">Select karo kahan AI use karni hai</div>
           <div class="feature-grid">
-            ${[
-              ['ai-invoice','Invoice auto-analysis','Discount check, client risk, payment history'],
-              ['ai-payment','Payment risk analysis','Bank SMS patterns, fraud detection'],
-              ['ai-client','Client behavior analysis','Payment patterns, risk scoring'],
-              ['ai-ledger','Ledger summarization','Monthly reports, trend analysis'],
-              ['ai-approval','Smart approval suggestions','Based on history + risk factors'],
-              ['ai-alerts','Anomaly alerts','Unusual payment patterns, velocity'],
-            ].map(([id,label,desc])=>`
-            <div class="feature-item">
-              <div>
-                <label><input type="checkbox" id="${id}" checked/> ${label}</label>
-                <div class="feature-desc">${desc}</div>
-              </div>
-            </div>`).join('')}
+            <div class="feature-item"><div><label><input type="checkbox" id="ai-invoice" checked/> Invoice auto-analysis</label><div class="feature-desc">Discount check, client risk, payment history</div></div></div>
+            <div class="feature-item"><div><label><input type="checkbox" id="ai-payment" checked/> Payment risk analysis</label><div class="feature-desc">Bank SMS patterns, fraud detection</div></div></div>
+            <div class="feature-item"><div><label><input type="checkbox" id="ai-client" checked/> Client behavior analysis</label><div class="feature-desc">Payment patterns, risk scoring</div></div></div>
+            <div class="feature-item"><div><label><input type="checkbox" id="ai-ledger" checked/> Ledger summarization</label><div class="feature-desc">Monthly reports, trend analysis</div></div></div>
+            <div class="feature-item"><div><label><input type="checkbox" id="ai-approval" checked/> Smart approval suggestions</label><div class="feature-desc">Based on history + risk factors</div></div></div>
+            <div class="feature-item"><div><label><input type="checkbox" id="ai-alerts" checked/> Anomaly alerts</label><div class="feature-desc">Unusual payment patterns, velocity</div></div></div>
           </div>
         </div>
       </div>
@@ -131,24 +123,9 @@
           </div>
 
           <div class="config-card-title" style="margin-top:16px;margin-bottom:8px">WhatsApp Groups</div>
-          ${[
-            ['💳','Payments Group','Payment screenshots → auto-parse + alert bosses','PAYMENTS_GROUP'],
-            ['📄','CS Invoices Approval','Invoice PDFs → discount check → auto/manual approve','INVOICE_GROUP'],
-            ['📊','Account Group','Account alerts and updates','ACCOUNT_GROUP'],
-          ].map(([ico,name,desc,env])=>`
-          <div class="wa-group-card">
-            <div style="display:flex;gap:10px;align-items:center">
-              <span style="font-size:20px">${ico}</span>
-              <div>
-                <div style="font-weight:600;font-size:13px">${name}</div>
-                <div style="font-size:11px;color:var(--text-3)">${desc}</div>
-              </div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-size:10px;color:var(--text-3);font-family:var(--font-mono)">${env}</div>
-              <span class="badge badge-green" style="margin-top:4px">Active</span>
-            </div>
-          </div>`).join('')}
+          <div class="wa-group-card"><div style="display:flex;gap:10px;align-items:center"><span style="font-size:20px">💳</span><div><div style="font-weight:600;font-size:13px">Payments Group</div><div style="font-size:11px;color:var(--text-3)">Payment screenshots → auto-parse + alert bosses</div></div></div><div style="text-align:right"><div style="font-size:10px;color:var(--text-3);font-family:var(--font-mono)">PAYMENTS_GROUP</div><span class="badge badge-green" style="margin-top:4px">Active</span></div></div>
+          <div class="wa-group-card"><div style="display:flex;gap:10px;align-items:center"><span style="font-size:20px">📄</span><div><div style="font-weight:600;font-size:13px">CS Invoices Approval</div><div style="font-size:11px;color:var(--text-3)">Invoice PDFs → discount check → auto/manual approve</div></div></div><div style="text-align:right"><div style="font-size:10px;color:var(--text-3);font-family:var(--font-mono)">INVOICE_GROUP</div><span class="badge badge-green" style="margin-top:4px">Active</span></div></div>
+          <div class="wa-group-card"><div style="display:flex;gap:10px;align-items:center"><span style="font-size:20px">📊</span><div><div style="font-weight:600;font-size:13px">Account Group</div><div style="font-size:11px;color:var(--text-3)">Account alerts and updates</div></div></div><div style="text-align:right"><div style="font-size:10px;color:var(--text-3);font-family:var(--font-mono)">ACCOUNT_GROUP</div><span class="badge badge-green" style="margin-top:4px">Active</span></div></div>
         </div>
 
         <div class="config-card">
@@ -175,23 +152,12 @@
           <div class="config-card-title">⚡ Automation Rules</div>
           <div class="config-card-sub">Kaunsi cheezein automatically ho jaayein</div>
 
-          ${[
-            ['auto-bank-match','Bank SMS → PayGate auto-match','Bank payment aate hi PayGate entry se match karo','payments.view'],
-            ['auto-ledger-update','Payment → Ledger auto-update','Verified payment pe client outstanding reduce karo','payments.view'],
-            ['auto-invoice-approve','Invoice auto-approval','Payment + policy check ke baad auto approve/reject','approvals.manage'],
-            ['auto-risk-score','Daily risk recalculation','Har raat clients ka risk score update karo','dashboard.view'],
-            ['auto-overdue-alert','Overdue WhatsApp alerts','60+ din overdue clients pe boss ko alert','approvals.manage'],
-            ['auto-duplicate-check','Duplicate payment detection','Same amount same day → flag karo','payments.view'],
-          ].map(([id,label,desc,perm])=>`
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--surface-2);border-radius:8px;margin-bottom:8px">
-            <div>
-              <div style="font-weight:600;font-size:13px">${label}</div>
-              <div style="font-size:11px;color:var(--text-3)">${desc}</div>
-            </div>
-            <label style="cursor:pointer">
-              <input type="checkbox" id="${id}" checked style="width:18px;height:18px;accent-color:var(--brand)"/>
-            </label>
-          </div>`).join('')}
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--surface-2);border-radius:8px;margin-bottom:8px"><div><div style="font-weight:600;font-size:13px">Bank SMS → PayGate auto-match</div><div style="font-size:11px;color:var(--text-3)">Bank payment aate hi PayGate entry se match karo</div></div><label style="cursor:pointer"><input type="checkbox" id="auto-bank-match" checked style="width:18px;height:18px;accent-color:var(--brand)"/></label></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--surface-2);border-radius:8px;margin-bottom:8px"><div><div style="font-weight:600;font-size:13px">Payment → Ledger auto-update</div><div style="font-size:11px;color:var(--text-3)">Verified payment pe client outstanding reduce karo</div></div><label style="cursor:pointer"><input type="checkbox" id="auto-ledger-update" checked style="width:18px;height:18px;accent-color:var(--brand)"/></label></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--surface-2);border-radius:8px;margin-bottom:8px"><div><div style="font-weight:600;font-size:13px">Invoice auto-approval</div><div style="font-size:11px;color:var(--text-3)">Payment + policy check ke baad auto approve/reject</div></div><label style="cursor:pointer"><input type="checkbox" id="auto-invoice-approve" checked style="width:18px;height:18px;accent-color:var(--brand)"/></label></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--surface-2);border-radius:8px;margin-bottom:8px"><div><div style="font-weight:600;font-size:13px">Daily risk recalculation</div><div style="font-size:11px;color:var(--text-3)">Har raat clients ka risk score update karo</div></div><label style="cursor:pointer"><input type="checkbox" id="auto-risk-score" checked style="width:18px;height:18px;accent-color:var(--brand)"/></label></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--surface-2);border-radius:8px;margin-bottom:8px"><div><div style="font-weight:600;font-size:13px">Overdue WhatsApp alerts</div><div style="font-size:11px;color:var(--text-3)">60+ din overdue clients pe boss ko alert</div></div><label style="cursor:pointer"><input type="checkbox" id="auto-overdue-alert" checked style="width:18px;height:18px;accent-color:var(--brand)"/></label></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--surface-2);border-radius:8px;margin-bottom:8px"><div><div style="font-weight:600;font-size:13px">Duplicate payment detection</div><div style="font-size:11px;color:var(--text-3)">Same amount same day → flag karo</div></div><label style="cursor:pointer"><input type="checkbox" id="auto-duplicate-check" checked style="width:18px;height:18px;accent-color:var(--brand)"/></label></div>
         </div>
 
         <div class="config-card">

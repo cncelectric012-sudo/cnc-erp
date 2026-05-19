@@ -218,13 +218,13 @@ ${Array.isArray(paygate)?paygate.slice(0,5).map(p=>`  ${p.customer}: PKR ${(p.am
 
       messages.push({ role:'user', content:`Context:\n${context}\n\nQuestion: ${q}` });
 
-      const r = await fetch('https://api.anthropic.com/v1/messages', {
+      const r = await fetch('/api/ai-chat', {
         method:'POST',
-        headers:{ 'x-api-key':claudeKey, 'anthropic-version':'2023-06-01', 'content-type':'application/json' },
+        headers:{ 'content-type':'application/json', 'x-claude-key':claudeKey },
         body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:800, messages: messages.slice(-6) })
       });
       const data = await r.json();
-      const reply = data.content?.[0]?.text || 'Koi jawab nahi mila.';
+      const reply = data.content?.[0]?.text || data.error || 'Koi jawab nahi mila.';
       messages.push({ role:'assistant', content:reply });
 
       thinkEl.remove();
