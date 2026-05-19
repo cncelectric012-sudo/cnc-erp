@@ -255,7 +255,7 @@ async function loadClients() {
   try {
     let rows = [], offset = 0;
     while(true) {
-      const r = await fetch(`${LAPI}/clients?limit=500&offset=${offset}&order=outstanding_amount.desc.nullslast`, { headers: LHDR });
+      const r = await fetch(`${LAPI}/clients?limit=500&offset=${offset}&order=name.asc`, { headers: LHDR });
       const data = await r.json();
       if(!Array.isArray(data) || !data.length) break;
       rows = rows.concat(data);
