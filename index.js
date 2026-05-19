@@ -966,14 +966,10 @@ client.on('message', async (message) => {
                     const raw = response.content[0].text;
                     const m = raw.match(/\{[\s\S]*\}/);
                     const p = m ? JSON.parse(m[0]) : {};
-                    await chat.sendMessage(
-                        `✅ *Payment Approved*\n${'─'.repeat(30)}\n` +
-                        `Amount: PKR ${p.amount||'—'}\nBank: ${p.bank||'—'}\n${p.client?'Client: '+p.client+'\n':''}` +
-                        `${'─'.repeat(30)}\nAuto-approved ✅`
-                    );
-                    console.log(`✅ Payment Approval group: auto approved PKR ${p.amount}`);
+                    // Silent — no group message
+                    console.log(`✅ Payment Approval group: silently processed PKR ${p.amount}`);
                 } catch(e) {
-                    await chat.sendMessage('✅ Payment screenshot received and approved.');
+                    // Silent — no group message
                 }
             }
         }
@@ -1012,11 +1008,12 @@ client.on('message', async (message) => {
                                     `Portal: PKR ${sbOs.toLocaleString()}\n` +
                                     `Difference: PKR ${diff.toLocaleString()}\n${'─'.repeat(35)}\n` +
                                     `Please verify.`;
+                                // Alert bosses privately only — no group message
                                 for (const num of BOSS_NUMBERS) await client.sendMessage(num, discMsg);
-                                await chat.sendMessage(discMsg);
                                 console.log(`⚠️ Ledger discrepancy: ${data.client_name} — diff PKR ${diff}`);
                             } else {
-                                await chat.sendMessage(`✅ *${data.client_name}* — Ledger matches portal ✅\nOutstanding: PKR ${sbOs.toLocaleString()}`);
+                                // Silent — match confirmed, no group message
+                                console.log(`✅ Account match: ${data.client_name} PKR ${sbOs.toLocaleString()}`);
                             }
                         }
                     } catch(e) { console.error('Account compare error:', e.message); }
@@ -1202,18 +1199,6 @@ Return ONLY the client name, nothing else. No explanation.`
 
         // ── Update Supabase ledger automatically ──────────────
         await updateSupabaseLedger(p.sender_name, p.amount, p.date, p.bank, p.txnId);
-
-        // Notify in Payments group
-        if (chat) {
-            try {
-                await chat.sendMessage(
-                    `💳 *Payment Recorded*\n${'─'.repeat(28)}\n` +
-                    `Client: *${p.sender_name}*\nAmount: PKR ${Number(p.amount).toLocaleString()}\n` +
-                    `Bank: ${p.bank||'—'} | Date: ${p.date||'Today'}\n${'─'.repeat(28)}\n` +
-                    `Ledger updated ✅`
-                );
-            } catch(e) {}
-        }
 
         // Record salesperson for payment
         try {
