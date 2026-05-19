@@ -256,39 +256,61 @@ async function lFetch(params) {
   return r.json();
 }
 
-// ── Load from ledgers table ───────────────────────────────────
+// ── Load from ledgers view ────────────────────────────────────
 async function loadClients() {
   const sub  = document.getElementById('topbarSub');
   const grid = document.getElementById('ledgerGrid');
-  sub.textContent = 'Loading...';
-  grid.innerHTML  = '<div class="loading-state" style="grid-column:1/-1"><div class="loading-spinner"></div><div>Loading ledger data...</div></div>';
+
+  // Step 1: update UI immediately
+  sub.textContent  = 'Loading...';
+  grid.innerHTML   = '<div class="loading-state" style="grid-column:1/-1"><div class="loading-spinner"></div><div id="loadMsg">Fetching data...</div></div>';
+
+  const setMsg = t => { const el=document.getElementById('loadMsg'); if(el) el.textContent=t; };
 
   try {
+    setMsg('Connecting to Supabase...');
     let all = [], from = 0;
+
     while (true) {
-      const r = await fetch(
-        `${LAPI}/ledgers?limit=500&offset=${from}&order=outstanding_amount.desc`,
-        { headers: LHDR }
-      );
-      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      const url = `${LAPI}/ledgers?limit=500&offset=${from}&order=outstanding_amount.desc`;
+      setMsg(`Fetching rows ${from}–${from+500}...`);
+      const r = await fetch(url, { headers: LHDR });
+      if (!r.ok) {
+        const txt = await r.text();
+        throw new Error(`HTTP ${r.status} — ${txt.slice(0,200)}`);
+      }
       const batch = await r.json();
-      if (!Array.isArray(batch) || !batch.length) break;
+      if (!Array.isArray(batch)) {
+        throw new Error(`Expected array, got: ${JSON.stringify(batch).slice(0,200)}`);
+      }
+      if (!batch.length) break;
       all = all.concat(batch);
-      sub.textContent = `Loading... ${all.length}`;
+      setMsg(`Loaded ${all.length} clients...`);
       if (batch.length < 500) break;
       from += 500;
     }
 
+    setMsg(`Rendering ${all.length} clients...`);
     allClients = all;
-    populateDropdowns();
-    applyFilters();
+    sub.textContent = `${allClients.length} clients`;
+
+    // Step 2: populate dropdowns safely
+    try { populateDropdowns(); } catch(e) { console.warn('populateDropdowns error:', e); }
+
+    // Step 3: render directly — bypass applyFilters for first render
+    filtered = allClients;
+    updateKPIs();
+    renderGrid();
+
     sub.textContent = `${allClients.length} ledger clients loaded`;
+
+    // Step 4: hook up live filtering
+    document.getElementById('s-name')?.addEventListener('input', applyFilters);
+
   } catch (err) {
     sub.textContent = '⚠️ ' + err.message;
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1">
-      <div class="empty-icon">⚠️</div>
-      <div class="empty-title">Load Failed</div>
-      <div class="empty-desc" style="color:red;font-size:12px;word-break:break-all">${err.message}</div>
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:40px;text-align:center;color:red;font-size:13px;word-break:break-all">
+      <b>⚠️ Error:</b><br><br>${err.message}
     </div>`;
   }
 }
@@ -898,8 +920,7 @@ document.addEventListener('keydown', e => {
 
 document.addEventListener('DOMContentLoaded', () => {
   renderSidebar('ledgers');
-  // Small delay to let auth-guard initialize, then load
-  setTimeout(loadClients, 800);
+  setTimeout(loadClients, 1200);
 
   // Auto-open if URL has ?open=
   const p = new URLSearchParams(window.location.search);
