@@ -1694,7 +1694,7 @@ async function fetchClientsFromSupabase() {
     try {
         const https = require('https');
         return new Promise(resolve => {
-            const path = '/rest/v1/clients?outstanding_amount=gt.0&outstanding_type=eq.Dr&select=id,name,phone,outstanding_amount,branch,salesperson&order=outstanding_amount.desc&limit=1000';
+            const path = '/rest/v1/clients?outstanding_amount=gt.0&outstanding_type=eq.Dr&source=in.(cnc_ledger,cspl_ledger,cst_ledger)&select=id,name,phone,outstanding_amount,branch,salesperson&order=outstanding_amount.desc&limit=1000';
             const opts = { hostname: new URL(SUPABASE_URL).hostname, path, headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } };
             https.get(opts, res => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>resolve(JSON.parse(d)||[])); }).on('error',()=>resolve([]));
         });
