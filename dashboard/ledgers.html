@@ -236,15 +236,7 @@ let currentSort = 'outstanding';
 let currentClient = null; // for modal
 let currentTab = 'all';
 
-// ── Formatters ─────────────────────────────────────────────────
-const num = v => { const n = parseFloat(String(v||0).replace(/,/g,'')); return isNaN(n)?0:n; };
-const fmt = n => new Intl.NumberFormat('en-PK',{maximumFractionDigits:0}).format(Math.round(n||0));
-const fmtK = n => {
-  if (n>=10000000) return (n/10000000).toFixed(1)+' Cr';
-  if (n>=100000)   return (n/100000).toFixed(1)+' L';
-  if (n>=1000)     return (n/1000).toFixed(1)+' K';
-  return Math.round(n).toString();
-};
+// num, fmt, fmtK already defined in core.js
 
 const LAPI = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
 const LKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmFheHl3bGZwb21sYXRwaXVhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkzMjI4NSwiZXhwIjoyMDkzNTA4Mjg1fQ.vsCZIT5ER1DVBPvRGt8Ai-cYtUD0rosyxNEBi5T2NCo';
