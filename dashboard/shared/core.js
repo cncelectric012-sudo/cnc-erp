@@ -178,6 +178,7 @@ function renderSidebar(activePage) {
         item('decision','⚡','Invoice Decision','dashboard.view'),
         item('policy','⚙️','Policy Settings','dashboard.view'),
         item('controls','🎛️','Parameters','dashboard.view'),
+        item('bot-controls','🤖','Bot Controls','dashboard.view'),
       ]
     },
     {

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bot Controls · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.toggle-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;transition:all .2s}
+.toggle-card.active{border-color:var(--green);background:var(--green-50)}
+.toggle-card.inactive{border-color:var(--border);opacity:.8}
+.toggle-info{display:flex;align-items:center;gap:14px}
+.toggle-icon{font-size:28px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;flex-shrink:0}
+.toggle-icon.active{background:var(--green-50)}
+.toggle-icon.inactive{background:var(--surface-2)}
+.toggle-name{font-size:15px;font-weight:700}
+.toggle-desc{font-size:12px;color:var(--text-3);margin-top:3px}
+
+/* Toggle Switch */
+.switch{position:relative;display:inline-block;width:52px;height:28px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:var(--surface-3);border-radius:28px;transition:.3s}
+.slider:before{content:'';position:absolute;height:22px;width:22px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.3s;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+input:checked + .slider{background:var(--green)}
+input:checked + .slider:before{transform:translateX(24px)}
+
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;margin-left:10px}
+.status-badge.on{background:var(--green-50);color:var(--green)}
+.status-badge.off{background:var(--red-50);color:var(--red)}
+</style>
+</head>
+<body data-page="bot-controls">
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">🤖 WhatsApp Bot Controls</div>
+        <div class="topbar-sub" id="botSub">Loading settings...</div>
+      </div>
+    </div>
+
+    <div class="content" style="max-width:700px">
+
+      <div style="background:var(--blue-50);border:1px solid var(--blue-100);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--blue)">
+        💡 Toggle on/off karo — changes <b>foran active</b> ho jaenge bot mein
+      </div>
+
+      <div id="togglesContainer">
+        <div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Loading...</div></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script>
+const API = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmFheHl3bGZwb21sYXRwaXVhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkzMjI4NSwiZXhwIjoyMDkzNTA4Mjg1fQ.vsCZIT5ER1DVBPvRGt8Ai-cYtUD0rosyxNEBi5T2NCo';
+const HDR = {'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json'};
+
+const TOGGLES = [
+  {
+    key: 'payment_approval',
+    name: 'Payment Approval',
+    desc: '"Payment Approval" group — screenshot auto approve karo',
+    icon: '✅',
+    group: 'Payment Approval Group'
+  },
+  {
+    key: 'payments_ledger',
+    name: 'Payments → Ledger Update',
+    desc: '"Payments" group — payment aane pe client ledger auto update',
+    icon: '💳',
+    group: 'Payments Group'
+  },
+  {
+    key: 'invoice_approval',
+    name: 'CS Invoices Approval',
+    desc: '"CS Invoices Approval" group — invoice auto/manual approve (3L threshold)',
+    icon: '📄',
+    group: 'CS Invoices Approval Group'
+  },
+  {
+    key: 'account_check',
+    name: 'Account Discrepancy Check',
+    desc: '"Account" group — CFO screenshot ko portal se compare karo',
+    icon: '🏦',
+    group: 'Account Group'
+  },
+  {
+    key: 'ledgers_send',
+    name: 'Daily Ledger Send (8 PM)',
+    desc: 'Roz 8 PM — sab clients ko outstanding + bosses ko report',
+    icon: '📊',
+    group: 'Scheduled'
+  },
+];
+
+let settings = {};
+
+async function loadSettings() {
+  try {
+    const r = await fetch(`${API}/bot_settings`, { headers: HDR });
+    const data = await r.json();
+    if (Array.isArray(data)) {
+      data.forEach(s => settings[s.key] = s.value);
+    }
+    renderToggles();
+    document.getElementById('botSub').textContent = 'Settings loaded — changes foran active honge';
+  } catch(e) {
+    document.getElementById('botSub').textContent = '⚠️ Error loading settings';
+  }
+}
+
+async function toggleSetting(key, value) {
+  settings[key] = value;
+  renderToggles();
+  try {
+    await fetch(`${API}/bot_settings?key=eq.${key}`, {
+      method: 'PATCH',
+      headers: { ...HDR, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ value, updated_at: new Date().toISOString() })
+    });
+    showToast(value ? '✅ Feature ON' : '⛔ Feature OFF', value ? '✅' : '⛔');
+  } catch(e) {
+    showToast('Error saving', '❌');
+  }
+}
+
+function renderToggles() {
+  const container = document.getElementById('togglesContainer');
+  container.innerHTML = TOGGLES.map(t => {
+    const isOn = settings[t.key] !== false;
+    return `
+    <div class="toggle-card ${isOn?'active':'inactive'}">
+      <div class="toggle-info">
+        <div class="toggle-icon ${isOn?'active':'inactive'}">${t.icon}</div>
+        <div>
+          <div class="toggle-name">
+            ${t.name}
+            <span class="status-badge ${isOn?'on':'off'}">${isOn?'● ON':'● OFF'}</span>
+          </div>
+          <div class="toggle-desc">${t.desc}</div>
+          <div style="font-size:10px;color:var(--text-4);margin-top:3px">Group: ${t.group}</div>
+        </div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" ${isOn?'checked':''} onchange="toggleSetting('${t.key}', this.checked)"/>
+        <span class="slider"></span>
+      </label>
+    </div>`;
+  }).join('');
+}
+
+const waitAuth = setInterval(()=>{ if(window.authReady){ clearInterval(waitAuth); loadSettings(); }}, 100);
+setTimeout(()=>clearInterval(waitAuth), 10000);
+</script>
+</body>
+</html>

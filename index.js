@@ -74,6 +74,17 @@ function supabasePatch(path, body) {
 
 function normName(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
 
+// ─── Bot Settings from Supabase ───────────────────────────
+let botSettings = {};
+async function loadBotSettings() {
+    try {
+        const data = await supabaseGet('/rest/v1/bot_settings?select=key,value');
+        if (Array.isArray(data)) data.forEach(s => botSettings[s.key] = s.value);
+        console.log('⚙️ Bot settings:', JSON.stringify(botSettings));
+    } catch(e) { console.error('Bot settings load error:', e.message); }
+}
+function isEnabled(key) { return botSettings[key] !== false; }
+
 async function getClientFromSupabase(clientName) {
     const n = normName(clientName);
     const data = await supabaseGet('/rest/v1/clients?select=id,name,outstanding_amount,outstanding_type,transactions,branch&source=in.(cnc_ledger,cspl_ledger,cst_ledger)&limit=500');
@@ -930,7 +941,7 @@ client.on('message', async (message) => {
         }
 
         // ── Payment Approval Group → Auto Approve ─────────────
-        if (chatName === PAYMENT_APPROVAL_GROUP && message.hasMedia) {
+        if (chatName === PAYMENT_APPROVAL_GROUP && message.hasMedia && isEnabled('payment_approval')) {
             const media = await message.downloadMedia();
             if (media && media.mimetype && media.mimetype.startsWith('image/')) {
                 try {
@@ -957,7 +968,7 @@ client.on('message', async (message) => {
         }
 
         // ── Payments Group → read + update Supabase ledger ────
-        if (chatName === PAYMENTS_GROUP && message.hasMedia) {
+        if (chatName === PAYMENTS_GROUP && message.hasMedia && isEnabled('payments_ledger')) {
             const media = await message.downloadMedia();
             if (media && media.mimetype && media.mimetype.startsWith('image/')) {
                 const caption = message.body ? message.body.trim() : '';
@@ -965,7 +976,7 @@ client.on('message', async (message) => {
             }
         }
 
-        if (chatName === ACCOUNT_GROUP && message.hasMedia) {
+        if (chatName === ACCOUNT_GROUP && message.hasMedia && isEnabled("account_check")) {
             const media = await message.downloadMedia();
             if (media && media.mimetype && media.mimetype.startsWith('image/')) {
                 const caption = message.body ? message.body.trim() : '';
@@ -1002,7 +1013,7 @@ client.on('message', async (message) => {
             }
         }
 
-        if (chatName === INVOICE_GROUP && message.hasMedia) {
+        if (chatName === INVOICE_GROUP && message.hasMedia && isEnabled("invoice_approval")) {
             const media = await message.downloadMedia();
             if (media && media.mimetype === 'application/pdf') {
                 const caption = message.body ? message.body.trim() : '';
@@ -1839,6 +1850,8 @@ function fmtPKR(n) {
 }
 
 async function sendDailyLedgerReports() {
+    await loadBotSettings();
+    if (!isEnabled('ledgers_send')) { console.log('⏸️ Ledger send disabled'); return; }
     console.log('📊 Daily report starting...');
     const clients = await fetchClientsFromSupabase();
     if (!clients.length) { console.log('No clients found'); return; }
@@ -1933,6 +1946,7 @@ async function start() {
     loadDecisionsDB();
     loadSalespersonDB();
     loadPriceList();
+    await loadBotSettings();
     await loadAllLedgerPDFs();
 
     // Check commitments every 6 hours
