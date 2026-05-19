@@ -918,9 +918,14 @@ document.addEventListener('keydown', e => {
   if (e.key==='Escape') closeModal();
 });
 
+// Guaranteed load — fires after everything is ready
+window.addEventListener('load', () => {
+  try { renderSidebar('ledgers'); } catch(e) {}
+  setTimeout(loadClients, 300);
+});
+
 document.addEventListener('DOMContentLoaded', () => {
-  renderSidebar('ledgers');
-  setTimeout(loadClients, 1200);
+  try { renderSidebar('ledgers'); } catch(e) {}
 
   // Auto-open if URL has ?open=
   const p = new URLSearchParams(window.location.search);
