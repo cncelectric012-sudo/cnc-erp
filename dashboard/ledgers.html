@@ -250,21 +250,18 @@ const LAPI = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
 const LKEY = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
 const LHDR = { 'apikey': LKEY, 'Authorization': 'Bearer ' + LKEY };
 
-// ── Load ── only ledger clients (with outstanding or transactions) ──
+// ── Load all clients ──────────────────────────────────────────
 async function loadClients() {
   try {
-    // Load only ledger sources — not bare excel clients
-    const LEDGER_FILTER = 'outstanding_amount=gt.0';
     let rows = [], offset = 0;
     while(true) {
-      const r = await fetch(`${LAPI}/clients?${LEDGER_FILTER}&limit=500&offset=${offset}&order=outstanding_amount.desc`, { headers: LHDR });
+      const r = await fetch(`${LAPI}/clients?limit=500&offset=${offset}&order=outstanding_amount.desc.nullslast`, { headers: LHDR });
       const data = await r.json();
       if(!Array.isArray(data) || !data.length) break;
       rows = rows.concat(data);
       if(data.length < 500) break;
       offset += 500;
     }
-    // Also load any PDF-uploaded clients
     allClients = rows;
     populateDropdowns();
     applyFilters();
@@ -273,8 +270,8 @@ async function loadClients() {
     document.getElementById('ledgerGrid').innerHTML =
       `<div class="empty" style="grid-column:1/-1">
         <div class="empty-icon">⚠️</div>
-        <div class="empty-title">Load failed</div>
-        <div class="empty-desc">${err.message}</div>
+        <div class="empty-title">Load failed: ${err.message}</div>
+        <div class="empty-desc">Check browser console (F12) for details</div>
       </div>`;
   }
 }
