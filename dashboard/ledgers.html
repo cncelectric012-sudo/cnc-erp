@@ -252,13 +252,34 @@ const LHDR = { 'apikey': LKEY, 'Authorization': 'Bearer ' + LKEY };
 
 // ── Load all clients ──────────────────────────────────────────
 async function loadClients() {
+  const grid = document.getElementById('ledgerGrid');
+  const showErr = msg => {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">⚠️</div><div class="empty-title">Error</div><div class="empty-desc" style="font-size:12px;color:red">${msg}</div></div>`;
+  };
   try {
+    grid.innerHTML = `<div class="loading-state" style="grid-column:1/-1"><div class="loading-spinner"></div><div>Connecting to Supabase...</div></div>`;
+
+    const testUrl = `${LAPI}/clients?limit=1`;
+    const testR = await fetch(testUrl, { headers: LHDR });
+    const testData = await testR.json();
+
+    if (!testR.ok) {
+      showErr(`HTTP ${testR.status}: ${JSON.stringify(testData)}`);
+      return;
+    }
+    if (!Array.isArray(testData)) {
+      showErr(`Unexpected response: ${JSON.stringify(testData).slice(0,200)}`);
+      return;
+    }
+
+    grid.innerHTML = `<div class="loading-state" style="grid-column:1/-1"><div class="loading-spinner"></div><div>Loading clients...</div></div>`;
     let rows = [], offset = 0;
     while(true) {
       const r = await fetch(`${LAPI}/clients?limit=500&offset=${offset}&order=name.asc`, { headers: LHDR });
       const data = await r.json();
       if(!Array.isArray(data) || !data.length) break;
       rows = rows.concat(data);
+      grid.innerHTML = `<div class="loading-state" style="grid-column:1/-1"><div class="loading-spinner"></div><div>Loaded ${rows.length} clients...</div></div>`;
       if(data.length < 500) break;
       offset += 500;
     }
@@ -267,12 +288,7 @@ async function loadClients() {
     applyFilters();
     document.getElementById('topbarSub').textContent = `${allClients.length} clients loaded`;
   } catch (err) {
-    document.getElementById('ledgerGrid').innerHTML =
-      `<div class="empty" style="grid-column:1/-1">
-        <div class="empty-icon">⚠️</div>
-        <div class="empty-title">Load failed: ${err.message}</div>
-        <div class="empty-desc">Check browser console (F12) for details</div>
-      </div>`;
+    showErr(`JS Error: ${err.message}`);
   }
 }
 
