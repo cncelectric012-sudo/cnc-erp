@@ -229,65 +229,56 @@
         <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" id="kv-pending">—</div></div>
       </div>
 
-      <!-- hidden for applyFilters compatibility -->
+      <!-- Toolbar — same style as clients.html -->
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <input class="input" style="width:200px" id="s-name" placeholder="Search name, phone, city..." oninput="applyFilters()"/>
+          <select class="input" style="width:150px" id="s-salesperson" onchange="applyFilters()">
+            <option value="">All Sales Reps</option>
+          </select>
+          <select class="input" style="width:130px" id="s-branch" onchange="applyFilters()">
+            <option value="">All Branches</option>
+            <option value="cnc">CNC</option>
+            <option value="cst">CS Traders</option>
+            <option value="cspl">Cog. Solutions</option>
+          </select>
+          <select class="input" style="width:110px" id="s-type" onchange="applyFilters()">
+            <option value="">Dr / Cr: All</option>
+            <option value="Dr">Dr</option>
+            <option value="Cr">Cr</option>
+          </select>
+          <select class="input" style="width:120px" id="s-risk" onchange="applyFilters()">
+            <option value="">Risk: All</option>
+            <option value="Low">🟢 Low</option>
+            <option value="Medium">🟡 Medium</option>
+            <option value="High">🔴 High</option>
+          </select>
+        </div>
+        <div class="toolbar-right">
+          <span id="ledgerCount" class="text-3" style="font-size:12px;line-height:32px"></span>
+        </div>
+      </div>
+      <!-- hidden for applyFilters compat -->
       <select id="s-outstanding" style="display:none"><option value=""></option></select>
       <select id="s-city" style="display:none"><option value=""></option></select>
 
-      <!-- Table with inline filters -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-        <div style="overflow-x:auto">
-          <table id="ledgerTable" style="width:100%;border-collapse:collapse">
+      <!-- Table — same style as clients.html -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-scroll">
+          <table>
             <thead>
-              <!-- Row 1: Column Labels -->
-              <tr style="background:#F8FAFC;border-bottom:1px solid var(--border)">
-                <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;width:36px">#</th>
-                <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Client Name</th>
-                <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">Branch</th>
-                <th style="padding:10px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;cursor:pointer" onclick="setSort('outstanding')">Outstanding ↕</th>
-                <th style="padding:10px 12px;text-align:center;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">Type</th>
-                <th style="padding:10px 12px;text-align:center;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">Risk</th>
-                <th style="padding:10px 12px;text-align:center;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">Invoices</th>
-                <th style="padding:10px 12px;text-align:center;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">Payments</th>
-                <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">Phone</th>
-                <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">City</th>
-                <th style="padding:10px 12px;text-align:center;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">
-                  <span id="ledgerCount" style="font-weight:500;text-transform:none;letter-spacing:0"></span>
-                </th>
-              </tr>
-              <!-- Row 2: All filters in one row -->
-              <tr style="background:#F1F5F9;border-bottom:2px solid #CBD5E1">
-                <td colspan="11" style="padding:8px 12px">
-                  <div style="display:flex;gap:8px;align-items:center">
-                    <input id="s-name" placeholder="🔍 Search name, phone, city..." oninput="applyFilters()"
-                      style="flex:2;min-width:160px;padding:6px 10px;border:1px solid #CBD5E1;border-radius:6px;font-size:12px;outline:none;background:white"/>
-                    <select id="s-branch" onchange="applyFilters()"
-                      style="flex:1;min-width:120px;padding:6px 8px;border:1px solid #CBD5E1;border-radius:6px;font-size:12px;outline:none;background:white">
-                      <option value="">All Branches</option>
-                      <option value="cnc">CNC</option>
-                      <option value="cst">CS Traders</option>
-                      <option value="cspl">Cog. Solutions</option>
-                    </select>
-                    <select id="s-salesperson" onchange="applyFilters()"
-                      style="flex:1;min-width:120px;padding:6px 8px;border:1px solid #CBD5E1;border-radius:6px;font-size:12px;outline:none;background:white">
-                      <option value="">All Sales Reps</option>
-                    </select>
-                    <select id="s-type" onchange="applyFilters()"
-                      style="min-width:100px;padding:6px 8px;border:1px solid #CBD5E1;border-radius:6px;font-size:12px;outline:none;background:white">
-                      <option value="">Dr / Cr</option>
-                      <option value="Dr">Dr</option>
-                      <option value="Cr">Cr</option>
-                    </select>
-                    <select id="s-risk" onchange="applyFilters()"
-                      style="min-width:100px;padding:6px 8px;border:1px solid #CBD5E1;border-radius:6px;font-size:12px;outline:none;background:white">
-                      <option value="">Risk: All</option>
-                      <option value="Low">🟢 Low</option>
-                      <option value="Medium">🟡 Medium</option>
-                      <option value="High">🔴 High</option>
-                    </select>
-                    <button onclick="document.getElementById('s-name').value='';document.getElementById('s-branch').value='';document.getElementById('s-salesperson').value='';document.getElementById('s-type').value='';document.getElementById('s-risk').value='';applyFilters()"
-                      style="padding:6px 12px;border:1px solid #CBD5E1;border-radius:6px;font-size:12px;background:white;cursor:pointer;color:#6B7280;white-space:nowrap">✕ Clear</button>
-                  </div>
-                </td>
+              <tr>
+                <th>#</th>
+                <th>Client Name</th>
+                <th>Branch</th>
+                <th>Sales Rep</th>
+                <th class="num">Outstanding</th>
+                <th>Type</th>
+                <th>Risk</th>
+                <th>Invoices</th>
+                <th>Payments</th>
+                <th>Phone</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="ledgerGrid">
@@ -543,11 +534,9 @@ function renderGrid() {
     tbody.innerHTML = filtered.map((c, i) => {
       const os   = num(c.outstanding_amount);
       const risk = c.risk_level || 'Medium';
-      const riskColor = risk==='High'?'#DC2626':risk==='Medium'?'#D97706':'#059669';
-      const riskBg    = risk==='High'?'#FEF2F2':risk==='Medium'?'#FFFBEB':'#F0FDF4';
-      const osColor   = os>0?'#DC2626':'#059669';
+      const riskColor = risk==='High'?'var(--red)':risk==='Medium'?'var(--yellow)':'var(--green)';
+      const osColor   = os>0?'var(--red)':'var(--green)';
       const type      = c.outstanding_type||'Dr';
-      const typeColor = type==='Dr'?'#DC2626':'#059669';
 
       let txns=[];
       try { const r=c.transactions; txns=Array.isArray(r)?r:(typeof r==='string'&&r?JSON.parse(r):[]); } catch(e){}
@@ -558,43 +547,26 @@ function renderGrid() {
       const phone  = c.phone||c.whatsapp||'';
       const waNum  = phone?'92'+phone.replace(/^0/,'').replace(/[^0-9]/g,''):'';
       const branch = getBranch(c.id);
-      const rowBg  = i%2===0?'var(--surface)':'#FAFAFA';
 
-      return `<tr style="background:${rowBg};cursor:pointer;border-bottom:1px solid var(--border)"
-          onclick="openModal('${safeId}')"
-          onmouseover="this.style.background='#EFF6FF'"
-          onmouseout="this.style.background='${rowBg}'">
-        <td style="padding:11px 14px;font-size:11px;color:var(--text-3);font-family:var(--font-mono);width:40px">${i+1}</td>
-        <td style="padding:11px 14px;min-width:180px">
-          <div style="font-size:13px;font-weight:600;color:var(--text);line-height:1.3">${c.name||'—'}</div>
-          ${c.salesperson?`<div style="font-size:11px;color:var(--text-3);margin-top:2px">👤 ${c.salesperson}</div>`:''}
-        </td>
-        <td style="padding:11px 14px;white-space:nowrap">
-          ${branch?`<span class="badge ${branch.cls}" style="font-size:11px;font-weight:600">${branch.label}</span>`:`<span style="color:var(--text-4);font-size:12px">—</span>`}
-        </td>
-        <td style="padding:11px 14px;text-align:right;white-space:nowrap">
-          <span style="font-size:14px;font-weight:700;font-family:var(--font-mono);color:${osColor}">PKR ${fmt(os)}</span>
-        </td>
-        <td style="padding:11px 14px;text-align:center">
-          <span style="font-size:11px;font-weight:700;color:${typeColor};background:${type==='Dr'?'#FEF2F2':'#F0FDF4'};padding:3px 10px;border-radius:5px">${type}</span>
-        </td>
-        <td style="padding:11px 14px;text-align:center">
-          <span style="font-size:11px;font-weight:600;color:${riskColor};background:${riskBg};padding:3px 10px;border-radius:5px">${risk}</span>
-        </td>
-        <td style="padding:11px 14px;text-align:center;font-size:13px;font-weight:600;font-family:var(--font-mono);color:var(--text-2)">${invCount}</td>
-        <td style="padding:11px 14px;text-align:center;font-size:13px;font-weight:600;font-family:var(--font-mono);color:#059669">${payCount}</td>
-        <td style="padding:11px 14px;font-size:12px;color:var(--text-2);white-space:nowrap">${phone||'—'}</td>
-        <td style="padding:11px 14px;font-size:12px;color:var(--text-2)">${c.city||'—'}</td>
-        <td style="padding:11px 14px;white-space:nowrap">
-          <div style="display:flex;gap:5px;justify-content:center">
-            ${phone?`<a href="tel:${phone}" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);font-size:12px;text-decoration:none;color:var(--text);transition:all .15s">📞</a>`:''}
-            ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:6px;border:1px solid #86EFAC;background:#F0FDF4;font-size:12px;text-decoration:none;color:#166534">💬</a>`:''}
-          </div>
+      return `<tr onclick="openModal('${safeId}')" style="cursor:pointer">
+        <td>${i+1}</td>
+        <td><b>${c.name||'—'}</b></td>
+        <td>${branch?`<span class="badge ${branch.cls}">${branch.label}</span>`:'—'}</td>
+        <td>${c.salesperson||'—'}</td>
+        <td class="num" style="color:${osColor};font-weight:700">PKR ${fmt(os)}</td>
+        <td><span class="badge ${type==='Dr'?'badge-red':'badge-green'}">${type}</span></td>
+        <td><span class="badge ${risk==='High'?'badge-red':risk==='Medium'?'badge-yellow':'badge-green'}">${risk}</span></td>
+        <td style="text-align:center">${invCount}</td>
+        <td style="text-align:center;color:var(--green)">${payCount}</td>
+        <td>${phone||'—'}</td>
+        <td>
+          ${phone?`<a href="tel:${phone}" onclick="event.stopPropagation()" class="btn btn-ghost btn-sm">📞</a>`:''}
+          ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" onclick="event.stopPropagation()" class="btn btn-ghost btn-sm">💬</a>`:''}
         </td>
       </tr>`;
     }).join('');
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="11" style="padding:40px;text-align:center;color:red;font-size:12px">Error: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="padding:40px;text-align:center;color:red">Error: ${e.message}</td></tr>`;
   }
 }
 
