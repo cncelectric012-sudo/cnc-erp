@@ -38,13 +38,63 @@ function syncSupabaseNoId(table, data, conflictCol) {
 }
 
 // ─── Config ───────────────────────────────────────────────
-const PAYMENTS_GROUP     = process.env.PAYMENTS_GROUP  || 'Payments';
-const INVOICE_GROUP      = process.env.INVOICE_GROUP   || 'CS INVOICES APPROVAL';
-const ACCOUNT_GROUP      = process.env.ACCOUNT_GROUP   || 'Account';
-const REGULAR_LIMIT      = 25;
-const CASH_SALE_LIMIT    = 10;
-const HARD_BLOCK_LIMIT   = 30;
-const LEDGER_BLOCK_LIMIT = 500000;
+const PAYMENTS_GROUP          = process.env.PAYMENTS_GROUP          || 'Payments';
+const INVOICE_GROUP           = process.env.INVOICE_GROUP           || 'CS INVOICES APPROVAL';
+const ACCOUNT_GROUP           = process.env.ACCOUNT_GROUP           || 'Account';
+const PAYMENT_APPROVAL_GROUP  = process.env.PAYMENT_APPROVAL_GROUP  || 'Payment Approval';
+const REGULAR_LIMIT           = 25;
+const CASH_SALE_LIMIT         = 10;
+const HARD_BLOCK_LIMIT        = 30;
+const LEDGER_BLOCK_LIMIT      = 300000; // 3 lakh — manual approval threshold
+const SUPABASE_URL_RAW        = process.env.SUPABASE_URL;
+const SUPABASE_KEY_RAW        = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// ─── Supabase Direct API Helpers ──────────────────────────
+const https = require('https');
+
+function supabaseGet(path) {
+    return new Promise(resolve => {
+        if (!SUPABASE_URL_RAW || !SUPABASE_KEY_RAW) return resolve([]);
+        const url = new URL(SUPABASE_URL_RAW);
+        const opts = { hostname: url.hostname, path, method: 'GET', headers: { 'apikey': SUPABASE_KEY_RAW, 'Authorization': 'Bearer ' + SUPABASE_KEY_RAW } };
+        https.request(opts, res => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>{ try{resolve(JSON.parse(d));}catch{resolve([])}; }); }).on('error',()=>resolve([])).end();
+    });
+}
+
+function supabasePatch(path, body) {
+    return new Promise(resolve => {
+        if (!SUPABASE_URL_RAW || !SUPABASE_KEY_RAW) return resolve(false);
+        const url = new URL(SUPABASE_URL_RAW);
+        const b = JSON.stringify(body);
+        const opts = { hostname: url.hostname, path, method: 'PATCH', headers: { 'apikey': SUPABASE_KEY_RAW, 'Authorization': 'Bearer ' + SUPABASE_KEY_RAW, 'Content-Type': 'application/json', 'Prefer': 'return=minimal', 'Content-Length': Buffer.byteLength(b) } };
+        const req = https.request(opts, res => { res.on('data',()=>{}); res.on('end',()=>resolve(res.statusCode===204||res.statusCode===200)); });
+        req.on('error',()=>resolve(false)); req.write(b); req.end();
+    });
+}
+
+function normName(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+async function getClientFromSupabase(clientName) {
+    const n = normName(clientName);
+    const data = await supabaseGet('/rest/v1/clients?select=id,name,outstanding_amount,outstanding_type,transactions,branch&source=in.(cnc_ledger,cspl_ledger,cst_ledger)&limit=500');
+    if (!Array.isArray(data)) return null;
+    return data.find(c => {
+        const cn = normName(c.name);
+        return cn === n || cn.includes(n) || n.includes(cn);
+    }) || null;
+}
+
+async function updateSupabaseLedger(clientName, paymentAmount, paymentDate, bankName, txnId) {
+    const client = await getClientFromSupabase(clientName);
+    if (!client) { console.log(`⚠️ Client not found in Supabase: ${clientName}`); return; }
+    const amt = parseFloat(String(paymentAmount).replace(/,/g,''))||0;
+    if (amt <= 0) return;
+    const newOs = Math.max(0, (client.outstanding_amount||0) - amt);
+    const txns = Array.isArray(client.transactions) ? client.transactions : [];
+    txns.push({ date: paymentDate||new Date().toISOString().slice(0,10), type:'Payment', voucher: txnId||'WA-PAY', description:`Payment via ${bankName||'bank'} — WhatsApp`, amount: amt });
+    const ok = await supabasePatch(`/rest/v1/clients?id=eq.${client.id}`, { outstanding_amount: newOs, transactions: txns, last_updated: new Date().toISOString() });
+    if (ok) console.log(`✅ Supabase ledger updated: ${clientName} — Outstanding: ${newOs.toLocaleString()}`);
+}
 
 const ALWAYS_APPROVE_CLIENTS = ['cncelectric.pk cod', 'cncelectric.pk', 'cnc electric', 'cncelectric', 'web cod afzaal', 'web cod'];
 
@@ -879,10 +929,39 @@ client.on('message', async (message) => {
             return;
         }
 
+        // ── Payment Approval Group → Auto Approve ─────────────
+        if (chatName === PAYMENT_APPROVAL_GROUP && message.hasMedia) {
+            const media = await message.downloadMedia();
+            if (media && media.mimetype && media.mimetype.startsWith('image/')) {
+                try {
+                    const response = await anthropic.messages.create({
+                        model: 'claude-haiku-4-5-20251001', max_tokens: 200,
+                        messages: [{ role: 'user', content: [
+                            { type: 'image', source: { type: 'base64', media_type: media.mimetype, data: media.data } },
+                            { type: 'text', text: 'Extract payment info. Return ONLY JSON: {"amount":"number","bank":"bank name","client":"client name if visible","txnId":"txn id or empty"}' }
+                        ]}]
+                    });
+                    const raw = response.content[0].text;
+                    const m = raw.match(/\{[\s\S]*\}/);
+                    const p = m ? JSON.parse(m[0]) : {};
+                    await chat.sendMessage(
+                        `✅ *Payment Approved*\n${'─'.repeat(30)}\n` +
+                        `Amount: PKR ${p.amount||'—'}\nBank: ${p.bank||'—'}\n${p.client?'Client: '+p.client+'\n':''}` +
+                        `${'─'.repeat(30)}\nAuto-approved ✅`
+                    );
+                    console.log(`✅ Payment Approval group: auto approved PKR ${p.amount}`);
+                } catch(e) {
+                    await chat.sendMessage('✅ Payment screenshot received and approved.');
+                }
+            }
+        }
+
+        // ── Payments Group → read + update Supabase ledger ────
         if (chatName === PAYMENTS_GROUP && message.hasMedia) {
             const media = await message.downloadMedia();
             if (media && media.mimetype && media.mimetype.startsWith('image/')) {
-                await readPaymentSilently(media, message.body ? message.body.trim() : '');
+                const caption = message.body ? message.body.trim() : '';
+                await readPaymentSilently(media, caption, chat);
             }
         }
 
@@ -896,6 +975,29 @@ client.on('message', async (message) => {
                 if (data && data.client_name) {
                     updateClientInDB({ ...data, source: 'account_group_image' });
                     console.log(`✅ DB updated from Account group: ${data.client_name}`);
+
+                    // Compare with Supabase portal
+                    try {
+                        const sbClient = await getClientFromSupabase(data.client_name);
+                        if (sbClient) {
+                            const sbOs = sbClient.outstanding_amount || 0;
+                            const imgOs = parseFloat(String(data.outstandingAmount||0).replace(/,/g,''))||0;
+                            const diff = Math.abs(sbOs - imgOs);
+                            if (diff > 100) {
+                                const discMsg =
+                                    `⚠️ *Ledger Discrepancy — ${data.client_name}*\n${'─'.repeat(35)}\n` +
+                                    `Screenshot: PKR ${imgOs.toLocaleString()}\n` +
+                                    `Portal: PKR ${sbOs.toLocaleString()}\n` +
+                                    `Difference: PKR ${diff.toLocaleString()}\n${'─'.repeat(35)}\n` +
+                                    `Please verify.`;
+                                for (const num of BOSS_NUMBERS) await client.sendMessage(num, discMsg);
+                                await chat.sendMessage(discMsg);
+                                console.log(`⚠️ Ledger discrepancy: ${data.client_name} — diff PKR ${diff}`);
+                            } else {
+                                await chat.sendMessage(`✅ *${data.client_name}* — Ledger matches portal ✅\nOutstanding: PKR ${sbOs.toLocaleString()}`);
+                            }
+                        }
+                    } catch(e) { console.error('Account compare error:', e.message); }
                 }
             }
         }
@@ -917,7 +1019,7 @@ client.on('message', async (message) => {
 });
 
 // ─── Silent Payment Reader ─────────────────────────────────
-async function readPaymentSilently(media, caption) {
+async function readPaymentSilently(media, caption, chat) {
     try {
         // Use AI to extract client name from caption
         // Handles all formats like:
@@ -1000,6 +1102,21 @@ Return ONLY the client name, nothing else. No explanation.`
 
         storePayment(p.sender_name, { name: p.sender_name, amount: p.amount, date: p.date, bank: p.bank, txnId: p.txnId || "", account_no: p.account_no || "" });
         storeImageHash(media.data, p.sender_name, p.amount, p.date);
+
+        // ── Update Supabase ledger automatically ──────────────
+        await updateSupabaseLedger(p.sender_name, p.amount, p.date, p.bank, p.txnId);
+
+        // Notify in Payments group
+        if (chat) {
+            try {
+                await chat.sendMessage(
+                    `💳 *Payment Recorded*\n${'─'.repeat(28)}\n` +
+                    `Client: *${p.sender_name}*\nAmount: PKR ${Number(p.amount).toLocaleString()}\n` +
+                    `Bank: ${p.bank||'—'} | Date: ${p.date||'Today'}\n${'─'.repeat(28)}\n` +
+                    `Ledger updated ✅`
+                );
+            } catch(e) {}
+        }
 
         // Record salesperson for payment
         try {
@@ -1292,11 +1409,25 @@ Return ONLY JSON:
             ? `${discount}%  (Invoice: ${invDiscount}% | Price List: ${plDiscount}%)`
             : `${discount}%`;
 
-        // Ledger check
-        const ledger = findInDB(inv.client_name);
-        const hasLedger = ledger !== null;
-        const ledgerOutstanding = hasLedger ? ledger.outstandingAmount : 0;
-        const ledgerType = hasLedger ? ledger.outstandingType : 'Dr';
+        // Ledger check — local DB first, then Supabase
+        let ledger = findInDB(inv.client_name);
+        let supabaseLedger = null;
+        try {
+            supabaseLedger = await getClientFromSupabase(inv.client_name);
+        } catch(e) {}
+
+        // Use Supabase data if available (more accurate)
+        if (supabaseLedger) {
+            if (!ledger) ledger = {};
+            ledger.outstandingAmount = supabaseLedger.outstanding_amount || 0;
+            ledger.outstandingType   = supabaseLedger.outstanding_type   || 'Dr';
+            ledger.riskLevel         = ledger.riskLevel || 'Medium';
+            ledger.behaviorSummary   = ledger.behaviorSummary || 'From portal ledger';
+        }
+
+        const hasLedger = ledger !== null && (ledger.outstandingAmount || 0) > 0;
+        const ledgerOutstanding = hasLedger ? (ledger.outstandingAmount||0) : 0;
+        const ledgerType = ledger ? (ledger.outstandingType||'Dr') : 'Dr';
 
         // Store invoice in memory for approve/reject messages
         storeInvoice(inv.invoice_no, {
