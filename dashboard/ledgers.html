@@ -374,82 +374,80 @@ function renderGrid() {
   if (!filtered.length) {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1">
       <div class="empty-icon">🔍</div>
-      <div class="empty-title">No matches</div>
+      <div class="empty-title">No clients found</div>
       <div class="empty-desc">Try changing your filters</div>
     </div>`;
     return;
   }
 
-  const maxOS = Math.max(...filtered.map(c=>num(c.outstanding_amount)),1);
+  // safe: use reduce instead of spread to avoid call stack issues
+  const maxOS = filtered.reduce((m,c)=>Math.max(m,num(c.outstanding_amount)),1);
 
-  grid.innerHTML = filtered.map(c => {
-    const os   = num(c.outstanding_amount);
-    const paid = num(c.total_paid);
-    const inv  = num(c.total_invoiced);
-    const rec  = inv > 0 ? Math.round(paid/inv*100) : 100;
-    const pct  = Math.min(100,(os/maxOS)*100);
-    const risk = c.risk_level || 'Medium';
-    const zc   = risk === 'High' ? 'red' : risk === 'Medium' ? 'yellow' : 'green';
-    const balColor = zc === 'red' ? 'var(--red)' : zc === 'yellow' ? 'var(--yellow)' : 'var(--green)';
-    const txnCount = (c.transactions||[]).length;
-    const invoiceCount = (c.transactions||[]).filter(t=>t.type==='Invoice').length;
-    const paymentCount = (c.transactions||[]).filter(t=>t.type==='Payment'||t.type==='Receipt').length;
+  try {
+    grid.innerHTML = filtered.map(c => {
+      const os   = num(c.outstanding_amount);
+      const paid = num(c.total_paid);
+      const inv  = num(c.total_invoiced);
+      const rec  = inv > 0 ? Math.round(paid/inv*100) : 100;
+      const pct  = Math.min(100,(os/maxOS)*100);
+      const risk = c.risk_level || 'Low';
+      const zc   = risk === 'High' ? 'red' : risk === 'Medium' ? 'yellow' : 'green';
+      const balColor = zc === 'red' ? 'var(--red)' : zc === 'yellow' ? 'var(--yellow)' : 'var(--green)';
+      // safely parse transactions — might be string JSON or array or null
+      let txns = [];
+      try {
+        const raw = c.transactions;
+        txns = Array.isArray(raw) ? raw : (typeof raw === 'string' && raw ? JSON.parse(raw) : []);
+      } catch(e) { txns = []; }
+      const invoiceCount = txns.filter(t=>t&&t.type==='Invoice').length;
+      const paymentCount = txns.filter(t=>t&&(t.type==='Payment'||t.type==='Receipt')).length;
+      const safeId = String(c.id||'').replace(/'/g,"\\'");
+      const phone = c.phone || c.whatsapp || '';
+      const waNum = phone ? '92'+phone.replace(/^0/,'').replace(/[^0-9]/g,'') : '';
 
-    return `
-    <div class="client-card" onclick="openModal('${c.id}')">
-      <div class="client-card-bar ${zc}"></div>
-      <div class="client-card-body">
-        <div class="client-card-top">
-          <div style="flex:1;min-width:0">
-            <div class="client-name">${c.name}</div>
-            <div class="client-tags">
-              <span class="badge badge-${zc}">${risk} Risk</span>
-              <span class="badge badge-gray">${c.outstanding_type||'Dr'}</span>
-              ${c.salesperson?`<span class="badge badge-blue">👤 ${c.salesperson}</span>`:''}
+      return `
+      <div class="client-card" onclick="openModal('${safeId}')">
+        <div class="client-card-bar ${zc}"></div>
+        <div class="client-card-body">
+          <div class="client-card-top">
+            <div style="flex:1;min-width:0">
+              <div class="client-name">${c.name||'—'}</div>
+              <div class="client-tags">
+                <span class="badge badge-${zc}">${risk} Risk</span>
+                <span class="badge badge-gray">${c.outstanding_type||'Dr'}</span>
+                ${c.salesperson?`<span class="badge badge-blue">👤 ${c.salesperson}</span>`:''}
+              </div>
+            </div>
+            <div class="client-bal-block">
+              <div class="client-bal-num" style="color:${balColor}">${fmtK(os)}</div>
+              <div class="client-bal-label">Outstanding</div>
             </div>
           </div>
-          <div class="client-bal-block">
-            <div class="client-bal-num" style="color:${balColor}">${fmtK(os)}</div>
-            <div class="client-bal-label">Outstanding</div>
+          <div class="client-contact-row">
+            ${c.phone?`<div class="client-contact-item">📞 ${c.phone}</div>`:''}
+            ${c.city?`<div class="client-contact-item">📍 ${c.city}</div>`:''}
+            ${c.address&&!c.city?`<div class="client-contact-item">📍 ${String(c.address).substring(0,35)}</div>`:''}
+            ${!c.phone&&!c.city&&!c.address?`<div style="font-style:italic;font-size:11px;color:var(--text-4)">No contact info</div>`:''}
+          </div>
+          <div class="client-stats-grid">
+            <div class="client-stat"><div class="client-stat-label">Total Sales</div><div class="client-stat-value">${fmtK(inv)}</div></div>
+            <div class="client-stat"><div class="client-stat-label">Paid</div><div class="client-stat-value" style="color:var(--green)">${fmtK(paid)}</div></div>
+            <div class="client-stat"><div class="client-stat-label">Recovery</div><div class="client-stat-value" style="color:${rec>=90?'var(--green)':rec>=70?'var(--yellow)':'var(--red)'}">${rec}%</div></div>
+          </div>
+          <div class="client-bar-wrap"><div class="client-bar-fill" style="width:${pct}%;background:${balColor}"></div></div>
+          <div class="client-footer">
+            <span>${invoiceCount} invoices · ${paymentCount} payments</span>
+            <div style="display:flex;gap:6px">
+              ${c.phone?`<a href="tel:${c.phone}" onclick="event.stopPropagation()" class="btn-export" style="padding:3px 8px;font-size:11px">📞</a>`:''}
+              ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" onclick="event.stopPropagation()" class="btn-export" style="padding:3px 8px;font-size:11px;background:var(--green-50);border-color:var(--green-100);color:var(--green)">💬</a>`:''}
+            </div>
           </div>
         </div>
-
-        <div class="client-contact-row">
-          ${c.phone   ?`<div class="client-contact-item">📞 ${c.phone}</div>`:''}
-          ${c.city    ?`<div class="client-contact-item">📍 ${c.city}</div>`:''}
-          ${c.address && !c.city?`<div class="client-contact-item">📍 ${c.address.length>35?c.address.substring(0,35)+'...':c.address}</div>`:''}
-          ${!c.phone && !c.city && !c.address?`<div style="font-style:italic;font-size:11px;color:var(--text-4)">No contact info</div>`:''}
-        </div>
-
-        <div class="client-stats-grid">
-          <div class="client-stat">
-            <div class="client-stat-label">Total Sales</div>
-            <div class="client-stat-value">${fmtK(inv)}</div>
-          </div>
-          <div class="client-stat">
-            <div class="client-stat-label">Paid</div>
-            <div class="client-stat-value" style="color:var(--green)">${fmtK(paid)}</div>
-          </div>
-          <div class="client-stat">
-            <div class="client-stat-label">Recovery</div>
-            <div class="client-stat-value" style="color:${rec>=90?'var(--green)':rec>=70?'var(--yellow)':'var(--red)'}">${rec}%</div>
-          </div>
-        </div>
-
-        <div class="client-bar-wrap">
-          <div class="client-bar-fill" style="width:${pct}%;background:${balColor}"></div>
-        </div>
-
-        <div class="client-footer">
-          <span>${invoiceCount} invoices · ${paymentCount} payments</span>
-          <div style="display:flex;gap:6px">
-            ${c.phone?`<a href="tel:${c.phone}" onclick="event.stopPropagation()" class="btn-export" style="padding:3px 8px;font-size:11px">📞</a>`:''}
-            ${c.phone||c.whatsapp?`<a href="https://wa.me/92${(c.whatsapp||c.phone).replace(/^0/,'').replace(/[^0-9]/g,'')}" target="_blank" onclick="event.stopPropagation()" class="btn-export" style="padding:3px 8px;font-size:11px;background:var(--green-50);border-color:var(--green-100);color:var(--green)">💬</a>`:''}
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+      </div>`;
+    }).join('');
+  } catch(e) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">⚠️</div><div class="empty-title">Render Error</div><div class="empty-desc" style="color:red">${e.message}</div></div>`;
+  }
 }
 
 // ── Modal ──────────────────────────────────────────────────────
@@ -897,7 +895,12 @@ document.addEventListener('keydown', e => {
 
 document.addEventListener('DOMContentLoaded', () => {
   renderSidebar('ledgers');
-  loadClients();
+  // Wait for auth-guard to finish before loading data
+  const tryLoad = () => {
+    if (window.authReady) { loadClients(); return; }
+    setTimeout(tryLoad, 150);
+  };
+  tryLoad();
 
   // Auto-open if URL has ?open=
   const p = new URLSearchParams(window.location.search);
