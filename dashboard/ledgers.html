@@ -229,7 +229,7 @@
         <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" id="kv-pending">—</div></div>
       </div>
 
-      <!-- Toolbar — same style as clients.html -->
+      <!-- Toolbar -->
       <div class="toolbar">
         <div class="toolbar-left">
           <input class="input" style="width:200px" id="s-name" placeholder="Search name, phone, city..." oninput="applyFilters()"/>
@@ -253,6 +253,7 @@
             <option value="Medium">🟡 Medium</option>
             <option value="High">🔴 High</option>
           </select>
+          <button id="bulkDeleteBtn" class="btn btn-secondary btn-sm" onclick="bulkDelete()" style="display:none;color:var(--red);border-color:var(--red)">🗑 Delete Selected (<span id="selCount">0</span>)</button>
         </div>
         <div class="toolbar-right">
           <span id="ledgerCount" class="text-3" style="font-size:12px;line-height:32px"></span>
@@ -268,6 +269,7 @@
           <table>
             <thead>
               <tr>
+                <th style="width:36px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="cursor:pointer"/></th>
                 <th>#</th>
                 <th>Client Name</th>
                 <th>Branch</th>
@@ -549,6 +551,9 @@ function renderGrid() {
       const branch = getBranch(c.id);
 
       return `<tr onclick="openModal('${safeId}')" style="cursor:pointer">
+        <td onclick="event.stopPropagation()">
+          <input type="checkbox" class="row-chk" value="${safeId}" onchange="updateBulkBar()" style="cursor:pointer"/>
+        </td>
         <td>${i+1}</td>
         <td><b>${c.name||'—'}</b></td>
         <td>${branch?`<span class="badge ${branch.cls}">${branch.label}</span>`:'—'}</td>
@@ -559,9 +564,10 @@ function renderGrid() {
         <td style="text-align:center">${invCount}</td>
         <td style="text-align:center;color:var(--green)">${payCount}</td>
         <td>${phone||'—'}</td>
-        <td>
-          ${phone?`<a href="tel:${phone}" onclick="event.stopPropagation()" class="btn btn-ghost btn-sm">📞</a>`:''}
-          ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" onclick="event.stopPropagation()" class="btn btn-ghost btn-sm">💬</a>`:''}
+        <td onclick="event.stopPropagation()" style="white-space:nowrap">
+          ${phone?`<a href="tel:${phone}" class="btn btn-ghost btn-sm">📞</a>`:''}
+          ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" class="btn btn-ghost btn-sm">💬</a>`:''}
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteSingle('${safeId}','${(c.name||'').replace(/'/g,"\\'")}')">🗑</button>
         </td>
       </tr>`;
     }).join('');
@@ -1012,6 +1018,60 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key==='Escape') closeModal();
 });
+
+// ── Checkbox / Bulk Delete ────────────────────────────────────
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.row-chk').forEach(c => c.checked = cb.checked);
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.row-chk:checked');
+  const btn = document.getElementById('bulkDeleteBtn');
+  const cnt = document.getElementById('selCount');
+  if (btn) { btn.style.display = checked.length ? 'inline-flex' : 'none'; }
+  if (cnt) cnt.textContent = checked.length;
+  const selAll = document.getElementById('selectAll');
+  if (selAll) {
+    const all = document.querySelectorAll('.row-chk');
+    selAll.indeterminate = checked.length > 0 && checked.length < all.length;
+    selAll.checked = all.length > 0 && checked.length === all.length;
+  }
+}
+
+async function deleteSingle(id, name) {
+  if (!confirm(`"${name}" delete karein? Yeh clients table se bhi hat jayega.`)) return;
+  const r = await fetch(`${LAPI}/clients?id=eq.${encodeURIComponent(id)}`, { method:'DELETE', headers: LHDR });
+  if (r.ok) {
+    showToast(`${name} deleted`, '🗑️');
+    allClients = allClients.filter(c => c.id !== id);
+    filtered   = filtered.filter(c => c.id !== id);
+    updateKPIs();
+    renderGrid();
+  } else {
+    showToast('Delete failed', '❌');
+  }
+}
+
+async function bulkDelete() {
+  const checked = [...document.querySelectorAll('.row-chk:checked')];
+  if (!checked.length) return;
+  if (!confirm(`${checked.length} records delete karein? Yeh clients table se bhi hat jaenge.`)) return;
+
+  let done = 0;
+  for (const cb of checked) {
+    const r = await fetch(`${LAPI}/clients?id=eq.${encodeURIComponent(cb.value)}`, { method:'DELETE', headers: LHDR });
+    if (r.ok) done++;
+  }
+  showToast(`${done} records deleted`, '🗑️');
+  const ids = new Set(checked.map(c => c.value));
+  allClients = allClients.filter(c => !ids.has(c.id));
+  filtered   = filtered.filter(c => !ids.has(c.id));
+  updateKPIs();
+  renderGrid();
+  document.getElementById('selectAll').checked = false;
+  updateBulkBar();
+}
 
 // Guaranteed load — fires after everything is ready
 window.addEventListener('load', () => {
