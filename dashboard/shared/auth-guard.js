@@ -12,6 +12,7 @@
     'index.html':           'dashboard.view',
     'upload.html':          'dashboard.view',
     'clients.html':         'clients.view',
+    'new-client.html':      'clients.view',
     'ledgers.html':         'ledgers.view',
     'payments.html':        'payments.view',
     'approvals.html':       'approvals.view',

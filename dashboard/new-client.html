@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>New Client · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.nc-form { max-width: 760px; margin: 0 auto; }
+.nc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+.nc-section { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.nc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.nc-grid .full { grid-column: 1 / -1; }
+.nc-field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 5px; }
+.nc-field label .req { color: var(--red); }
+.nc-field input, .nc-field select, .nc-field textarea {
+  width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-family: inherit; background: var(--surface); color: var(--text);
+  outline: none; transition: border-color .15s;
+}
+.nc-field input:focus, .nc-field select:focus, .nc-field textarea:focus { border-color: var(--brand); }
+.nc-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px; }
+@media (max-width: 600px) { .nc-grid { grid-template-columns: 1fr; } .nc-grid .full { grid-column: 1; } }
+</style>
+</head>
+<body data-page="new-client">
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">New Client</div>
+        <div class="topbar-sub">Fill in the details below to add a new client</div>
+      </div>
+      <div class="topbar-actions">
+        <a href="clients.html" class="btn btn-secondary btn-sm">← Back to All Clients</a>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="nc-form">
+
+        <!-- Basic Info -->
+        <div class="nc-card">
+          <div class="nc-section">Basic Info</div>
+          <div class="nc-grid">
+            <div class="nc-field full">
+              <label>Company / Client Name <span class="req">*</span></label>
+              <input id="f-name" placeholder="e.g. Al-Fatah Traders"/>
+            </div>
+            <div class="nc-field">
+              <label>City <span class="req">*</span></label>
+              <input id="f-city" placeholder="Lahore"/>
+            </div>
+            <div class="nc-field">
+              <label>Branch <span class="req">*</span></label>
+              <select id="f-branch">
+                <option value="">Select branch...</option>
+                <option>CNC</option>
+                <option>Cognitive Solutions</option>
+                <option>CS Traders</option>
+              </select>
+            </div>
+            <div class="nc-field full">
+              <label>Address</label>
+              <input id="f-address" placeholder="Street address"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact -->
+        <div class="nc-card">
+          <div class="nc-section">Contact</div>
+          <div class="nc-grid">
+            <div class="nc-field">
+              <label>Contact Person</label>
+              <input id="f-contact" placeholder="Mr. Ahmed"/>
+            </div>
+            <div class="nc-field">
+              <label>Phone / Mobile <span class="req">*</span></label>
+              <input id="f-phone" placeholder="0300-1234567"/>
+            </div>
+            <div class="nc-field">
+              <label>Contact Number 2</label>
+              <input id="f-contact-number" placeholder="0321-1234567"/>
+            </div>
+            <div class="nc-field">
+              <label>Email</label>
+              <input id="f-email" type="email" placeholder="client@email.com"/>
+            </div>
+            <div class="nc-field">
+              <label>WhatsApp</label>
+              <input id="f-whatsapp" placeholder="03XX-XXXXXXX"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sales & Credit -->
+        <div class="nc-card">
+          <div class="nc-section">Sales & Credit</div>
+          <div class="nc-grid">
+            <div class="nc-field">
+              <label>Sales Person <span class="req">*</span></label>
+              <input id="f-sp" placeholder="Sales rep name"/>
+            </div>
+            <div class="nc-field">
+              <label>Salesperson Phone</label>
+              <input id="f-sp-number" placeholder="03XX-XXXXXXX"/>
+            </div>
+            <div class="nc-field">
+              <label>Credit Limit (PKR)</label>
+              <input id="f-credit" type="number" placeholder="0"/>
+            </div>
+            <div class="nc-field">
+              <label>Discount Given %</label>
+              <input id="f-discount" type="number" step="0.1" placeholder="0"/>
+            </div>
+            <div class="nc-field">
+              <label>Sale Category</label>
+              <select id="f-category">
+                <option value="">Select...</option>
+                <option>Retail</option>
+                <option>Wholesale</option>
+                <option>Dealer</option>
+                <option>Project</option>
+                <option>Government</option>
+              </select>
+            </div>
+            <div class="nc-field">
+              <label>Risk Level</label>
+              <select id="f-risk">
+                <option value="Low">Low</option>
+                <option value="Medium" selected>Medium</option>
+                <option value="High">High</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status & Terms -->
+        <div class="nc-card">
+          <div class="nc-section">Status & Terms</div>
+          <div class="nc-grid">
+            <div class="nc-field">
+              <label>Status</label>
+              <select id="f-status">
+                <option value="active">✅ Active</option>
+                <option value="inactive">⏸️ Inactive</option>
+                <option value="blacklisted">🔴 Blacklisted</option>
+              </select>
+            </div>
+            <div class="nc-field">
+              <label>Payment Terms</label>
+              <select id="f-terms">
+                <option value="0">Cash / COD</option>
+                <option value="15">15 Days</option>
+                <option value="30" selected>30 Days</option>
+                <option value="45">45 Days</option>
+                <option value="60">60 Days</option>
+                <option value="90">90 Days</option>
+              </select>
+            </div>
+            <div class="nc-field">
+              <label>NTN</label>
+              <input id="f-ntn" placeholder="NTN number"/>
+            </div>
+            <div class="nc-field">
+              <label>STRN</label>
+              <input id="f-strn" placeholder="STRN number"/>
+            </div>
+            <div class="nc-field full">
+              <label>Notes</label>
+              <textarea id="f-notes" rows="3" placeholder="Any additional info..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="nc-actions">
+          <a href="clients.html" class="btn btn-secondary">Cancel</a>
+          <button class="btn btn-primary" id="saveBtn" onclick="saveNewClient()">💾 Save Client</button>
+        </div>
+
+        <div id="nc-msg" style="margin-top:12px;text-align:center;font-size:13px"></div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script>
+const API  = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
+const KEY  = 'sb_publishable_z46NMjGWepbZoD8uAvqBpg__J-wSALN';
+const HDR  = { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+
+function g(id) { return (document.getElementById(id)?.value || '').trim(); }
+function msg(text, color='green') {
+  const el = document.getElementById('nc-msg');
+  el.textContent = text;
+  el.style.color = color === 'green' ? 'var(--green)' : 'var(--red)';
+}
+
+function makeId(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'') + '_' + Date.now();
+}
+
+async function saveNewClient() {
+  const name   = g('f-name');
+  const city   = g('f-city');
+  const branch = g('f-branch');
+  const phone  = g('f-phone');
+  const sp     = g('f-sp');
+
+  if (!name) { msg('Client name required', 'red'); document.getElementById('f-name').focus(); return; }
+
+  const isAdmin = !window.userPerms || window.userPerms.includes('users.manage');
+  if (!isAdmin) {
+    if (!city)   { msg('City required', 'red'); return; }
+    if (!phone)  { msg('Phone required', 'red'); return; }
+    if (!sp)     { msg('Salesperson required', 'red'); return; }
+    if (!branch) { msg('Branch required', 'red'); return; }
+  }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const data = {
+    id: makeId(name),
+    name, city, branch,
+    address:          g('f-address'),
+    contact_person:   g('f-contact'),
+    phone,
+    contact_number2:  g('f-contact-number'),
+    email:            g('f-email'),
+    whatsapp:         g('f-whatsapp'),
+    salesperson:      sp,
+    salesperson_number: g('f-sp-number'),
+    credit_limit:     parseFloat(g('f-credit')) || 0,
+    discount_pct:     parseFloat(g('f-discount')) || 0,
+    sale_category:    g('f-category'),
+    risk_level:       g('f-risk') || 'Medium',
+    status:           g('f-status') || 'active',
+    payment_terms:    parseInt(g('f-terms')) || 0,
+    ntn:              g('f-ntn'),
+    strn:             g('f-strn'),
+    notes:            g('f-notes'),
+    outstanding_amount: 0,
+    outstanding_type: 'Dr',
+    last_updated: new Date().toISOString()
+  };
+
+  try {
+    const r = await fetch(`${API}/clients`, {
+      method: 'POST',
+      headers: HDR,
+      body: JSON.stringify(data)
+    });
+    if (!r.ok) {
+      const err = await r.text();
+      throw new Error(err);
+    }
+    msg('✅ Client saved! Redirecting...', 'green');
+    setTimeout(() => { window.location.href = 'clients.html'; }, 1200);
+  } catch(e) {
+    msg('❌ Error: ' + e.message, 'red');
+    btn.disabled = false;
+    btn.textContent = '💾 Save Client';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderSidebar('new-client');
+});
+</script>
+</body>
+</html>

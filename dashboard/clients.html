@@ -1426,13 +1426,7 @@ function downloadTemplate(){
 }
 
 // ── Init ──────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  loadClients();
-  // Auto-open Add Client modal if ?new=1
-  if (new URLSearchParams(window.location.search).get('new') === '1') {
-    setTimeout(openAddClient, 1500);
-  }
-});
+document.addEventListener('DOMContentLoaded', loadClients);
 </script>
 </body>
 </html>
