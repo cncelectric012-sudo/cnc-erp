@@ -103,7 +103,7 @@
             <button class="menu-item" onclick="exportFiltered();toggleActionsMenu()">📤 Export Filtered</button>
             <button class="menu-item" onclick="downloadTemplate();toggleActionsMenu()">⬇ Download Template</button>
             <div style="border-top:1px solid var(--border);margin:4px 0"></div>
-            <button class="menu-item" onclick="switchTab('overdue',document.getElementById('tab-overdue'));toggleActionsMenu()">⚠️ View Overdue</button>
+
             <button class="menu-item" onclick="switchTab('blacklisted',document.getElementById('tab-blacklisted'));toggleActionsMenu()">🔴 View Blacklisted</button>
             <button class="menu-item" onclick="switchTab('top',document.getElementById('tab-top'));toggleActionsMenu()">🏆 Top Clients</button>
           </div>
@@ -141,8 +141,6 @@
       <div class="tabs" style="overflow-x:auto">
         <div class="tab active" id="tab-all" onclick="switchTab('all',this)">👥 All Clients</div>
         <div class="tab" id="tab-sp" onclick="switchTab('sp',this)">👤 By Salesperson</div>
-        <div class="tab" id="tab-ledger" onclick="switchTab('ledger',this)">📒 Ledger</div>
-        <div class="tab" id="tab-overdue" onclick="switchTab('overdue',this)">⚠️ Overdue</div>
         <div class="tab" id="tab-top" onclick="switchTab('top',this)">🏆 Top Clients</div>
         <div class="tab" id="tab-blacklisted" onclick="switchTab('blacklisted',this)">🔴 Blacklisted</div>
       </div>
@@ -220,46 +218,6 @@
       </div>
 
       <!-- Ledger Clients -->
-      <div id="viewLedger" class="card hidden" style="padding:0;overflow:hidden">
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Client Name</th>
-                <th>Branch</th>
-                <th class="num">Outstanding</th>
-                <th class="num">Total Invoiced</th>
-                <th class="num">Total Paid</th>
-                <th>Risk</th>
-                <th>Sales Rep</th>
-                <th>Last Updated</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="ledgerBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Overdue Clients -->
-      <div id="viewOverdue" class="card hidden" style="padding:0;overflow:hidden">
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Client Name</th>
-                <th>Sales Rep</th>
-                <th class="num">Outstanding</th>
-                <th>Credit Limit</th>
-                <th>Payment Terms</th>
-                <th>Phone</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="overdueBody"></tbody>
-          </table>
-        </div>
-      </div>
 
       <!-- Top Clients -->
       <div id="viewTop" class="hidden">
@@ -691,15 +649,13 @@ function switchTab(tab, el){
 }
 
 function renderCurrentTab(){
-  ['viewAll','viewSp','viewLedger','viewOverdue','viewTop','viewBlacklisted'].forEach(id=>{
+  ['viewAll','viewSp','viewTop','viewBlacklisted'].forEach(id=>{
     document.getElementById(id)?.classList.add('hidden');
   });
-  const map = {all:'viewAll',sp:'viewSp',ledger:'viewLedger',overdue:'viewOverdue',top:'viewTop',blacklisted:'viewBlacklisted'};
+  const map = {all:'viewAll',sp:'viewSp',top:'viewTop',blacklisted:'viewBlacklisted'};
   document.getElementById(map[currentTab]||'viewAll')?.classList.remove('hidden');
   if(currentTab==='all')         renderTable();
   if(currentTab==='sp')          renderSpView();
-  if(currentTab==='ledger')      renderLedger();
-  if(currentTab==='overdue')     renderOverdue();
   if(currentTab==='top')         renderTop();
   if(currentTab==='blacklisted') renderBlacklisted();
 }
