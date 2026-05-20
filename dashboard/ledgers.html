@@ -280,6 +280,27 @@
             <option value="Medium">🟡 Medium</option>
             <option value="High">🔴 High</option>
           </select>
+          <select class="input" style="width:120px" id="s-status" onchange="applyFilters()">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="blacklisted">Blacklisted</option>
+          </select>
+          <select class="input" style="width:160px" id="s-missing" onchange="applyFilters()">
+            <option value="">Missing Info: All</option>
+            <option value="no_phone">📵 No Phone</option>
+            <option value="no_address">🏠 No Address</option>
+            <option value="no_email">📧 No Email</option>
+            <option value="no_salesperson">👤 No Sales Rep</option>
+          </select>
+          <select class="input" style="width:150px" id="s-discount" onchange="applyFilters()">
+            <option value="">Discount: All</option>
+            <option value="0">No Discount (0%)</option>
+            <option value="1-5">1% – 5%</option>
+            <option value="6-10">6% – 10%</option>
+            <option value="11-20">11% – 20%</option>
+            <option value="20+">20%+</option>
+          </select>
           <button id="bulkDeleteBtn" class="btn btn-secondary btn-sm" onclick="bulkDelete()" style="display:none;color:var(--red);border-color:var(--red)">🗑 Delete Selected (<span id="selCount">0</span>)</button>
         </div>
         <div class="toolbar-right">
@@ -584,6 +605,24 @@ function applyFilters() {
       if (branch==='cnc'  && !id.includes('_cnc'))  return false;
       if (branch==='cst'  && !id.includes('_cst'))  return false;
       if (branch==='cspl' && !id.includes('_cspl')) return false;
+    }
+    const status  = document.getElementById('s-status')?.value||'';
+    const missing = document.getElementById('s-missing')?.value||'';
+    const disc    = document.getElementById('s-discount')?.value||'';
+    if (status === 'active'      && c.status && c.status !== 'active')      return false;
+    if (status === 'inactive'    && c.status !== 'inactive')                return false;
+    if (status === 'blacklisted' && c.status !== 'blacklisted')             return false;
+    if (missing === 'no_phone'      && c.phone)        return false;
+    if (missing === 'no_address'    && c.address)      return false;
+    if (missing === 'no_email'      && c.email)        return false;
+    if (missing === 'no_salesperson'&& c.salesperson)  return false;
+    if (disc) {
+      const d = num(c.discount_pct||0);
+      if (disc==='0'     && d !== 0)          return false;
+      if (disc==='1-5'   && (d<1  || d>5))    return false;
+      if (disc==='6-10'  && (d<6  || d>10))   return false;
+      if (disc==='11-20' && (d<11 || d>20))   return false;
+      if (disc==='20+'   && d < 20)            return false;
     }
     return true;
   });
