@@ -134,7 +134,9 @@ function renderSidebar(activePage) {
 
   const item = (page, ico, label, perm) => {
     if (perm && !can(perm)) return '';
-    return `<a class="sb-item ${activePage===page?'active':''}" href="${page}.html"><span class="ico">${ico}</span>${label}</a>`;
+    const basePage = page.split('?')[0];
+    const href = page.includes('?') ? basePage + '.html?' + page.split('?')[1] : page + '.html';
+    return `<a class="sb-item ${activePage===basePage?'active':''}" href="${href}"><span class="ico">${ico}</span>${label}</a>`;
   };
 
   // Build groups — only show if at least one item visible
