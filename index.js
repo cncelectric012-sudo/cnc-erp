@@ -83,7 +83,15 @@ async function loadBotSettings() {
         console.log('⚙️ Bot settings:', JSON.stringify(botSettings));
     } catch(e) { console.error('Bot settings load error:', e.message); }
 }
-function isEnabled(key) { return botSettings[key] !== false; }
+// Refresh settings every 60 seconds so dashboard changes take effect immediately
+setInterval(loadBotSettings, 60 * 1000);
+
+// Handle both boolean false and string "false"
+function isEnabled(key) {
+    const v = botSettings[key];
+    if (v === false || v === 'false' || v === 0) return false;
+    return true;
+}
 
 async function getClientFromSupabase(clientName) {
     const n = normName(clientName);
