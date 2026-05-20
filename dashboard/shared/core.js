@@ -147,16 +147,10 @@ function renderSidebar(activePage) {
       ]
     },
     {
-      id:'g2', ico:'👤', label:'Clients',
+      id:'g2', ico:'👤', label:'Clients & Ledgers',
       perm:'clients.view',
       items:[
         item('clients','📋','All Clients','clients.view'),
-      ]
-    },
-    {
-      id:'g3', ico:'📒', label:'Ledgers',
-      perm:'ledgers.view',
-      items:[
         item('ledgers','📒','Client Ledgers','ledgers.view'),
         item('upload','📥','Upload Data','dashboard.view'),
       ]
