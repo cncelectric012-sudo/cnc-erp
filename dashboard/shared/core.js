@@ -151,8 +151,6 @@ function renderSidebar(activePage) {
       perm:'clients.view',
       items:[
         item('clients','📋','All Clients','clients.view'),
-        item('clients','⚠️','Overdue','clients.view'),
-        item('clients','🔴','Blacklisted','clients.view'),
       ]
     },
     {
