@@ -108,7 +108,6 @@
             <button class="menu-item" onclick="switchTab('top',document.getElementById('tab-top'));toggleActionsMenu()">🏆 Top Clients</button>
           </div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openAddClient()">+ New Client</button>
       </div>
     </div>
 
@@ -1425,7 +1424,13 @@ function downloadTemplate(){
 }
 
 // ── Init ──────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', loadClients);
+document.addEventListener('DOMContentLoaded', () => {
+  loadClients();
+  // Auto-open Add Client modal if ?new=1
+  if (new URLSearchParams(window.location.search).get('new') === '1') {
+    setTimeout(openAddClient, 1500);
+  }
+});
 </script>
 </body>
 </html>

@@ -150,6 +150,7 @@ function renderSidebar(activePage) {
       id:'g2', ico:'👤', label:'Clients & Ledgers',
       perm:'clients.view',
       items:[
+        item('clients?new=1','➕','New Client','clients.view'),
         item('clients','📋','All Clients','clients.view'),
         item('ledgers','📒','Client Ledgers','ledgers.view'),
         item('upload','📥','Upload Data','dashboard.view'),
