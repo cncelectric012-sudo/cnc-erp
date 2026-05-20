@@ -631,10 +631,12 @@ function applyFilters(){
     const amt = c.outstanding_amount||0;
     return s + ((c.outstanding_type||'Dr')==='Dr' ? amt : -amt);
   }, 0);
-  document.getElementById('st-total').textContent  = filtered.length;
-  document.getElementById('st-sp').textContent     = sps.size;
-  document.getElementById('st-os').textContent     = withOs;
-  document.getElementById('st-osamt').textContent  = 'PKR '+fmtK(Math.max(0,totalOs));
+  const topCnt  = filtered.filter(c=>(c.outstanding_amount||0)>0).length;
+  const blCnt   = filtered.filter(c=>c.status==='blacklisted').length;
+  document.getElementById('st-total').textContent       = filtered.length;
+  document.getElementById('st-sp').textContent          = sps.size;
+  document.getElementById('st-top').textContent         = topCnt;
+  document.getElementById('st-blacklisted').textContent = blCnt;
 
   renderCurrentTab();
 }
