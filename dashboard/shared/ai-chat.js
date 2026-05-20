@@ -131,7 +131,7 @@
   async function getPortalContext() {
     try {
       const [clients, bankAlerts, paygate] = await Promise.all([
-        sbGet('/clients?select=name,outstanding_amount,outstanding_type,branch,salesperson&outstanding_amount=gt.0&order=outstanding_amount.desc&limit=50'),
+        sbGet('/ledgers?select=name,outstanding_amount,outstanding_type,branch,salesperson&outstanding_amount=gt.0&order=outstanding_amount.desc&limit=50'),
         sbGet('/bank_alerts?select=amount,bank_name,match_status,created_at&order=created_at.desc&limit=20'),
         sbGet('/paygate_entries?select=customer,amount,status,entity,created_at&order=created_at.desc&limit=20'),
       ]);
