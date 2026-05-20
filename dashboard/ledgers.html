@@ -9,14 +9,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/styles.css">
 <style>
-/* ══════════════════════════════════════════════
-   LEDGER CARDS — Professional Layout
-══════════════════════════════════════════════ */
-.client-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 16px;
-}
+/* Stats row — same as clients.html */
+.stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+.stat-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; }
+.stat-label { font-size:11px; color:var(--text-3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+.stat-val { font-size:24px; font-weight:700; }
+.stat-sub { font-size:11px; color:var(--text-3); margin-top:3px; }
+/* Tabs */
+.tabs { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--border); overflow-x:auto; }
+.tab { padding:8px 16px; font-size:13px; font-weight:500; color:var(--text-3); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
+.tab.active { color:var(--brand); border-bottom-color:var(--brand); }
 
 /* Card */
 .client-card {
@@ -220,21 +222,46 @@
 
     <div class="content">
 
-      <!-- KPI Row -->
-      <div class="kpi-row">
-        <div class="kpi-card"><div class="kpi-label">Clients</div><div class="kpi-value" id="kv-clients">—</div></div>
-        <div class="kpi-card red"><div class="kpi-label">Outstanding</div><div class="kpi-value" id="kv-outstanding">—</div></div>
-        <div class="kpi-card blue"><div class="kpi-label">Total Sales</div><div class="kpi-value" id="kv-sales">—</div></div>
-        <div class="kpi-card green"><div class="kpi-label">Collected</div><div class="kpi-value" id="kv-paid">—</div></div>
-        <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" id="kv-pending">—</div></div>
+      <!-- Stats — same as clients.html -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Total Ledger Clients</div>
+          <div class="stat-val" id="kv-clients">0</div>
+          <div class="stat-sub">All ledger records</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">With Outstanding</div>
+          <div class="stat-val" id="kv-oscount">0</div>
+          <div class="stat-sub">Pending balance</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Outstanding</div>
+          <div class="stat-val" id="kv-outstanding" style="font-size:16px">—</div>
+          <div class="stat-sub">PKR</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Overdue Clients</div>
+          <div class="stat-val" id="kv-overdue" style="color:var(--red)">0</div>
+          <div class="stat-sub">Dr balance</div>
+        </div>
       </div>
 
-      <!-- Toolbar -->
+      <!-- Tabs -->
+      <div class="tabs" style="overflow-x:auto">
+        <div class="tab active" id="ltab-all"       onclick="lSwitchTab('all',this)">📒 All Ledgers</div>
+        <div class="tab"        id="ltab-overdue"   onclick="lSwitchTab('overdue',this)">⚠️ Overdue</div>
+        <div class="tab"        id="ltab-blacklisted" onclick="lSwitchTab('blacklisted',this)">🔴 Blacklisted</div>
+      </div>
+
+      <!-- Toolbar — identical to clients.html -->
       <div class="toolbar">
         <div class="toolbar-left">
           <input class="input" style="width:200px" id="s-name" placeholder="Search name, phone, city..." oninput="applyFilters()"/>
           <select class="input" style="width:150px" id="s-salesperson" onchange="applyFilters()">
             <option value="">All Sales Reps</option>
+          </select>
+          <select class="input" style="width:130px" id="s-city" onchange="applyFilters()">
+            <option value="">All Cities</option>
           </select>
           <select class="input" style="width:130px" id="s-branch" onchange="applyFilters()">
             <option value="">All Branches</option>
@@ -259,12 +286,9 @@
           <span id="ledgerCount" class="text-3" style="font-size:12px;line-height:32px"></span>
         </div>
       </div>
-      <!-- hidden for applyFilters compat -->
-      <select id="s-outstanding" style="display:none"><option value=""></option></select>
-      <select id="s-city" style="display:none"><option value=""></option></select>
 
-      <!-- Table — same style as clients.html -->
-      <div class="card" style="padding:0;overflow:hidden">
+      <!-- Table -->
+      <div id="lviewAll" class="card" style="padding:0;overflow:hidden">
         <div class="table-scroll">
           <table>
             <thead>
@@ -284,11 +308,37 @@
               </tr>
             </thead>
             <tbody id="ledgerGrid">
-              <tr><td colspan="11" style="padding:60px;text-align:center;color:var(--text-3)">
+              <tr><td colspan="12" style="padding:60px;text-align:center;color:var(--text-3)">
                 <div class="loading-spinner" style="margin:0 auto 12px"></div>
-                <div id="loadMsg">Loading clients from Supabase...</div>
+                <div id="loadMsg">Loading...</div>
               </td></tr>
             </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Overdue View -->
+      <div id="lviewOverdue" class="card hidden" style="padding:0;overflow:hidden">
+        <div class="table-scroll">
+          <table>
+            <thead><tr>
+              <th>#</th><th>Client Name</th><th>Branch</th><th>Sales Rep</th>
+              <th class="num">Outstanding</th><th>Risk</th><th>Phone</th><th></th>
+            </tr></thead>
+            <tbody id="lOverdueBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Blacklisted View -->
+      <div id="lviewBlacklisted" class="card hidden" style="padding:0;overflow:hidden">
+        <div class="table-scroll">
+          <table>
+            <thead><tr>
+              <th>#</th><th>Client Name</th><th>Branch</th><th>Sales Rep</th>
+              <th class="num">Outstanding</th><th>Risk</th><th>Phone</th><th></th>
+            </tr></thead>
+            <tbody id="lBlacklistedBody"></tbody>
           </table>
         </div>
       </div>
@@ -370,6 +420,7 @@ let currentClient = null; // for modal
 let currentTab = 'all';
 
 // num, fmt, fmtK already defined in core.js
+let currentLTab = 'all';
 
 const LAPI = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
 const LKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmFheHl3bGZwb21sYXRwaXVhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkzMjI4NSwiZXhwIjoyMDkzNTA4Mjg1fQ.vsCZIT5ER1DVBPvRGt8Ai-cYtUD0rosyxNEBi5T2NCo';
@@ -442,10 +493,72 @@ async function loadClients() {
 
 // ── Populate dropdowns ─────────────────────────────────────────
 function populateDropdowns() {
-  const sps = [...new Set(allClients.map(c=>c.salesperson).filter(Boolean))].sort();
-  const spSel = document.getElementById('s-salesperson');
-  if (spSel) spSel.innerHTML = '<option value="">All Sales Reps</option>' +
-    sps.map(s=>`<option value="${s}">${s}</option>`).join('');
+  const sps    = [...new Set(allClients.map(c=>c.salesperson).filter(Boolean))].sort();
+  const cities = [...new Set(allClients.map(c=>c.city).filter(Boolean))].sort();
+  const spSel  = document.getElementById('s-salesperson');
+  const citySel= document.getElementById('s-city');
+  if (spSel)   spSel.innerHTML   = '<option value="">All Sales Reps</option>' + sps.map(s=>`<option>${s}</option>`).join('');
+  if (citySel) citySel.innerHTML = '<option value="">All Cities</option>'     + cities.map(c=>`<option>${c}</option>`).join('');
+}
+
+// ── Tab switching ──────────────────────────────────────────────
+function lSwitchTab(tab, el) {
+  currentLTab = tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  ['lviewAll','lviewOverdue','lviewBlacklisted'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+  const map = {all:'lviewAll', overdue:'lviewOverdue', blacklisted:'lviewBlacklisted'};
+  document.getElementById(map[tab])?.classList.remove('hidden');
+  if (tab==='overdue')     lRenderOverdue();
+  if (tab==='blacklisted') lRenderBlacklisted();
+}
+
+// ── Overdue view ───────────────────────────────────────────────
+function lRenderOverdue() {
+  const rows = filtered.filter(c => num(c.outstanding_amount)>0 && (c.outstanding_type||'Dr')==='Dr' && c.status!=='blacklisted');
+  const body = document.getElementById('lOverdueBody');
+  if (!rows.length) { body.innerHTML=`<tr><td colspan="8" style="padding:40px;text-align:center;color:var(--text-3)">No overdue clients</td></tr>`; return; }
+  body.innerHTML = rows.map((c,i)=>{
+    const branch = getBranch(c.id);
+    const phone = c.phone||c.whatsapp||'';
+    const waNum = phone?'92'+phone.replace(/^0/,'').replace(/[^0-9]/g,''):'';
+    const safeId = String(c.id||'').replace(/'/g,"\\'");
+    return `<tr onclick="openModal('${safeId}')" style="cursor:pointer">
+      <td>${i+1}</td>
+      <td><b style="color:var(--brand)">${c.name||'—'}</b><br><small class="text-3">${c.city||''}</small></td>
+      <td>${branch?`<span class="badge ${branch.cls}">${branch.label}</span>`:'—'}</td>
+      <td>${c.salesperson||'—'}</td>
+      <td class="num strong" style="color:var(--red)">PKR ${fmt(num(c.outstanding_amount))}</td>
+      <td><span class="badge ${(c.risk_level||'Medium')==='High'?'badge-red':(c.risk_level||'Medium')==='Medium'?'badge-yellow':'badge-green'}">${c.risk_level||'Medium'}</span></td>
+      <td>${phone||'—'}</td>
+      <td>${phone?`<a href="tel:${phone}" onclick="event.stopPropagation()" class="btn btn-ghost btn-sm">📞</a>`:''} ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" onclick="event.stopPropagation()" class="btn btn-ghost btn-sm">💬</a>`:''}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Blacklisted view ───────────────────────────────────────────
+function lRenderBlacklisted() {
+  const rows = filtered.filter(c => c.status==='blacklisted');
+  const body = document.getElementById('lBlacklistedBody');
+  if (!rows.length) { body.innerHTML=`<tr><td colspan="8" style="padding:40px;text-align:center;color:var(--text-3)">No blacklisted clients</td></tr>`; return; }
+  body.innerHTML = rows.map((c,i)=>{
+    const branch = getBranch(c.id);
+    const phone = c.phone||c.whatsapp||'';
+    const safeId = String(c.id||'').replace(/'/g,"\\'");
+    return `<tr onclick="openModal('${safeId}')" style="cursor:pointer">
+      <td>${i+1}</td>
+      <td><b>${c.name||'—'}</b><br><small class="text-3">${c.city||''}</small></td>
+      <td>${branch?`<span class="badge ${branch.cls}">${branch.label}</span>`:'—'}</td>
+      <td>${c.salesperson||'—'}</td>
+      <td class="num" style="color:var(--red)">PKR ${fmt(num(c.outstanding_amount))}</td>
+      <td><span class="badge ${(c.risk_level||'Medium')==='High'?'badge-red':'badge-yellow'}">${c.risk_level||'Medium'}</span></td>
+      <td>${phone||'—'}</td>
+      <td><span class="badge badge-red">Blacklisted</span></td>
+    </tr>`;
+  }).join('');
 }
 
 // ── Apply Filters + Sort ───────────────────────────────────────
@@ -454,6 +567,7 @@ function applyFilters() {
   const risk   = document.getElementById('s-risk')?.value||'';
   const sp     = document.getElementById('s-salesperson')?.value||'';
   const type   = document.getElementById('s-type')?.value||'';
+  const city   = document.getElementById('s-city')?.value||'';
   const branch = document.getElementById('s-branch')?.value||'';
 
   filtered = allClients.filter(c => {
@@ -461,9 +575,10 @@ function applyFilters() {
       const h = [c.name,c.phone,c.address,c.city,c.salesperson].join(' ').toLowerCase();
       if (!h.includes(search)) return false;
     }
-    if (risk   && c.risk_level !== risk) return false;
-    if (type   && c.outstanding_type !== type) return false;
-    if (sp     && c.salesperson !== sp) return false;
+    if (risk && c.risk_level !== risk) return false;
+    if (type && c.outstanding_type !== type) return false;
+    if (sp   && c.salesperson !== sp) return false;
+    if (city && c.city !== city) return false;
     if (branch) {
       const id = (c.id||'').toLowerCase();
       if (branch==='cnc'  && !id.includes('_cnc'))  return false;
@@ -496,16 +611,15 @@ function setSort(key) {
 
 // ── Update KPIs ────────────────────────────────────────────────
 function updateKPIs() {
-  const totalOS    = filtered.reduce((s,c)=>s+num(c.outstanding_amount),0);
-  const totalSales = filtered.reduce((s,c)=>s+num(c.total_invoiced),0);
-  const totalPaid  = filtered.reduce((s,c)=>s+num(c.total_paid),0);
-  const totalPend  = filtered.reduce((s,c)=>s+(c.outstanding_type==='Dr'?num(c.outstanding_amount):0),0);
+  const totalOS  = filtered.reduce((s,c)=>s+num(c.outstanding_amount),0);
+  const withOS   = filtered.filter(c=>num(c.outstanding_amount)>0).length;
+  const overdue  = filtered.filter(c=>num(c.outstanding_amount)>0 && (c.outstanding_type||'Dr')==='Dr').length;
 
   document.getElementById('kv-clients').textContent     = filtered.length;
-  document.getElementById('kv-outstanding').textContent = 'PKR '+fmtK(totalOS);
-  document.getElementById('kv-sales').textContent       = 'PKR '+fmtK(totalSales);
-  document.getElementById('kv-paid').textContent        = 'PKR '+fmtK(totalPaid);
-  document.getElementById('kv-pending').textContent     = 'PKR '+fmtK(totalPend);
+  document.getElementById('kv-oscount').textContent     = withOS;
+  document.getElementById('kv-outstanding').textContent = fmtK(totalOS);
+  document.getElementById('kv-overdue').textContent     = overdue;
+  document.getElementById('ledgerCount').textContent    = `${filtered.length} clients`;
 }
 
 // Branch from ID
@@ -524,7 +638,7 @@ function renderGrid() {
   if (cnt) cnt.textContent = `${filtered.length} clients`;
 
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="11" style="padding:50px;text-align:center;color:var(--text-3)">
+    tbody.innerHTML = `<tr><td colspan="12" style="padding:50px;text-align:center;color:var(--text-3)">
       <div style="font-size:32px;margin-bottom:8px">🔍</div>
       <div style="font-weight:600">No clients found</div>
       <div style="font-size:12px;margin-top:4px">Try changing your filters</div>
