@@ -124,15 +124,15 @@
           <div class="stat-val" id="st-sp">0</div>
           <div class="stat-sub">Active salespeople</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">With Outstanding</div>
-          <div class="stat-val" id="st-os">0</div>
-          <div class="stat-sub">Pending balance</div>
+        <div class="stat-card" style="cursor:pointer" onclick="switchTab('top',document.getElementById('tab-top'))">
+          <div class="stat-label">Top Clients</div>
+          <div class="stat-val" id="st-top">0</div>
+          <div class="stat-sub">By outstanding</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">Total Outstanding</div>
-          <div class="stat-val" id="st-osamt" style="font-size:16px">—</div>
-          <div class="stat-sub">PKR</div>
+        <div class="stat-card" style="cursor:pointer" onclick="switchTab('blacklisted',document.getElementById('tab-blacklisted'))">
+          <div class="stat-label">Blacklisted</div>
+          <div class="stat-val" id="st-blacklisted" style="color:var(--red)">0</div>
+          <div class="stat-sub">Blocked clients</div>
         </div>
       </div>
 
@@ -563,13 +563,13 @@ async function loadClients(keepFilters=false) {
 }
 
 function updateStats(){
-  const sps = new Set(allClients.map(c=>c.salesperson).filter(Boolean));
-  const withOs = allClients.filter(c=>c.outstanding_amount>0).length;
-  const totalOs = allClients.reduce((s,c)=>s+(c.outstanding_amount||0),0);
-  document.getElementById('st-total').textContent = allClients.length;
-  document.getElementById('st-sp').textContent    = sps.size;
-  document.getElementById('st-os').textContent    = withOs;
-  document.getElementById('st-osamt').textContent = 'PKR '+fmtK(totalOs);
+  const sps         = new Set(allClients.map(c=>c.salesperson).filter(Boolean));
+  const topClients  = allClients.filter(c=>(c.outstanding_amount||0)>0).length;
+  const blacklisted = allClients.filter(c=>c.status==='blacklisted').length;
+  document.getElementById('st-total').textContent       = allClients.length;
+  document.getElementById('st-sp').textContent          = sps.size;
+  document.getElementById('st-top').textContent         = topClients;
+  document.getElementById('st-blacklisted').textContent = blacklisted;
 }
 
 function populateFilters(){
