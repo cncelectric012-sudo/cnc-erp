@@ -88,7 +88,7 @@ button, input, select, textarea { font-family: inherit; }
   text-decoration: none; transition: all 0.15s;
 }
 .sb-item:hover { background: var(--surface-2); color: var(--text); }
-.sb-item.active { background: var(--brand-50); color: var(--brand); font-weight: 600; }
+.sb-item.active { background: var(--brand-50); color: var(--brand); font-weight: 700; border-left: 3px solid var(--brand); padding-left: 7px; }
 .sb-item .ico {
   width: 16px; height: 16px; display: grid; place-items: center;
   font-size: 14px; flex-shrink: 0;

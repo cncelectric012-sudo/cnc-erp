@@ -205,10 +205,9 @@ function renderSidebar(activePage) {
   // Determine which group is open (based on active page)
   const pageToGroup = {
     users:'g1',
-    clients:'g2',
-    ledgers:'g3', upload:'g3',
+    clients:'g2', ledgers:'g2', upload:'g2',
     approvals:'g4',
-    decision:'g5', policy:'g5', controls:'g5',
+    decision:'g5', policy:'g5', controls:'g5', 'bot-controls':'g5',
     paygate:'g6', bank:'g6',
     payments:'g7',
     ai:'g8'
