@@ -13,6 +13,8 @@
     'upload.html':          'dashboard.view',
     'clients.html':         'clients.view',
     'new-client.html':      'clients.view',
+    'ledger-import.html':   'clients.view',
+    'ledger-export.html':   'clients.view',
     'ledgers.html':         'ledgers.view',
     'payments.html':        'payments.view',
     'approvals.html':       'approvals.view',

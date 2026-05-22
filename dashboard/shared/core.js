@@ -157,7 +157,8 @@ function renderSidebar(activePage) {
         item('new-client','➕','New Client','clients.view'),
         item('clients','📋','All Clients','clients.view'),
         item('ledgers','📒','Client Ledgers','ledgers.view'),
-        item('upload','📥','Upload Data','dashboard.view'),
+        item('ledger-import','📥','Import','clients.view'),
+        item('ledger-export','📤','Export','clients.view'),
       ]
     },
     {
@@ -207,7 +208,7 @@ function renderSidebar(activePage) {
   // Determine which group is open (based on active page)
   const pageToGroup = {
     users:'g1',
-    clients:'g2', 'new-client':'g2', ledgers:'g2', upload:'g2',
+    clients:'g2', 'new-client':'g2', ledgers:'g2', 'ledger-import':'g2', 'ledger-export':'g2',
     approvals:'g4',
     decision:'g5', policy:'g5', controls:'g5', 'bot-controls':'g5',
     paygate:'g6', bank:'g6',

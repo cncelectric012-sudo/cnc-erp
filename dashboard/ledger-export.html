@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Export Ledger Data · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.export-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:24px; }
+.export-card {
+  border:1.5px solid var(--border); border-radius:12px; padding:28px 20px;
+  text-align:center; cursor:pointer; transition:all .2s; background:var(--surface);
+}
+.export-card:hover { border-color:var(--brand); box-shadow:0 4px 20px rgba(220,38,38,.1); transform:translateY(-2px); }
+.export-icon { font-size:40px; margin-bottom:14px; }
+.export-card h4 { font-size:15px; font-weight:700; margin-bottom:6px; }
+.export-card p  { font-size:12px; color:var(--text-3); line-height:1.5; margin-bottom:16px; }
+.export-card .btn { width:100%; }
+.filter-row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; }
+</style>
+</head>
+<body data-page="ledger-export">
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Export Ledger Data</div>
+        <div class="topbar-sub" id="expSub">Loading data...</div>
+      </div>
+      <div class="topbar-actions">
+        <a href="ledgers.html" class="btn btn-secondary btn-sm">← Client Ledgers</a>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Filters -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div class="card-title">🔽 Filters (Optional)</div></div>
+        <div class="card-body">
+          <div class="filter-row">
+            <select class="input" style="width:150px" id="fBranch">
+              <option value="">All Branches</option>
+              <option value="cnc">CNC</option>
+              <option value="cst">CS Traders</option>
+              <option value="cspl">Cog. Solutions</option>
+            </select>
+            <select class="input" style="width:150px" id="fType">
+              <option value="">Dr / Cr: All</option>
+              <option value="Dr">Dr only</option>
+              <option value="Cr">Cr only</option>
+            </select>
+            <select class="input" style="width:150px" id="fRisk">
+              <option value="">Risk: All</option>
+              <option value="High">High Risk</option>
+              <option value="Medium">Medium Risk</option>
+              <option value="Low">Low Risk</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="applyFilter()">Apply</button>
+            <span id="countBadge" style="font-size:12px;color:var(--text-3)"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export Options -->
+      <div class="export-grid">
+
+        <div class="export-card">
+          <div class="export-icon">📊</div>
+          <h4>Excel (.xlsx)</h4>
+          <p>Full ledger data with all columns — best for analysis in Excel/Sheets</p>
+          <button class="btn btn-primary" onclick="doExport('excel')">⬇ Download Excel</button>
+        </div>
+
+        <div class="export-card">
+          <div class="export-icon">📄</div>
+          <h4>CSV</h4>
+          <p>Comma-separated — compatible with any software or database</p>
+          <button class="btn btn-primary" onclick="doExport('csv')">⬇ Download CSV</button>
+        </div>
+
+        <div class="export-card">
+          <div class="export-icon">📋</div>
+          <h4>PDF Report</h4>
+          <p>Print-ready ledger summary with outstanding balances</p>
+          <button class="btn btn-primary" onclick="doExport('pdf')">⬇ Download PDF</button>
+        </div>
+
+      </div>
+
+      <!-- Preview table -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">👁️ Data Preview</div>
+          <div class="card-sub" id="previewSub">—</div>
+        </div>
+        <div class="card-body" style="padding:0;overflow:hidden">
+          <div style="overflow-x:auto;max-height:450px;overflow-y:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead>
+                <tr style="background:var(--surface-2);border-bottom:1px solid var(--border)">
+                  <th style="padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;color:var(--text-3)">#</th>
+                  <th style="padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;color:var(--text-3)">Client Name</th>
+                  <th style="padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;color:var(--text-3)">Branch</th>
+                  <th style="padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;color:var(--text-3)">Sales Rep</th>
+                  <th style="padding:9px 12px;text-align:right;font-size:10px;text-transform:uppercase;color:var(--text-3)">Outstanding</th>
+                  <th style="padding:9px 12px;text-align:center;font-size:10px;text-transform:uppercase;color:var(--text-3)">Type</th>
+                  <th style="padding:9px 12px;text-align:center;font-size:10px;text-transform:uppercase;color:var(--text-3)">Risk</th>
+                  <th style="padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;color:var(--text-3)">Phone</th>
+                  <th style="padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;color:var(--text-3)">City</th>
+                </tr>
+              </thead>
+              <tbody id="previewBody">
+                <tr><td colspan="9" style="padding:40px;text-align:center;color:var(--text-3)">
+                  <div class="loading-spinner" style="margin:0 auto 10px"></div>Loading...
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script>
+const API  = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
+const SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmFheHl3bGZwb21sYXRwaXVhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkzMjI4NSwiZXhwIjoyMDkzNTA4Mjg1fQ.vsCZIT5ER1DVBPvRGt8Ai-cYtUD0rosyxNEBi5T2NCo';
+const HDR  = { 'apikey': SKEY, 'Authorization': 'Bearer ' + SKEY };
+
+let allData = [], filtered = [];
+
+async function loadData() {
+  try {
+    let rows = [], from = 0;
+    while (true) {
+      const r = await fetch(`${API}/ledgers?limit=500&offset=${from}&order=outstanding_amount.desc`, { headers: HDR });
+      const batch = await r.json();
+      if (!Array.isArray(batch) || !batch.length) break;
+      rows = rows.concat(batch);
+      if (batch.length < 500) break;
+      from += 500;
+    }
+    allData = rows;
+    filtered = rows;
+    document.getElementById('expSub').textContent = `${rows.length} ledger clients loaded`;
+    renderPreview();
+  } catch(e) {
+    document.getElementById('expSub').textContent = '⚠️ Error: ' + e.message;
+  }
+}
+
+function applyFilter() {
+  const branch = document.getElementById('fBranch').value;
+  const type   = document.getElementById('fType').value;
+  const risk   = document.getElementById('fRisk').value;
+  filtered = allData.filter(c => {
+    if (type && c.outstanding_type !== type) return false;
+    if (risk && c.risk_level !== risk) return false;
+    if (branch) {
+      const id = (c.id||'').toLowerCase();
+      if (branch==='cnc'  && !id.includes('_cnc'))  return false;
+      if (branch==='cst'  && !id.includes('_cst'))  return false;
+      if (branch==='cspl' && !id.includes('_cspl')) return false;
+    }
+    return true;
+  });
+  document.getElementById('countBadge').textContent = `${filtered.length} records`;
+  renderPreview();
+}
+
+const branchLabel = id => {
+  const s = (id||'').toLowerCase();
+  if (s.includes('_cnc'))  return 'CNC';
+  if (s.includes('_cst'))  return 'CS Traders';
+  if (s.includes('_cspl')) return 'Cog. Solutions';
+  return c?.branch || '—';
+};
+const fmtN = n => new Intl.NumberFormat('en-PK',{maximumFractionDigits:0}).format(Math.round(n||0));
+
+function renderPreview() {
+  document.getElementById('previewSub').textContent = `${filtered.length} records`;
+  const body = document.getElementById('previewBody');
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="9" style="padding:30px;text-align:center;color:var(--text-3)">No data</td></tr>';
+    return;
+  }
+  const riskColor = r => r==='High'?'var(--red)':r==='Medium'?'#D97706':'var(--green)';
+  body.innerHTML = filtered.slice(0,100).map((c,i) => `
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 12px;color:var(--text-3)">${i+1}</td>
+      <td style="padding:8px 12px;font-weight:600">${c.name||'—'}</td>
+      <td style="padding:8px 12px">${branchLabel(c.id)}</td>
+      <td style="padding:8px 12px">${c.salesperson||'—'}</td>
+      <td style="padding:8px 12px;text-align:right;font-weight:700;color:${(c.outstanding_amount||0)>0?'var(--red)':'var(--green)'}">PKR ${fmtN(c.outstanding_amount)}</td>
+      <td style="padding:8px 12px;text-align:center"><span class="badge ${c.outstanding_type==='Dr'?'badge-red':'badge-green'}">${c.outstanding_type||'Dr'}</span></td>
+      <td style="padding:8px 12px;text-align:center;color:${riskColor(c.risk_level)};font-weight:600">${c.risk_level||'Medium'}</td>
+      <td style="padding:8px 12px">${c.phone||'—'}</td>
+      <td style="padding:8px 12px">${c.city||'—'}</td>
+    </tr>`).join('');
+  if (filtered.length > 100) {
+    body.innerHTML += `<tr><td colspan="9" style="padding:10px;text-align:center;color:var(--text-3);font-size:12px">... aur ${filtered.length-100} records (sab export mein include honge)</td></tr>`;
+  }
+}
+
+function doExport(type) {
+  if (!filtered.length) { alert('Koi data nahi hai export karne ke liye'); return; }
+  const cols = ['name','branch','salesperson','outstanding_amount','outstanding_type','risk_level','phone','city','email','address','status','payment_terms','last_updated'];
+  const rows = filtered.map(c => {
+    const r = {};
+    cols.forEach(k => r[k] = c[k]||'');
+    r.branch = branchLabel(c.id);
+    return r;
+  });
+
+  if (type === 'csv') {
+    const csv = [cols.join(','), ...rows.map(r => cols.map(k => `"${String(r[k]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = `CNC_Ledgers_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+
+  } else if (type === 'excel') {
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Ledgers');
+    ws['!cols'] = cols.map(() => ({ wch: 18 }));
+    XLSX.writeFile(wb, `CNC_Ledgers_${new Date().toISOString().slice(0,10)}.xlsx`);
+
+  } else if (type === 'pdf') {
+    const w = window.open('', '_blank');
+    const totalOs = filtered.reduce((s,c) => s + (c.outstanding_type==='Dr'?1:-1)*(c.outstanding_amount||0), 0);
+    w.document.write(`<!DOCTYPE html><html><head><title>CNC Electric Ledgers</title>
+    <style>body{font-family:Arial,sans-serif;font-size:11px;margin:20px}
+    h1{font-size:18px;color:#DC2626}h2{font-size:13px;color:#666;margin-top:0}
+    table{width:100%;border-collapse:collapse;margin-top:16px}
+    th{background:#DC2626;color:white;padding:7px 10px;text-align:left;font-size:10px}
+    td{padding:6px 10px;border-bottom:1px solid #eee}
+    tr:nth-child(even){background:#fafafa}
+    .tot{font-weight:700;color:#DC2626}.footer{margin-top:20px;font-size:10px;color:#999}</style>
+    </head><body>
+    <h1>CNC Electric — Client Ledgers</h1>
+    <h2>Generated: ${new Date().toLocaleString('en-PK')} | Total Records: ${filtered.length} | Total Outstanding: PKR ${fmtN(totalOs)}</h2>
+    <table><thead><tr><th>#</th><th>Client Name</th><th>Branch</th><th>Sales Rep</th><th>Outstanding (PKR)</th><th>Type</th><th>Risk</th><th>Phone</th><th>City</th></tr></thead><tbody>
+    ${filtered.map((c,i)=>`<tr><td>${i+1}</td><td>${c.name||'—'}</td><td>${branchLabel(c.id)}</td><td>${c.salesperson||'—'}</td><td class="tot">${fmtN(c.outstanding_amount)}</td><td>${c.outstanding_type||'Dr'}</td><td>${c.risk_level||'Medium'}</td><td>${c.phone||'—'}</td><td>${c.city||'—'}</td></tr>`).join('')}
+    </tbody></table>
+    <div class="footer">CNC Electric ERP v2.0 — Confidential</div>
+    <script>window.onload=()=>{window.print()}<\/script></body></html>`);
+    w.document.close();
+  }
+}
+
+window.addEventListener('load', () => {
+  renderSidebar('ledger-export');
+  setTimeout(loadData, 300);
+});
+</script>
+</body>
+</html>

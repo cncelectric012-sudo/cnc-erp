@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Import Ledger Data · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.import-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:24px; }
+.import-card {
+  border:2px dashed var(--border-2); border-radius:12px; padding:28px 20px;
+  text-align:center; cursor:pointer; transition:all .15s; background:var(--surface);
+  position:relative;
+}
+.import-card:hover { border-color:var(--brand); background:var(--brand-50); }
+.import-card.loaded { border-color:var(--green); border-style:solid; background:#F0FDF4; }
+.import-card input[type=file] { display:none; }
+.import-icon { font-size:36px; margin-bottom:12px; }
+.import-card h4 { font-size:14px; font-weight:700; margin-bottom:4px; }
+.import-card p { font-size:12px; color:var(--text-3); line-height:1.4; }
+.import-card .loaded-badge { display:none; margin-top:8px; font-size:11px; font-weight:600; color:var(--green); }
+.import-card.loaded .loaded-badge { display:block; }
+.log-box { background:#1F2937; color:#E5E7EB; border-radius:8px; padding:14px; font-family:var(--font-mono); font-size:12px; max-height:200px; overflow-y:auto; line-height:1.7; display:none; }
+.log-box.show { display:block; }
+.log-ok   { color:#10B981; }
+.log-warn { color:#F59E0B; }
+.log-err  { color:#EF4444; }
+.log-info { color:#60A5FA; }
+.preview-table { width:100%; border-collapse:collapse; font-size:12px; }
+.preview-table th { background:var(--surface-2); padding:8px 12px; text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-3); border-bottom:1px solid var(--border); }
+.preview-table td { padding:7px 12px; border-bottom:1px solid var(--border); }
+.preview-table tr:last-child td { border-bottom:none; }
+</style>
+</head>
+<body data-page="ledger-import">
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Import Ledger Data</div>
+        <div class="topbar-sub">Excel, CSV, PDF ya Image se client data import karein</div>
+      </div>
+      <div class="topbar-actions">
+        <a href="ledgers.html" class="btn btn-secondary btn-sm">← Client Ledgers</a>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Upload Cards -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <div class="card-title">📂 File Select Karein</div>
+          <div class="card-sub">Ek ya zyada files select karo — system automatically parse karega</div>
+        </div>
+        <div class="card-body">
+          <div class="import-grid">
+
+            <label class="import-card" id="card-excel">
+              <input type="file" accept=".xlsx,.xls" onchange="handleFile(event,'excel')"/>
+              <div class="import-icon">📊</div>
+              <h4>Excel (.xlsx / .xls)</h4>
+              <p>AISONE ERP ya koi bhi Excel ledger file</p>
+              <div class="loaded-badge">✓ Loaded</div>
+            </label>
+
+            <label class="import-card" id="card-csv">
+              <input type="file" accept=".csv,.txt" onchange="handleFile(event,'csv')"/>
+              <div class="import-icon">📄</div>
+              <h4>CSV / Text</h4>
+              <p>name, outstanding, phone, city columns</p>
+              <div class="loaded-badge">✓ Loaded</div>
+            </label>
+
+            <label class="import-card" id="card-pdf">
+              <input type="file" accept=".pdf" onchange="handleFile(event,'pdf')"/>
+              <div class="import-icon">📋</div>
+              <h4>PDF</h4>
+              <p>Ledger statement PDF — AI se data extract hoga</p>
+              <div class="loaded-badge">✓ Loaded</div>
+            </label>
+
+            <label class="import-card" id="card-image">
+              <input type="file" accept="image/*" onchange="handleFile(event,'image')"/>
+              <div class="import-icon">🖼️</div>
+              <h4>Image</h4>
+              <p>Screenshot ya scanned ledger — AI se read hoga</p>
+              <div class="loaded-badge">✓ Loaded</div>
+            </label>
+
+          </div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-primary" id="importBtn" onclick="startImport()" disabled>⚡ Import Karo</button>
+            <button class="btn btn-secondary" onclick="clearAll()">↺ Reset</button>
+            <span id="fileStatus" style="font-size:12px;color:var(--text-3)"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Log -->
+      <div class="card" style="margin-bottom:16px" id="logCard" style="display:none">
+        <div class="card-header"><div class="card-title">📋 Import Log</div></div>
+        <div class="card-body">
+          <div class="log-box show" id="logBox"></div>
+          <div id="importSummary" style="margin-top:12px;font-size:13px"></div>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div class="card hidden" id="previewCard">
+        <div class="card-header">
+          <div class="card-title">👁️ Preview</div>
+          <div class="card-sub" id="previewSub"></div>
+        </div>
+        <div class="card-body" style="padding:0;overflow:hidden">
+          <div style="overflow-x:auto;max-height:400px;overflow-y:auto">
+            <table class="preview-table">
+              <thead id="previewHead"></thead>
+              <tbody id="previewBody"></tbody>
+            </table>
+          </div>
+          <div style="padding:14px;border-top:1px solid var(--border);display:flex;gap:10px">
+            <button class="btn btn-primary" id="confirmBtn" onclick="confirmImport()">✅ Confirm & Save to Supabase</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('previewCard').classList.add('hidden')">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/auth-guard.js"></script>
+<script src="shared/core.js"></script>
+<script>
+const API  = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
+const SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmFheHl3bGZwb21sYXRwaXVhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkzMjI4NSwiZXhwIjoyMDkzNTA4Mjg1fQ.vsCZIT5ER1DVBPvRGt8Ai-cYtUD0rosyxNEBi5T2NCo';
+const HDR  = { 'apikey': SKEY, 'Authorization': 'Bearer ' + SKEY, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' };
+
+let loadedFiles = {};
+let parsedRows  = [];
+
+function log(msg, type='info') {
+  const box = document.getElementById('logBox');
+  document.getElementById('logCard').style.display = '';
+  box.classList.add('show');
+  const t = new Date().toLocaleTimeString();
+  box.innerHTML += `<div><span class="log-${type}">[${t}]</span> ${msg}</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+function handleFile(e, type) {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadedFiles[type] = file;
+  document.getElementById('card-' + type).classList.add('loaded');
+  document.getElementById('fileStatus').textContent = Object.keys(loadedFiles).length + ' file(s) ready';
+  document.getElementById('importBtn').disabled = false;
+}
+
+function clearAll() {
+  loadedFiles = {}; parsedRows = [];
+  ['excel','csv','pdf','image'].forEach(t => {
+    document.getElementById('card-'+t).classList.remove('loaded');
+    document.getElementById('card-'+t).querySelector('input').value = '';
+  });
+  document.getElementById('importBtn').disabled = true;
+  document.getElementById('fileStatus').textContent = '';
+  document.getElementById('logBox').innerHTML = '';
+  document.getElementById('logBox').classList.remove('show');
+  document.getElementById('previewCard').classList.add('hidden');
+  document.getElementById('logCard').style.display = 'none';
+}
+
+async function startImport() {
+  parsedRows = [];
+  document.getElementById('logBox').innerHTML = '';
+
+  for (const [type, file] of Object.entries(loadedFiles)) {
+    log(`Processing ${file.name} (${type.toUpperCase()})...`, 'info');
+    try {
+      if (type === 'excel') await parseExcel(file);
+      else if (type === 'csv') await parseCSV(file);
+      else if (type === 'pdf' || type === 'image') {
+        log(`⚠️ PDF/Image: AI extraction requires Claude API key in settings. Manual entry recommended.`, 'warn');
+      }
+    } catch(e) {
+      log(`Error in ${file.name}: ${e.message}`, 'err');
+    }
+  }
+
+  if (!parsedRows.length) {
+    log('Koi data nahi mila. File format check karein.', 'warn');
+    return;
+  }
+
+  log(`✅ ${parsedRows.length} records parsed. Preview dekh ke confirm karein.`, 'ok');
+  showPreview();
+}
+
+async function parseExcel(file) {
+  const buf  = await file.arrayBuffer();
+  const wb   = XLSX.read(buf, { type:'array' });
+  const ws   = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+  log(`Excel: ${rows.length} rows found in "${wb.SheetNames[0]}"`, 'ok');
+  rows.forEach(r => parsedRows.push(normalizeRow(r)));
+}
+
+async function parseCSV(file) {
+  const text = await file.text();
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,'').toLowerCase());
+  log(`CSV: ${lines.length-1} rows, columns: ${headers.join(', ')}`, 'ok');
+  lines.slice(1).forEach(line => {
+    const vals = line.split(',').map(v => v.trim().replace(/"/g,''));
+    const obj  = {};
+    headers.forEach((h,i) => obj[h] = vals[i]||'');
+    parsedRows.push(normalizeRow(obj));
+  });
+}
+
+const FIELD_MAP = {
+  'customer name':'name','client name':'name','company':'name','party name':'name',
+  'outstanding':'outstanding_amount','balance':'outstanding_amount','due':'outstanding_amount','amount':'outstanding_amount',
+  'dr':'outstanding_amount','cr':'outstanding_amount',
+  'city':'city','phone':'phone','mobile':'phone','contact':'phone',
+  'salesperson':'salesperson','sales rep':'salesperson','rep':'salesperson',
+  'branch':'branch','entity':'branch',
+  'type':'outstanding_type','bal type':'outstanding_type',
+};
+
+function normalizeRow(r) {
+  const out = {};
+  for (const [k, v] of Object.entries(r)) {
+    const mapped = FIELD_MAP[k.toLowerCase()] || k.toLowerCase().replace(/\s+/g,'_');
+    out[mapped] = String(v||'').trim();
+  }
+  if (!out.name && r['Party Name']) out.name = r['Party Name'];
+  if (!out.outstanding_amount) out.outstanding_amount = 0;
+  else out.outstanding_amount = parseFloat(String(out.outstanding_amount).replace(/,/g,'')) || 0;
+  out.outstanding_type = out.outstanding_type || 'Dr';
+  out.status = 'active';
+  out.risk_level = out.risk_level || 'Medium';
+  out.last_updated = new Date().toISOString();
+  if (!out.id && out.name) {
+    out.id = out.name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,5);
+  }
+  return out;
+}
+
+function showPreview() {
+  if (!parsedRows.length) return;
+  const card = document.getElementById('previewCard');
+  card.classList.remove('hidden');
+  document.getElementById('previewSub').textContent = `${parsedRows.length} records ready to import`;
+  const cols = ['name','outstanding_amount','outstanding_type','city','branch','salesperson','phone'];
+  document.getElementById('previewHead').innerHTML = '<tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr>';
+  document.getElementById('previewBody').innerHTML = parsedRows.slice(0,50).map(r =>
+    '<tr>' + cols.map(c=>`<td>${r[c]||'—'}</td>`).join('') + '</tr>'
+  ).join('');
+  if (parsedRows.length > 50) {
+    document.getElementById('previewBody').innerHTML += `<tr><td colspan="${cols.length}" style="text-align:center;color:var(--text-3);padding:10px">... aur ${parsedRows.length-50} records</td></tr>`;
+  }
+}
+
+async function confirmImport() {
+  document.getElementById('confirmBtn').disabled = true;
+  document.getElementById('confirmBtn').textContent = 'Saving...';
+  log(`Supabase mein ${parsedRows.length} records save ho rahe hain...`, 'info');
+
+  let done = 0, errors = 0;
+  const BATCH = 50;
+  for (let i = 0; i < parsedRows.length; i += BATCH) {
+    const batch = parsedRows.slice(i, i + BATCH);
+    try {
+      const r = await fetch(`${API}/clients`, {
+        method: 'POST', headers: HDR, body: JSON.stringify(batch)
+      });
+      if (r.ok) done += batch.length;
+      else { errors += batch.length; log(`Batch ${i/BATCH+1} error: ${await r.text()}`, 'err'); }
+    } catch(e) { errors += batch.length; log(`Batch error: ${e.message}`, 'err'); }
+    log(`Progress: ${Math.min(i+BATCH, parsedRows.length)}/${parsedRows.length}`, 'info');
+  }
+
+  document.getElementById('importSummary').innerHTML = `
+    <span style="color:var(--green);font-weight:600">✅ ${done} records imported</span>
+    ${errors ? `<span style="color:var(--red);margin-left:12px">❌ ${errors} errors</span>` : ''}
+  `;
+  log(`Import complete: ${done} saved, ${errors} errors`, done > 0 ? 'ok' : 'err');
+
+  if (done > 0) {
+    setTimeout(() => { window.location.href = 'ledgers.html'; }, 2000);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => renderSidebar('ledger-import'));
+</script>
+</body>
+</html>
