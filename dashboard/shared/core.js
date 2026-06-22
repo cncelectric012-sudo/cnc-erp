@@ -157,8 +157,6 @@ function renderSidebar(activePage) {
         item('new-client','➕','New Client','clients.view'),
         item('clients','📋','All Clients','clients.view'),
         item('ledgers','📒','Client Ledgers','ledgers.view'),
-        item('ledger-import','📥','Import','clients.view'),
-        item('ledger-export','📤','Export','clients.view'),
       ]
     },
     {

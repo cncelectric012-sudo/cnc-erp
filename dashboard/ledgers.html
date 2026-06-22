@@ -212,11 +212,16 @@
         <div class="topbar-title">Client Ledgers</div>
         <div class="topbar-sub" id="topbarSub">Loading from Supabase...</div>
       </div>
-      <div class="topbar-actions export-bar">
-        <button class="btn-export" onclick="exportCSV()">⬇ CSV</button>
-        <button class="btn-export" onclick="exportExcel()">⬇ Excel</button>
-        <button class="btn-export" onclick="exportPDF()">⬇ PDF</button>
-        <button class="btn-export" onclick="exportImage()">⬇ Image</button>
+      <div class="topbar-actions" style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="openImportModal()">📥 Import</button>
+        <div style="position:relative">
+          <button class="btn btn-secondary btn-sm" onclick="toggleExportMenu()" id="exportMenuBtn">📤 Export ▾</button>
+          <div id="exportMenu" class="hidden" style="position:absolute;right:0;top:38px;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-md);min-width:160px;z-index:100;padding:4px">
+            <button class="menu-item" onclick="exportExcel();toggleExportMenu()">📊 Excel (.xlsx)</button>
+            <button class="menu-item" onclick="exportCSV();toggleExportMenu()">📄 CSV</button>
+            <button class="menu-item" onclick="exportPDF();toggleExportMenu()">📋 PDF</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -366,6 +371,51 @@
 
     </div>
   </main>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay hidden" id="importModal">
+  <div class="modal-box" style="max-width:600px">
+    <div class="modal-header">
+      <div style="font-size:16px;font-weight:700">📥 Import Ledger Data</div>
+      <button class="modal-close" onclick="document.getElementById('importModal').classList.add('hidden')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <label style="border:2px dashed var(--border-2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .15s" id="imp-excel-card" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border-2)'">
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="impHandleFile(event,'excel')"/>
+          <div style="font-size:28px;margin-bottom:8px">📊</div>
+          <div style="font-weight:600;font-size:13px">Excel (.xlsx/.xls)</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:4px">AISONE ya koi bhi Excel file</div>
+          <div id="imp-excel-status" style="display:none;margin-top:6px;font-size:11px;font-weight:600;color:var(--green)">✓ Loaded</div>
+        </label>
+        <label style="border:2px dashed var(--border-2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .15s" id="imp-csv-card" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border-2)'">
+          <input type="file" accept=".csv,.txt" style="display:none" onchange="impHandleFile(event,'csv')"/>
+          <div style="font-size:28px;margin-bottom:8px">📄</div>
+          <div style="font-weight:600;font-size:13px">CSV / Text</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:4px">name, outstanding, phone, city</div>
+          <div id="imp-csv-status" style="display:none;margin-top:6px;font-size:11px;font-weight:600;color:var(--green)">✓ Loaded</div>
+        </label>
+        <label style="border:2px dashed var(--border-2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border-2)'">
+          <input type="file" accept=".pdf" style="display:none" onchange="impHandleFile(event,'pdf')"/>
+          <div style="font-size:28px;margin-bottom:8px">📋</div>
+          <div style="font-weight:600;font-size:13px">PDF</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:4px">Ledger statement PDF</div>
+        </label>
+        <label style="border:2px dashed var(--border-2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border-2)'">
+          <input type="file" accept="image/*" style="display:none" onchange="impHandleFile(event,'image')"/>
+          <div style="font-size:28px;margin-bottom:8px">🖼️</div>
+          <div style="font-weight:600;font-size:13px">Image</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:4px">Screenshot ya scanned ledger</div>
+        </label>
+      </div>
+      <div id="imp-log" style="display:none;background:#1F2937;color:#E5E7EB;border-radius:8px;padding:12px;font-family:var(--font-mono);font-size:11px;max-height:150px;overflow-y:auto;line-height:1.7;margin-bottom:12px"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="document.getElementById('importModal').classList.add('hidden')">Cancel</button>
+        <button class="btn btn-primary" id="imp-btn" onclick="impStart()" disabled>⚡ Import Karo</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Detail Modal -->
@@ -1224,6 +1274,117 @@ async function bulkDelete() {
   renderGrid();
   document.getElementById('selectAll').checked = false;
   updateBulkBar();
+}
+
+// ── Export menu toggle ────────────────────────────────────────
+function toggleExportMenu() {
+  document.getElementById('exportMenu').classList.toggle('hidden');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#exportMenuBtn') && !e.target.closest('#exportMenu'))
+    document.getElementById('exportMenu')?.classList.add('hidden');
+});
+
+// ── Import modal ──────────────────────────────────────────────
+let impFiles = {};
+function openImportModal() {
+  impFiles = {};
+  document.getElementById('imp-log').style.display = 'none';
+  document.getElementById('imp-log').innerHTML = '';
+  document.getElementById('imp-btn').disabled = true;
+  ['excel','csv'].forEach(t => {
+    document.getElementById('imp-'+t+'-status').style.display = 'none';
+  });
+  document.getElementById('importModal').classList.remove('hidden');
+}
+
+function impHandleFile(e, type) {
+  const file = e.target.files[0];
+  if (!file) return;
+  impFiles[type] = file;
+  const st = document.getElementById('imp-'+type+'-status');
+  if (st) st.style.display = 'block';
+  document.getElementById('imp-btn').disabled = false;
+  if (type === 'pdf' || type === 'image') {
+    impLog('⚠️ ' + type.toUpperCase() + ': AI extraction ke liye Claude API key settings mein add karein.', 'warn');
+  }
+}
+
+function impLog(msg, type='info') {
+  const box = document.getElementById('imp-log');
+  box.style.display = 'block';
+  const colors = { ok:'#10B981', warn:'#F59E0B', err:'#EF4444', info:'#60A5FA' };
+  box.innerHTML += `<div><span style="color:${colors[type]}">[${new Date().toLocaleTimeString()}]</span> ${msg}</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+async function impStart() {
+  document.getElementById('imp-btn').disabled = true;
+  document.getElementById('imp-btn').textContent = 'Processing...';
+  const rows = [];
+  for (const [type, file] of Object.entries(impFiles)) {
+    impLog(`${file.name} parse ho raha hai...`);
+    try {
+      if (type === 'excel') {
+        const buf = await file.arrayBuffer();
+        const wb  = XLSX.read(buf, { type:'array' });
+        const ws  = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { defval:'' });
+        impLog(`Excel: ${raw.length} rows mila`, 'ok');
+        raw.forEach(r => rows.push(impNormalize(r)));
+      } else if (type === 'csv') {
+        const text    = await file.text();
+        const lines   = text.trim().split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,'').toLowerCase());
+        lines.slice(1).forEach(line => {
+          const vals = line.split(',').map(v => v.trim().replace(/"/g,''));
+          const obj  = {};
+          headers.forEach((h,i) => obj[h] = vals[i]||'');
+          rows.push(impNormalize(obj));
+        });
+        impLog(`CSV: ${lines.length-1} rows mila`, 'ok');
+      }
+    } catch(e) { impLog(`Error: ${e.message}`, 'err'); }
+  }
+  if (!rows.length) {
+    impLog('Koi data nahi mila.', 'warn');
+    document.getElementById('imp-btn').disabled = false;
+    document.getElementById('imp-btn').textContent = '⚡ Import Karo';
+    return;
+  }
+  impLog(`${rows.length} records Supabase mein save ho rahe hain...`);
+  let done = 0;
+  for (let i = 0; i < rows.length; i += 50) {
+    const batch = rows.slice(i, i+50);
+    const r = await fetch(`${LAPI}/clients`, {
+      method:'POST', headers:{...LHDR,'Prefer':'resolution=merge-duplicates,return=minimal'},
+      body: JSON.stringify(batch)
+    });
+    if (r.ok) done += batch.length;
+    else impLog(`Batch error: ${await r.text()}`, 'err');
+  }
+  impLog(`✅ ${done} records import ho gaye!`, 'ok');
+  document.getElementById('imp-btn').textContent = '✅ Done';
+  setTimeout(() => { document.getElementById('importModal').classList.add('hidden'); loadClients(); }, 1500);
+}
+
+function impNormalize(r) {
+  const map = {'customer name':'name','client name':'name','party name':'name','company':'name',
+    'outstanding':'outstanding_amount','balance':'outstanding_amount','due':'outstanding_amount',
+    'city':'city','phone':'phone','mobile':'phone','salesperson':'salesperson','branch':'branch'};
+  const out = {};
+  for (const [k,v] of Object.entries(r)) {
+    const key = map[k.toLowerCase()] || k.toLowerCase().replace(/\s+/g,'_');
+    out[key] = String(v||'').trim();
+  }
+  out.outstanding_amount = parseFloat(String(out.outstanding_amount||0).replace(/,/g,''))||0;
+  out.outstanding_type   = out.outstanding_type||'Dr';
+  out.status             = out.status||'active';
+  out.risk_level         = out.risk_level||'Medium';
+  out.last_updated       = new Date().toISOString();
+  if (!out.id && out.name)
+    out.id = out.name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
+  return out;
 }
 
 // Guaranteed load — fires after everything is ready
