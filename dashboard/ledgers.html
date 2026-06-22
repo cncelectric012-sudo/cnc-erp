@@ -222,6 +222,7 @@
             <button class="menu-item" onclick="exportPDF();toggleExportMenu()">📋 PDF</button>
           </div>
         </div>
+        <button class="btn btn-secondary btn-sm" style="color:var(--red);border-color:var(--red)" onclick="deleteAllLedgers()">🗑 Delete All</button>
       </div>
     </div>
 
@@ -1274,6 +1275,25 @@ async function bulkDelete() {
   renderGrid();
   document.getElementById('selectAll').checked = false;
   updateBulkBar();
+}
+
+// ── Delete All Ledgers ────────────────────────────────────────
+async function deleteAllLedgers() {
+  const count = allClients.length;
+  if (!count) { showToast('Koi ledger nahi hai', '⚠️'); return; }
+  if (!confirm(`Saare ${count} ledger records delete karein?\nYeh clients table se bhi hat jaenge.\n\nNote: Delete ke baad naya data import kar sakte hain.`)) return;
+  if (!confirm(`CONFIRM: ${count} records permanently delete ho jaenge. Pakka?`)) return;
+
+  let done = 0, errors = 0;
+  const BATCH = 50;
+  for (let i = 0; i < allClients.length; i += BATCH) {
+    const ids = allClients.slice(i, i + BATCH).map(c => c.id);
+    const r = await fetch(`${LAPI}/clients?id=in.(${ids.map(encodeURIComponent).join(',')})`, { method: 'DELETE', headers: LHDR });
+    if (r.ok) done += ids.length; else errors += ids.length;
+  }
+  showToast(`${done} ledger records deleted${errors ? ', ' + errors + ' errors' : ''}`, '🗑️');
+  allClients = []; filtered = [];
+  updateKPIs(); renderGrid();
 }
 
 // ── Export menu toggle ────────────────────────────────────────
