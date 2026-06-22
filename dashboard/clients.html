@@ -181,6 +181,8 @@
             <option value="11-20">11% – 20%</option>
             <option value="20+">20%+</option>
           </select>
+          <input class="input" type="date" id="fDateFrom" style="width:140px" title="Date Added From" onchange="applyFilters()"/>
+          <input class="input" type="date" id="fDateTo" style="width:140px" title="Date Added To" onchange="applyFilters()"/>
         </div>
         <div class="toolbar-right">
           <button id="cBulkDelBtn" class="btn btn-secondary btn-sm" onclick="clientBulkDelete()" style="display:none;color:var(--red);border-color:var(--red)">🗑 Delete Selected (<span id="cSelCount">0</span>)</button>
@@ -203,6 +205,7 @@
                 <th class="num">Outstanding</th>
                 <th>Status</th>
                 <th>Terms</th>
+                <th>Date Added</th>
                 <th></th>
               </tr>
             </thead>
@@ -512,19 +515,23 @@ function saveFilterState(){
     status: document.getElementById('fStatus')?.value||'',
     missing: document.getElementById('fMissing')?.value||'',
     discount: document.getElementById('fDiscount')?.value||'',
+    dateFrom: document.getElementById('fDateFrom')?.value||'',
+    dateTo: document.getElementById('fDateTo')?.value||'',
     tab: currentTab
   };
 }
 function restoreFilterState(state){
   if(!state) return;
-  if(state.q)       { const el=document.getElementById('searchBox'); if(el) el.value=state.q; }
-  if(state.sp)      { const el=document.getElementById('fSp');       if(el) el.value=state.sp; }
-  if(state.city)    { const el=document.getElementById('fCity');     if(el) el.value=state.city; }
-  if(state.branch)  { const el=document.getElementById('fBranch');   if(el) el.value=state.branch; }
-  if(state.status)  { const el=document.getElementById('fStatus');   if(el) el.value=state.status; }
-  if(state.missing) { const el=document.getElementById('fMissing');  if(el) el.value=state.missing; }
-  if(state.discount){ const el=document.getElementById('fDiscount'); if(el) el.value=state.discount; }
-  if(state.tab)     currentTab = state.tab;
+  if(state.q)        { const el=document.getElementById('searchBox'); if(el) el.value=state.q; }
+  if(state.sp)       { const el=document.getElementById('fSp');       if(el) el.value=state.sp; }
+  if(state.city)     { const el=document.getElementById('fCity');     if(el) el.value=state.city; }
+  if(state.branch)   { const el=document.getElementById('fBranch');   if(el) el.value=state.branch; }
+  if(state.status)   { const el=document.getElementById('fStatus');   if(el) el.value=state.status; }
+  if(state.missing)  { const el=document.getElementById('fMissing');  if(el) el.value=state.missing; }
+  if(state.discount) { const el=document.getElementById('fDiscount'); if(el) el.value=state.discount; }
+  if(state.dateFrom) { const el=document.getElementById('fDateFrom'); if(el) el.value=state.dateFrom; }
+  if(state.dateTo)   { const el=document.getElementById('fDateTo');   if(el) el.value=state.dateTo; }
+  if(state.tab)      currentTab = state.tab;
 }
 
 async function loadClients(keepFilters=false) {
@@ -600,6 +607,10 @@ function applyFilters(){
 
   const missing  = document.getElementById('fMissing')?.value || '';
   const discount = document.getElementById('fDiscount')?.value || '';
+  const dateFrom = document.getElementById('fDateFrom')?.value || '';
+  const dateTo   = document.getElementById('fDateTo')?.value   || '';
+  const tsFrom = dateFrom ? new Date(dateFrom).getTime() : null;
+  const tsTo   = dateTo   ? new Date(dateTo + 'T23:59:59').getTime() : null;
 
   filtered = allClients.filter(c=>{
     if(q && ![ c.name, c.phone, c.city, c.contact_person, c.email, c.ntn, c.whatsapp ].some(v=>(v||'').toLowerCase().includes(q))) return false;
@@ -619,6 +630,13 @@ function applyFilters(){
     if(discount === '6-10' && (disc < 6 || disc > 10)) return false;
     if(discount === '11-20'&& (disc < 11||disc > 20))  return false;
     if(discount === '20+'  && disc <= 20)               return false;
+    // Date filter
+    if(tsFrom || tsTo) {
+      const ts = c.created_at ? new Date(c.created_at).getTime() : null;
+      if(!ts) return false;
+      if(tsFrom && ts < tsFrom) return false;
+      if(tsTo   && ts > tsTo)   return false;
+    }
     return true;
   });
 
@@ -716,6 +734,7 @@ function renderTable(){
       </td>
       <td>${statusBadge(c.status)}</td>
       <td style="font-size:11px;color:var(--text-3)">${terms}</td>
+      <td style="font-size:11px;color:var(--text-3);white-space:nowrap">${c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—'}</td>
       <td>
         <div class="action-drop">
           <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();toggleRowMenu('${sid}')">⋯</button>
@@ -894,7 +913,7 @@ function profileTab(tab, el){
 
   if(tab==='info'){
     body.innerHTML=`<div class="info-grid">
-      ${[['Company',c.name],['City',c.city||'—'],['Branch',c.branch||'—'],['Address',c.address||'—'],['Contact',c.contact_person||'—'],['Phone',c.phone||'—'],['WhatsApp',c.whatsapp||'—'],['Email',c.email||'—'],['NTN',c.ntn||'—'],['STRN',c.strn||'—'],['Source',c.source||'manual'],['Added',c.last_updated?new Date(c.last_updated).toLocaleDateString('en-GB'):'—']].map(([l,v])=>`
+      ${[['Company',c.name],['City',c.city||'—'],['Branch',c.branch||'—'],['Address',c.address||'—'],['Contact',c.contact_person||'—'],['Phone',c.phone||'—'],['WhatsApp',c.whatsapp||'—'],['Email',c.email||'—'],['NTN',c.ntn||'—'],['STRN',c.strn||'—'],['Source',c.source||'manual'],['Date Added',c.created_at?new Date(c.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—'],['Last Updated',c.last_updated?new Date(c.last_updated).toLocaleDateString('en-GB'):'—']].map(([l,v])=>`
       <div class="info-item"><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join('')}
     </div>`;
   }
@@ -1201,12 +1220,19 @@ async function clientBulkDelete() {
 // ── Export ────────────────────────────────────────────────────
 function doExport(data, filename){
   if(!data.length){ showToast('No data to export','⚠️'); return; }
-  const headers = ['name','city','branch','phone','whatsapp','contact_person','email','salesperson','salesperson_number','credit_limit','discount_pct','payment_terms','sale_category','risk_level','status','ntn','strn','outstanding_amount','total_invoiced','total_paid','notes','source','last_updated'];
-  const csv = [headers.join(','), ...data.map(c=>headers.map(h=>`"${(c[h]||'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
+  const headers = ['name','city','branch','phone','whatsapp','contact_person','email','salesperson','salesperson_number','credit_limit','discount_pct','payment_terms','sale_category','risk_level','status','ntn','strn','outstanding_amount','total_invoiced','total_paid','notes','source','created_at','last_updated'];
+  const csv = [headers.join(','), ...data.map(c=>headers.map(h=>{
+    let v = c[h]||'';
+    if((h==='created_at'||h==='last_updated') && v) v = new Date(v).toLocaleDateString('en-GB');
+    return `"${String(v).replace(/"/g,'""')}"`;
+  }).join(','))].join('\n');
   const blob = new Blob([csv],{type:'text/csv'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = filename+'_'+new Date().toISOString().slice(0,10)+'.csv';
+  const dateFrom = document.getElementById('fDateFrom')?.value;
+  const dateTo   = document.getElementById('fDateTo')?.value;
+  const dateSuffix = (dateFrom||dateTo) ? `_${dateFrom||'start'}_to_${dateTo||'end'}` : '_'+new Date().toISOString().slice(0,10);
+  a.download = filename + dateSuffix + '.csv';
   a.click();
   showToast('Exported '+data.length+' clients','📤');
 }
