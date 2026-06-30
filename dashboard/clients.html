@@ -717,7 +717,7 @@ function renderTable(){
     const terms = c.payment_terms ? c.payment_terms+'d' : 'Cash';
     return `
     <tr>
-      <td onclick="event.stopPropagation()"><input type="checkbox" class="c-row-chk" value="${sid}" onchange="cUpdateBulkBar()" style="cursor:pointer"/></td>
+      <td onclick="event.stopPropagation()"><input type="checkbox" class="c-row-chk" value="${sid}" data-id="${c.id.replace(/"/g,'&quot;')}" onchange="cUpdateBulkBar()" style="cursor:pointer"/></td>
       <td class="text-3" style="font-size:11px">${i+1}</td>
       <td style="cursor:pointer" onclick="showProfile('${c.id}')">
         <div class="strong" style="color:var(--brand)">${c.name}</div>
@@ -1209,7 +1209,7 @@ async function clientBulkDelete() {
   let done = 0;
   for (const cb of checked) {
     try {
-      await sbDelete('clients', cb.value);
+      await sbDelete('clients', cb.dataset.id);
       done++;
     } catch(e) {}
   }
