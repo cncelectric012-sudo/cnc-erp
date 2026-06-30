@@ -1239,23 +1239,34 @@ function doExport(data, filename){
   showToast('Exported '+data.length+' clients','📤');
 }
 // ── Delete All Clients ───────────────────────────────────────
+async function getServerClientCount() {
+  const r = await fetch(`${API}/clients?select=id`, { headers: { ...HEADERS, 'Prefer': 'count=exact' }, method: 'HEAD' });
+  const range = r.headers.get('content-range'); // e.g. "0-199/1496"
+  if (!range) return null;
+  const total = range.split('/')[1];
+  return total === '*' ? null : parseInt(total, 10);
+}
+
 async function deleteAllClients() {
-  const count = allClients.length;
+  const btn = document.getElementById('actionsBtn');
+  btn.textContent = 'Checking...'; btn.disabled = true;
+  const serverCount = await getServerClientCount();
+  btn.textContent = 'Actions ▾'; btn.disabled = false;
+  const count = serverCount ?? allClients.length;
   if (!count) { showToast('Koi client nahi hai', '⚠️'); return; }
-  if (!confirm(`Saare ${count} clients delete karein?\n\nNote: Delete ke baad naya data import kar sakte hain.`)) return;
+  if (!confirm(`Saare ${count} clients delete karein? (Database mein total count)\n\nNote: Delete ke baad naya data import kar sakte hain.`)) return;
   if (!confirm(`CONFIRM: ${count} clients permanently delete ho jaenge. Pakka?`)) return;
 
-  const btn = document.getElementById('actionsBtn');
   btn.textContent = 'Deleting...'; btn.disabled = true;
-  let done = 0, errors = 0;
-  const BATCH = 50;
-  for (let i = 0; i < allClients.length; i += BATCH) {
-    const ids = allClients.slice(i, i + BATCH).map(c => c.id);
-    const r = await fetch(`${API}/clients?id=in.(${ids.map(encodeURIComponent).join(',')})`, { method: 'DELETE', headers: HEADERS });
-    if (r.ok) done += ids.length; else errors += ids.length;
-  }
+  // Single server-side delete matching ALL rows — doesn't depend on what's loaded client-side
+  const r = await fetch(`${API}/clients?id=not.is.null`, { method: 'DELETE', headers: { ...HEADERS, 'Prefer': 'return=minimal' } });
   btn.textContent = 'Actions ▾'; btn.disabled = false;
-  showToast(`${done} clients deleted${errors ? ', ' + errors + ' errors' : ''}`, '🗑️');
+
+  if (r.ok) {
+    showToast(`Saare clients deleted`, '🗑️');
+  } else {
+    showToast('Delete failed: ' + await r.text(), '❌');
+  }
   allClients = []; filtered = [];
   updateStats(); renderCurrentTab();
   document.getElementById('topbarSub').textContent = '0 clients';
