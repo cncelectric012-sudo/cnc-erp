@@ -542,7 +542,7 @@ async function loadClients(keepFilters=false) {
   document.getElementById('topbarSub').textContent = 'Loading...';
   try {
     // First 200 fast
-    const first = await sbFetch('clients', 'limit=200&offset=0&order=name.asc');
+    const first = await sbFetch('clients', 'limit=200&offset=0&order=name.asc&record_source=eq.client');
     allClients = first || [];
     populateFilters();
     if(savedState) restoreFilterState(savedState);
@@ -553,7 +553,7 @@ async function loadClients(keepFilters=false) {
     if(first.length === 200) {
       let offset = 200;
       while(true){
-        const batch = await sbFetch('clients', `limit=500&offset=${offset}&order=name.asc`);
+        const batch = await sbFetch('clients', `limit=500&offset=${offset}&order=name.asc&record_source=eq.client`);
         if(!batch || !batch.length) break;
         allClients = allClients.concat(batch);
         if(batch.length < 500) break;
@@ -1240,8 +1240,8 @@ function doExport(data, filename){
 }
 // ── Delete All Clients ───────────────────────────────────────
 async function getServerClientCount() {
-  const r = await fetch(`${API}/clients?select=id`, { headers: { ...HEADERS, 'Prefer': 'count=exact' }, method: 'HEAD' });
-  const range = r.headers.get('content-range'); // e.g. "0-199/1496"
+  const r = await fetch(`${API}/clients?select=id&record_source=eq.client`, { headers: { ...HEADERS, 'Prefer': 'count=exact' }, method: 'HEAD' });
+  const range = r.headers.get('content-range');
   if (!range) return null;
   const total = range.split('/')[1];
   return total === '*' ? null : parseInt(total, 10);
@@ -1254,12 +1254,11 @@ async function deleteAllClients() {
   btn.textContent = 'Actions ▾'; btn.disabled = false;
   const count = serverCount ?? allClients.length;
   if (!count) { showToast('Koi client nahi hai', '⚠️'); return; }
-  if (!confirm(`Saare ${count} clients delete karein? (Database mein total count)\n\nNote: Delete ke baad naya data import kar sakte hain.`)) return;
+  if (!confirm(`Saare ${count} clients delete karein?\n\n(Ledger data safe rahega — sirf clients delete honge)\n\nNote: Delete ke baad naya data import kar sakte hain.`)) return;
   if (!confirm(`CONFIRM: ${count} clients permanently delete ho jaenge. Pakka?`)) return;
 
   btn.textContent = 'Deleting...'; btn.disabled = true;
-  // Single server-side delete matching ALL rows — doesn't depend on what's loaded client-side
-  const r = await fetch(`${API}/clients?id=not.is.null`, { method: 'DELETE', headers: { ...HEADERS, 'Prefer': 'return=minimal' } });
+  const r = await fetch(`${API}/clients?record_source=eq.client`, { method: 'DELETE', headers: { ...HEADERS, 'Prefer': 'return=minimal' } });
   btn.textContent = 'Actions ▾'; btn.disabled = false;
 
   if (r.ok) {
@@ -1380,7 +1379,7 @@ async function runImport(){
   const chunkSize=50;
   let done=0,errors=0;
   for(let i=0;i<importRows.length;i+=chunkSize){
-    const chunk = importRows.slice(i,i+chunkSize);
+    const chunk = importRows.slice(i,i+chunkSize).map(r=>({...r, record_source:'client'}));
     const {error} = await getSB().from('clients').upsert(chunk,{onConflict:'id'});
     if(error){ errors++; console.error(error); }
     else done+=chunk.length;

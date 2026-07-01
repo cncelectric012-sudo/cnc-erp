@@ -213,6 +213,7 @@
         <div class="topbar-sub" id="topbarSub">Loading from Supabase...</div>
       </div>
       <div class="topbar-actions" style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="downloadLedgerTemplate()">⬇ Template</button>
         <button class="btn btn-secondary btn-sm" onclick="openImportModal()">📥 Import</button>
         <div style="position:relative">
           <button class="btn btn-secondary btn-sm" onclick="toggleExportMenu()" id="exportMenuBtn">📤 Export ▾</button>
@@ -520,7 +521,7 @@ async function loadClients() {
     let all = [], from = 0;
 
     while (true) {
-      const url = `${LAPI}/ledgers?limit=500&offset=${from}&order=outstanding_amount.desc`;
+      const url = `${LAPI}/clients?record_source=eq.ledger&limit=500&offset=${from}&order=outstanding_amount.desc`;
       setMsg(`Fetching rows ${from}–${from+500}...`);
       const r = await fetch(url, { headers: LHDR });
       if (!r.ok) {
@@ -1278,44 +1279,43 @@ async function bulkDelete() {
 }
 
 // ── Delete All Ledgers ────────────────────────────────────────
-async function fetchAllLedgerIds() {
-  let ids = [], from = 0;
-  while (true) {
-    const r = await fetch(`${LAPI}/ledgers?select=id&limit=1000&offset=${from}`, { headers: LHDR });
-    if (!r.ok) throw new Error(await r.text());
-    const batch = await r.json();
-    if (!Array.isArray(batch) || !batch.length) break;
-    ids = ids.concat(batch.map(c => c.id));
-    if (batch.length < 1000) break;
-    from += 1000;
-  }
-  return ids;
+async function getLedgerCount() {
+  const r = await fetch(`${LAPI}/clients?select=id&record_source=eq.ledger`, { headers: { ...LHDR, 'Prefer': 'count=exact' }, method: 'HEAD' });
+  const range = r.headers.get('content-range');
+  if (!range) return null;
+  const total = range.split('/')[1];
+  return total === '*' ? null : parseInt(total, 10);
 }
 
 async function deleteAllLedgers(btn) {
   if (btn) { btn.dataset.origText = btn.textContent; btn.textContent = 'Checking...'; btn.disabled = true; }
 
-  let ids;
-  try { ids = await fetchAllLedgerIds(); }
-  catch (e) { showToast('Failed to fetch ledger list: ' + e.message, '❌'); if (btn) { btn.textContent = btn.dataset.origText; btn.disabled = false; } return; }
-
+  const serverCount = await getLedgerCount();
   if (btn) { btn.textContent = btn.dataset.origText; btn.disabled = false; }
-  if (!ids.length) { showToast('Koi ledger nahi hai', '⚠️'); return; }
-  if (!confirm(`Saare ${ids.length} ledger records delete karein? (Fresh database count)\nYeh clients table se bhi hat jaenge.\n\nNote: Delete ke baad naya data import kar sakte hain.`)) return;
-  if (!confirm(`CONFIRM: ${ids.length} records permanently delete ho jaenge. Pakka?`)) return;
+  const count = serverCount ?? allClients.length;
+  if (!count) { showToast('Koi ledger nahi hai', '⚠️'); return; }
+  if (!confirm(`Saare ${count} ledger records delete karein?\n\n(Client data safe rahega — sirf ledgers delete honge)\n\nNote: Delete ke baad naya data import kar sakte hain.`)) return;
+  if (!confirm(`CONFIRM: ${count} ledger records permanently delete ho jaenge. Pakka?`)) return;
 
   if (btn) { btn.textContent = 'Deleting...'; btn.disabled = true; }
-  let done = 0, errors = 0;
-  const BATCH = 50;
-  for (let i = 0; i < ids.length; i += BATCH) {
-    const chunk = ids.slice(i, i + BATCH);
-    const r = await fetch(`${LAPI}/clients?id=in.(${chunk.map(encodeURIComponent).join(',')})`, { method: 'DELETE', headers: LHDR });
-    if (r.ok) done += chunk.length; else errors += chunk.length;
-  }
+  const r = await fetch(`${LAPI}/clients?record_source=eq.ledger`, { method: 'DELETE', headers: { ...LHDR, 'Prefer': 'return=minimal' } });
   if (btn) { btn.textContent = btn.dataset.origText; btn.disabled = false; }
-  showToast(`${done} ledger records deleted${errors ? ', ' + errors + ' errors' : ''}`, '🗑️');
+  if (r.ok) { showToast(`Saare ${count} ledger records deleted`, '🗑️'); }
+  else { showToast('Delete failed: ' + await r.text(), '❌'); }
   allClients = []; filtered = [];
   updateKPIs(); renderGrid();
+}
+
+// ── Ledger Template Download ──────────────────────────────────
+function downloadLedgerTemplate() {
+  const headers = ['name','city','phone','branch','outstanding_amount','total_invoiced','salesperson','credit_limit','risk_level','notes'];
+  const sample  = ['Al-Fatah Traders','Lahore','0300-1234567','Main','50000','120000','Ali Raza','200000','Medium','Good client'];
+  const csv = [headers.join(','), sample.join(',')].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'CNC_Ledger_Template.csv';
+  a.click();
 }
 
 // ── Export menu toggle ────────────────────────────────────────
@@ -1424,6 +1424,7 @@ function impNormalize(r) {
   out.status             = out.status||'active';
   out.risk_level         = out.risk_level||'Medium';
   out.last_updated       = new Date().toISOString();
+  out.record_source      = 'ledger';
   if (!out.id && out.name)
     out.id = out.name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
   return out;
