@@ -914,12 +914,17 @@ function buildLedgerAlert(ledger, invoiceNo, invoiceAmt) {
 }
 
 // ─── WhatsApp Client ───────────────────────────────────────
+const CHROME_PATH = process.env.CHROME_BIN
+    || (process.platform === 'win32'
+        ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+        : '/usr/bin/google-chrome-stable');
+
 const client = new Client({
     authStrategy: new LocalAuth({ clientId: 'cnc-bot' }),
     puppeteer: {
         headless: true,
-        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        executablePath: CHROME_PATH,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
     }
 });
 
