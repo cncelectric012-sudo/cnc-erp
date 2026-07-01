@@ -1375,13 +1375,14 @@ function showImportPreview(){
 
 async function runImport(){
   const btn = document.getElementById('importBtn');
-  btn.disabled=true; btn.textContent='Importing...';
+  btn.disabled=true;
   const chunkSize=50;
   let done=0,errors=0;
   for(let i=0;i<importRows.length;i+=chunkSize){
     const chunk = importRows.slice(i,i+chunkSize).map(r=>({...r, record_source:'client'}));
-    const {error} = await getSB().from('clients').upsert(chunk,{onConflict:'id'});
-    if(error){ errors++; console.error(error); }
+    btn.textContent=`Importing... ${Math.min(i+chunkSize,importRows.length)}/${importRows.length}`;
+    const r = await fetch(`${API}/clients`, { method:'POST', headers:{ ...HEADERS, 'Prefer':'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(chunk) });
+    if(!r.ok){ errors++; console.error(await r.text()); }
     else done+=chunk.length;
   }
   btn.textContent='Import';
