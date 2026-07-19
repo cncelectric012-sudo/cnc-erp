@@ -66,43 +66,52 @@ function buildMessage(client, txnsToday) {
 
 // ── Send daily messages ───────────────────────────────────────
 async function sendDailyMessages(sock) {
-  console.log('[WhatsApp Bot] Daily messages bhejne shuru...');
+  console.log('[Bot] Daily messages bhejne shuru...');
+
+  // Config check karo — kaunsa template active hai
+  const cfgArr = await sbGet('/whatsapp_config?id=eq.1');
+  const cfg = Array.isArray(cfgArr) && cfgArr[0] ? cfgArr[0] : { active_template: 'ledger', custom_message: '' };
+  console.log(`[Bot] Active template: ${cfg.active_template}`);
 
   const clients = await sbGet('/clients?record_source=eq.erp_live&status=eq.Active&select=id,name,phone,outstanding_amount,outstanding_type&limit=2000');
   if (!Array.isArray(clients)) { console.error('[Bot] Clients error:', clients); return; }
 
-  const todayTxns = await sbGet(`/erp_transactions?txn_date=eq.${today()}&select=erp_account_id,txn_type,debit,credit,voucher_no&limit=5000`);
-  const allClients = await sbGet('/clients?record_source=eq.erp_live&select=id,erp_id&limit=2000');
+  let txnMap = {}, erpMap = {};
 
-  const txnMap = {};
-  if (Array.isArray(todayTxns)) todayTxns.forEach(t => {
-    if (!txnMap[t.erp_account_id]) txnMap[t.erp_account_id] = [];
-    txnMap[t.erp_account_id].push(t);
-  });
-
-  const erpMap = {};
-  if (Array.isArray(allClients)) allClients.forEach(c => { erpMap[c.id] = c.erp_id; });
+  if (cfg.active_template === 'ledger') {
+    const todayTxns = await sbGet(`/erp_transactions?txn_date=eq.${today()}&select=erp_account_id,txn_type,debit,credit,voucher_no&limit=5000`);
+    const allClients = await sbGet('/clients?record_source=eq.erp_live&select=id,erp_id&limit=2000');
+    if (Array.isArray(todayTxns)) todayTxns.forEach(t => {
+      if (!txnMap[t.erp_account_id]) txnMap[t.erp_account_id] = [];
+      txnMap[t.erp_account_id].push(t);
+    });
+    if (Array.isArray(allClients)) allClients.forEach(c => { erpMap[c.id] = c.erp_id; });
+  }
 
   let sent = 0, skipped = 0, errors = 0;
 
   for (const c of clients) {
     if (!c.phone) { skipped++; continue; }
 
-    // Phone number → WhatsApp JID format
     let phone = c.phone.replace(/\D/g, '');
     if (phone.startsWith('0')) phone = '92' + phone.slice(1);
     if (!phone.startsWith('92')) phone = '92' + phone;
     const jid = phone + '@s.whatsapp.net';
 
-    const erpId = erpMap[c.id] || '';
-    const txnsToday = txnMap[erpId] || [];
-    const msg = buildMessage(c, txnsToday);
+    // Template ke hisaab se message banao
+    let msg;
+    if (cfg.active_template === 'custom') {
+      msg = cfg.custom_message || 'CNC Electric ki taraf se salaam!';
+    } else {
+      const erpId = erpMap[c.id] || '';
+      msg = buildMessage(c, txnMap[erpId] || []);
+    }
 
     try {
       await sock.sendMessage(jid, { text: msg });
       console.log(`[Bot] ✓ ${c.name} (${phone})`);
       sent++;
-      await new Promise(r => setTimeout(r, 2000)); // rate limiting
+      await new Promise(r => setTimeout(r, 2000));
     } catch (e) {
       console.error(`[Bot] ✗ ${c.name} — ${e.message}`);
       errors++;

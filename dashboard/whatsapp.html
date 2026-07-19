@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp Settings — CNC ERP</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .wa-card {
+    background: var(--surface-1);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    transition: border-color .2s, box-shadow .2s;
+    position: relative;
+  }
+  .wa-card.selected {
+    border-color: #25D366;
+    box-shadow: 0 0 0 3px rgba(37,211,102,.15);
+  }
+  .wa-card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .wa-check {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: all .2s;
+  }
+  .wa-card.selected .wa-check {
+    background: #25D366;
+    border-color: #25D366;
+    color: #fff;
+    font-size: 14px;
+  }
+  .wa-card-title { font-size: 16px; font-weight: 700; color: var(--text-1); }
+  .wa-card-sub   { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+
+  .template-preview {
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--text-1);
+    white-space: pre-wrap;
+    line-height: 1.6;
+    border: 1px solid var(--border);
+  }
+  textarea.custom-msg {
+    width: 100%;
+    min-height: 130px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--text-1);
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.6;
+    box-sizing: border-box;
+  }
+  textarea.custom-msg:focus { outline: none; border-color: #25D366; }
+
+  .save-btn {
+    background: #25D366;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 32px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: opacity .2s;
+  }
+  .save-btn:hover { opacity: .88; }
+  .save-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .status-bar {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    color: var(--text-2);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; flex-shrink:0; }
+  .dot.green { background: #25D366; box-shadow: 0 0 0 3px rgba(37,211,102,.2); }
+
+  .toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+    background: #25D366; color: #fff;
+    padding: 12px 28px; border-radius: 30px;
+    font-size: 14px; font-weight: 600;
+    opacity: 0; pointer-events: none;
+    transition: opacity .3s;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; }
+
+  .wa-logo { font-size: 26px; }
+  .section-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--text-2); margin-bottom: 10px;
+  }
+  .hint { font-size: 12px; color: var(--text-2); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:10px">
+    <a href="index.html" class="back-btn">← Back</a>
+    <span class="wa-logo">💬</span>
+    <span style="font-size:18px;font-weight:700;color:var(--text-1)">WhatsApp Settings</span>
+  </div>
+</div>
+
+<div class="main" style="max-width:680px;margin:0 auto;padding:24px 16px">
+
+  <!-- Status -->
+  <div class="status-bar">
+    <div class="dot green" id="dot"></div>
+    <span id="status-text">Bot chal raha hai — Raat 8 baje messages jayenge</span>
+  </div>
+
+  <div class="section-label">Template Select Karo</div>
+  <p style="font-size:13px;color:var(--text-2);margin-bottom:20px">Jo template check karo wahi raat 8 baje sab clients ko jayegi.</p>
+
+  <!-- Template 1: Daily Ledger -->
+  <div class="wa-card" id="card-ledger" onclick="selectTemplate('ledger')">
+    <div class="wa-card-header">
+      <div class="wa-check" id="check-ledger">✓</div>
+      <div>
+        <div class="wa-card-title">📊 Daily Ledger Template</div>
+        <div class="wa-card-sub">Har client ka balance + aaj ki transactions automatically</div>
+      </div>
+    </div>
+    <div class="template-preview">🏢 *CNC Electric — Aapka Ledger*
+━━━━━━━━━━━━━━━━━━
+👤 *[Client Name]*
+📅 [Date]
+
+💰 *Closing Balance:*
+   PKR 45,000 (Baqaya/Debit)
+
+📋 *Aaj Ki Activity:*
+   📄 Invoice: +PKR 12,000 Dr
+      Voucher: SI-Co-2026-001
+
+━━━━━━━━━━━━━━━━━━
+📞 Kisi bhi sawaal ke liye:
+   *0326-1111379* (WhatsApp/Call)
+🏪 CNC Electric Pakistan</div>
+  </div>
+
+  <!-- Template 2: Custom Message -->
+  <div class="wa-card" id="card-custom" onclick="selectTemplate('custom')">
+    <div class="wa-card-header">
+      <div class="wa-check" id="check-custom"></div>
+      <div>
+        <div class="wa-card-title">✏️ Custom Message</div>
+        <div class="wa-card-sub">Koi bhi message — company off, event, announcement</div>
+      </div>
+    </div>
+    <div onclick="event.stopPropagation()">
+      <textarea class="custom-msg" id="custom-msg" placeholder="Yahan apna message likhein...
+Misal: Assalam o Alaikum! Kal 21 July ko CNC Electric mein public holiday hai. Kisi zaroorat ke liye: 0326-1111379"></textarea>
+      <p class="hint">💡 Ye message SAB clients ko jayega — ek hi message sabke liye</p>
+    </div>
+  </div>
+
+  <button class="save-btn" id="save-btn" onclick="saveConfig()">💾 Save & Apply</button>
+
+</div>
+
+<div class="toast" id="toast">✓ Saved! Raat 8 baje ye template use hogi</div>
+
+<script>
+const SB_URL = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmFheHl3bGZwb21sYXRwaXVhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkzMjI4NSwiZXhwIjoyMDkzNTA4Mjg1fQ.vsCZIT5ER1DVBPvRGt8Ai-cYtUD0rosyxNEBi5T2NCo';
+const HDR = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
+
+let activeTemplate = 'ledger';
+
+async function loadConfig() {
+  const r = await fetch(`${SB_URL}/whatsapp_config?id=eq.1`, { headers: HDR });
+  const data = await r.json();
+  if (data && data[0]) {
+    activeTemplate = data[0].active_template || 'ledger';
+    document.getElementById('custom-msg').value = data[0].custom_message || '';
+    applySelection(activeTemplate);
+  }
+}
+
+function selectTemplate(t) {
+  activeTemplate = t;
+  applySelection(t);
+}
+
+function applySelection(t) {
+  document.getElementById('card-ledger').classList.toggle('selected', t === 'ledger');
+  document.getElementById('card-custom').classList.toggle('selected', t === 'custom');
+  document.getElementById('check-ledger').textContent = t === 'ledger' ? '✓' : '';
+  document.getElementById('check-custom').textContent = t === 'custom' ? '✓' : '';
+}
+
+async function saveConfig() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const customMsg = document.getElementById('custom-msg').value.trim();
+  await fetch(`${SB_URL}/whatsapp_config?id=eq.1`, {
+    method: 'PATCH',
+    headers: HDR,
+    body: JSON.stringify({
+      active_template: activeTemplate,
+      custom_message: customMsg,
+      updated_at: new Date().toISOString(),
+    }),
+  });
+
+  btn.disabled = false;
+  btn.textContent = '💾 Save & Apply';
+
+  const toast = document.getElementById('toast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// Init
+applySelection('ledger');
+loadConfig();
+</script>
+</body>
+</html>
