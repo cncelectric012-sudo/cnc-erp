@@ -132,7 +132,7 @@ async function sendDailyMessages(sock) {
   const report =
 `📊 *CNC ERP — Daily Message Report*
 ━━━━━━━━━━━━━━━━━━
-📅 Tarikh: ${now}
+📅 Date: ${now}
 📋 Template: *${cfg.active_template === 'custom' ? 'Custom Message' : 'Daily Ledger'}*
 ━━━━━━━━━━━━━━━━━━
 ✅ Bheje gaye:  *${sent}*
