@@ -1226,7 +1226,7 @@ Return ONLY the client name, nothing else. No explanation.`
 }
 
 // ─── Smart AI Decision Engine ─────────────────────────────
-async function makeSmartDecision(inv, discount, discountDetail, netAmt, ledger, recentPayments, salesComment = null) {
+async function makeSmartDecision(inv, discount, discountDetail, netAmt, ledger, recentPayments, salesComment = null, cashOnInvoice = false, cashNote = '') {
     const ledgerSummary = ledger
         ? `Client has ledger: PKR ${ledger.outstandingAmount.toLocaleString()} ${ledger.outstandingType} outstanding. Risk: ${ledger.riskLevel}. Behavior: ${ledger.behaviorSummary}`
         : 'No ledger record found for this client.';
@@ -1686,7 +1686,7 @@ Return ONLY valid JSON:
         let aiAttempts = 0;
         while (aiAttempts < 3) {
             try {
-                aiDecision = await makeSmartDecision(inv, discount, discountDetail, netAmt, ledger, recentPayments, salesComment);
+                aiDecision = await makeSmartDecision(inv, discount, discountDetail, netAmt, ledger, recentPayments, salesComment, cashOnInvoice, cashNote);
                 break;
             } catch (err) {
                 aiAttempts++;

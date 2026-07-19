@@ -178,16 +178,8 @@ function renderSidebar(activePage) {
       ]
     },
     {
-      id:'g6', ico:'💰', label:'PayGate',
+      id:'g6', ico:'💰', label:'Payments & Bank',
       perm:'paygate.view',
-      items:[
-        item('paygate','💰','Submit & Review','paygate.view'),
-        item('bank','🏦','Bank Verification','payments.view'),
-      ]
-    },
-    {
-      id:'g7', ico:'💳', label:'Payments',
-      perm:'payments.view',
       items:[
         item('paygate','📊','Payment Reports','paygate.view'),
         item('bank','🔍','Bank Alerts','payments.view'),
@@ -210,7 +202,6 @@ function renderSidebar(activePage) {
     approvals:'g4',
     decision:'g5', policy:'g5', controls:'g5', 'bot-controls':'g5',
     paygate:'g6', bank:'g6',
-    payments:'g7',
     ai:'g8'
   };
   const openGroup = pageToGroup[activePage] || '';
