@@ -162,8 +162,8 @@ async function syncTransactions() {
 
   console.log(`[AisoneSync] ${txns.length} transactions from ERP`);
 
-  // Clear old and re-insert (transactions change over time)
-  await sbFetch('/erp_transactions', 'DELETE', undefined);
+  // Clear old and re-insert
+  await sbFetch('/erp_transactions?id=not.is.null', 'DELETE', undefined);
 
   const batch = txns.map(r => ({
     id: randomUUID(),
