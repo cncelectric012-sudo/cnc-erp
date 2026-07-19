@@ -13,6 +13,8 @@ const SB_HEADERS    = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPAB
 const AUTH_FOLDER   = path.join(__dirname, 'wa-auth');
 const TRIGGER_FILE  = path.join(__dirname, 'pending-broadcast.json'); // send-intro writes here
 
+let isConnected = false; // track live connection state
+
 const REPORT_NUMBERS = [
   { name: 'Muddasir Waheed Malik', jid: '923228064444@s.whatsapp.net' },
   { name: 'Malik Awais',           jid: '923004755563@s.whatsapp.net' },
@@ -118,6 +120,13 @@ async function broadcastToAll(sock, getMsg, label) {
     if (!phone) { skipped++; continue; }
     const jid = phone + '@s.whatsapp.net';
 
+    // Connection gir gaya? Wait karo wapas aane tak (max 2 min)
+    if (!isConnected) {
+      console.log('[Bot] Connection nahi — 15 sec wait kar ke dobara try...');
+      await new Promise(r => setTimeout(r, 15000));
+      if (!isConnected) { errors++; continue; }
+    }
+
     // WhatsApp pe check karo
     try {
       const [exists] = await sock.onWhatsApp(jid);
@@ -129,12 +138,16 @@ async function broadcastToAll(sock, getMsg, label) {
       await sock.sendMessage(jid, { text: msg });
       console.log(`[Bot] ✓ ${c.name} (${phone})`);
       sent++;
-      // 4-7 seconds random delay — human-like behaviour, spam se bachao
-      const delay = 4000 + Math.floor(Math.random() * 3000);
+      // 10-15 seconds random delay — rate limiting se bachao
+      const delay = 10000 + Math.floor(Math.random() * 5000);
       await new Promise(r => setTimeout(r, delay));
     } catch (e) {
       console.error(`[Bot] ✗ ${c.name} — ${e.message}`);
       errors++;
+      // Connection error par 10 sec extra wait
+      if (e.message?.includes('Connection') || e.message?.includes('close')) {
+        await new Promise(r => setTimeout(r, 10000));
+      }
     }
   }
 
@@ -202,12 +215,14 @@ async function startBot() {
     if (qr) { console.log('\n[Bot] QR scan karo (WhatsApp → Linked Devices → Link a Device)\n'); qrcode.generate(qr, { small: true }); }
 
     if (connection === 'open') {
+      isConnected = true;
       console.log('[Bot] ✓ WhatsApp connected! Messages send ho sakti hain.');
       scheduleEightPM(sock);
       watchTrigger(sock);
     }
 
     if (connection === 'close') {
+      isConnected = false;
       const code = lastDisconnect?.error?.output?.statusCode;
       const reconnect = code !== DisconnectReason.loggedOut;
       console.log(`[Bot] Connection band (code:${code}). Reconnect:${reconnect}`);
