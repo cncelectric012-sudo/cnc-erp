@@ -190,6 +190,7 @@ function renderSidebar(activePage) {
       items:[
         item('ai','🤖','AI Settings','users.manage'),
         item('bot-controls','💬','WhatsApp Bot','users.manage'),
+        item('broadcast','📲','WA Automation','users.manage'),
       ]
     },
   ];
@@ -201,7 +202,7 @@ function renderSidebar(activePage) {
     approvals:'g4',
     decision:'g5', policy:'g5', controls:'g5',
     paygate:'g6', bank:'g6',
-    ai:'g8', 'bot-controls':'g8'
+    ai:'g8', 'bot-controls':'g8', broadcast:'g8'
   };
   const openGroup = pageToGroup[activePage] || '';
 

@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WhatsApp Automation · CNC Electric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+.bc-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:20px;overflow-x:auto}
+.bc-tab{padding:9px 16px;font-size:13px;font-weight:500;color:var(--text-3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.bc-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.stat-c{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}
+.stat-c .v{font-size:22px;font-weight:800;font-family:var(--font-mono)}
+.stat-c .l{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+
+/* Template cards */
+.tpl-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px}
+.tpl-card:hover{border-color:var(--brand)}
+.tpl-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.tpl-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.4px}
+.badge-purchase{background:#d1fae5;color:#065f46}
+.badge-payment{background:#dbeafe;color:#1e40af}
+.badge-followup_7,.badge-followup_14,.badge-followup_30{background:#fef3c7;color:#92400e}
+.badge-manual{background:#f3f4f6;color:#374151}
+.tpl-seg{font-size:11px;color:var(--text-3);border:1px solid var(--border);border-radius:20px;padding:2px 8px}
+.tpl-body{font-size:12px;color:var(--text-2);line-height:1.6;background:var(--surface-2);border-radius:8px;padding:10px;white-space:pre-wrap;font-family:var(--font-mono);max-height:120px;overflow:hidden}
+.tpl-body.expanded{max-height:none}
+.tpl-actions{display:flex;gap:8px;margin-top:12px}
+
+/* Segment table */
+.seg-table{width:100%;border-collapse:collapse;font-size:13px}
+.seg-table th{text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);color:var(--text-3);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.seg-table td{padding:10px 12px;border-bottom:1px solid var(--border)}
+.seg-table tr:hover td{background:var(--surface-2)}
+.seg-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px}
+.seg-regular{background:#f3f4f6;color:#374151}
+.seg-electrician{background:#dbeafe;color:#1e40af}
+.seg-epc{background:#d1fae5;color:#065f46}
+.seg-shopkeeper{background:#fef3c7;color:#92400e}
+.seg-dealer{background:#ede9fe;color:#5b21b6}
+
+/* Rule cards */
+.rule-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px;display:flex;align-items:center;gap:16px}
+.rule-trigger{font-size:24px}
+.rule-arrow{font-size:18px;color:var(--text-3)}
+.rule-info{flex:1}
+.rule-title{font-weight:600;font-size:14px}
+.rule-sub{font-size:12px;color:var(--text-3);margin-top:2px}
+
+/* Schedule table */
+.sch-table{width:100%;border-collapse:collapse;font-size:13px}
+.sch-table th{text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);color:var(--text-3);font-size:11px;text-transform:uppercase}
+.sch-table td{padding:10px 12px;border-bottom:1px solid var(--border)}
+.status-pending{color:var(--yellow);font-weight:600}
+.status-sent{color:var(--green);font-weight:600}
+.status-failed{color:var(--red);font-weight:600}
+.status-cancelled{color:var(--text-3);font-weight:600}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-bg.hidden{display:none}
+.modal-box{background:var(--surface);border-radius:14px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;padding:24px}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:18px}
+.form-row{margin-bottom:14px}
+.form-label{font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block;text-transform:uppercase;letter-spacing:.4px}
+.form-input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text-1);outline:none;box-sizing:border-box}
+.form-input:focus{border-color:var(--brand)}
+.form-textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--font-mono);background:var(--surface);color:var(--text-1);outline:none;resize:vertical;min-height:160px;box-sizing:border-box;line-height:1.6}
+.form-textarea:focus{border-color:var(--brand)}
+.form-select{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text-1);outline:none;box-sizing:border-box}
+.vars-hint{font-size:11px;color:var(--text-3);margin-top:6px}
+.vars-hint span{background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-family:var(--font-mono);font-size:10px;margin-right:4px;cursor:pointer}
+.vars-hint span:hover{border-color:var(--brand);color:var(--brand)}
+
+/* Broadcast send modal */
+.client-check-list{max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px}
+.client-check-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px}
+.client-check-item:last-child{border-bottom:none}
+.client-check-item:hover{background:var(--surface-2)}
+
+@media(max-width:700px){
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .rule-card{flex-wrap:wrap}
+}
+</style>
+</head>
+<body data-page="broadcast">
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">📲 WhatsApp Automation</div>
+        <div class="topbar-sub" id="bcSub">Loading...</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="openSendModal()">📤 Send Now</button>
+        <button class="btn btn-secondary btn-sm" onclick="openTplModal()">+ New Template</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="stats-row">
+        <div class="stat-c"><div class="v" id="st-templates">0</div><div class="l">Templates</div></div>
+        <div class="stat-c"><div class="v" id="st-clients" style="color:var(--brand)">0</div><div class="l">Clients Tracked</div></div>
+        <div class="stat-c"><div class="v" id="st-pending" style="color:var(--yellow)">0</div><div class="l">Pending</div></div>
+        <div class="stat-c"><div class="v" id="st-sent" style="color:var(--green)">0</div><div class="l">Sent Today</div></div>
+      </div>
+
+      <div class="bc-tabs">
+        <div class="bc-tab active" onclick="bcTab('templates',this)">📝 Templates</div>
+        <div class="bc-tab" onclick="bcTab('segments',this)">👥 Client Segments</div>
+        <div class="bc-tab" onclick="bcTab('rules',this)">⚡ Automation Rules</div>
+        <div class="bc-tab" onclick="bcTab('schedule',this)">📅 Scheduled</div>
+        <div class="bc-tab" onclick="bcTab('history',this)">📜 History</div>
+      </div>
+
+      <div id="bcContent"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Template Modal -->
+<div class="modal-bg hidden" id="tplModal">
+  <div class="modal-box">
+    <div class="modal-title" id="tplModalTitle">New Template</div>
+    <div class="form-row">
+      <label class="form-label">Template Name</label>
+      <input class="form-input" id="tplName" placeholder="e.g. Purchase Confirmation">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Trigger</label>
+      <select class="form-select" id="tplTrigger">
+        <option value="purchase">🛒 On Purchase</option>
+        <option value="payment">💳 On Payment</option>
+        <option value="followup_7">📆 7 Din Baad (Inactive)</option>
+        <option value="followup_14">📆 14 Din Baad (Inactive)</option>
+        <option value="followup_30">📆 30 Din Baad (Inactive)</option>
+        <option value="manual">✋ Manual Only</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Client Segment</label>
+      <select class="form-select" id="tplSegment">
+        <option value="all">🌐 Sab Clients</option>
+        <option value="regular">👤 Regular</option>
+        <option value="electrician">🔌 Electrician</option>
+        <option value="epc">🏗️ EPC / Solar</option>
+        <option value="shopkeeper">🏪 Shopkeeper</option>
+        <option value="dealer">🤝 Dealer</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Message Body</label>
+      <textarea class="form-textarea" id="tplBody" placeholder="Assalam o Alaikum {name} Sahab..."></textarea>
+      <div class="vars-hint">
+        Variables (click to insert):
+        <span onclick="insertVar('{name}')">​{name}</span>
+        <span onclick="insertVar('{outstanding}')">​{outstanding}</span>
+        <span onclick="insertVar('{purchase_amount}')">​{purchase_amount}</span>
+        <span onclick="insertVar('{payment_amount}')">​{payment_amount}</span>
+        <span onclick="insertVar('{date}')">​{date}</span>
+        <span onclick="insertVar('{last_purchase}')">​{last_purchase}</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
+      <button class="btn btn-secondary" onclick="closeTplModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTpl()">Save Template</button>
+    </div>
+  </div>
+</div>
+
+<!-- Segment Modal -->
+<div class="modal-bg hidden" id="segModal">
+  <div class="modal-box">
+    <div class="modal-title">Client Segment Set Karo</div>
+    <div class="form-row">
+      <label class="form-label">Client Name</label>
+      <input class="form-input" id="segName" placeholder="Client ka naam">
+    </div>
+    <div class="form-row">
+      <label class="form-label">WhatsApp Number (92XXXXXXXXXX)</label>
+      <input class="form-input" id="segPhone" placeholder="923001234567">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Segment</label>
+      <select class="form-select" id="segType">
+        <option value="regular">👤 Regular</option>
+        <option value="electrician">🔌 Electrician</option>
+        <option value="epc">🏗️ EPC / Solar</option>
+        <option value="shopkeeper">🏪 Shopkeeper</option>
+        <option value="dealer">🤝 Dealer</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Notes (optional)</label>
+      <input class="form-input" id="segNotes" placeholder="Koi khas baat">
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
+      <button class="btn btn-secondary" onclick="closeSegModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSeg()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send Now Modal -->
+<div class="modal-bg hidden" id="sendModal">
+  <div class="modal-box">
+    <div class="modal-title">📤 Message Bhejo</div>
+    <div class="form-row">
+      <label class="form-label">Template</label>
+      <select class="form-select" id="sendTpl" onchange="previewSend()"></select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Segment Filter</label>
+      <select class="form-select" id="sendSeg" onchange="loadSendClients()">
+        <option value="all">🌐 Sab</option>
+        <option value="regular">👤 Regular</option>
+        <option value="electrician">🔌 Electrician</option>
+        <option value="epc">🏗️ EPC / Solar</option>
+        <option value="shopkeeper">🏪 Shopkeeper</option>
+        <option value="dealer">🤝 Dealer</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Clients (<span id="sendCount">0</span> selected)</label>
+      <div class="client-check-list" id="sendClientList"></div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Preview</label>
+      <div id="sendPreview" style="font-size:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:var(--font-mono);white-space:pre-wrap;max-height:120px;overflow-y:auto;color:var(--text-2)"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
+      <button class="btn btn-secondary" onclick="closeSendModal()">Cancel</button>
+      <button class="btn btn-primary" id="sendBtn" onclick="sendMessages()">📤 Bhejo</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared/core.js"></script>
+<script>
+const SB_URL = window.SUPABASE_URL;
+const SB_KEY = window.SUPABASE_ANON_KEY;
+
+async function sbGet(table, params='') {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
+    headers:{ 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
+  });
+  return r.ok ? r.json() : [];
+}
+async function sbPost(table, body) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+    method:'POST',
+    headers:{ 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
+    body: JSON.stringify(body)
+  });
+  return r.ok;
+}
+async function sbPatch(table, filter, body) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${filter}`, {
+    method:'PATCH',
+    headers:{ 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
+    body: JSON.stringify(body)
+  });
+  return r.ok;
+}
+async function sbDelete(table, filter) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${filter}`, {
+    method:'DELETE',
+    headers:{ 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY, 'Prefer':'return=minimal' }
+  });
+  return r.ok;
+}
+
+let templates=[], segments=[], scheduled=[], history=[];
+let editingTplId=null, editingSegId=null;
+
+async function loadAll() {
+  [templates, segments, scheduled, history] = await Promise.all([
+    sbGet('message_templates','order=created_at.asc'),
+    sbGet('client_segments','order=client_name.asc'),
+    sbGet('scheduled_messages','order=scheduled_at.asc&status=eq.pending'),
+    sbGet('message_log',`order=sent_at.desc&limit=100&sent_at=gte.${new Date().toISOString().slice(0,10)}`)
+  ]);
+
+  document.getElementById('st-templates').textContent = templates.length;
+  document.getElementById('st-clients').textContent = segments.length;
+  document.getElementById('st-pending').textContent = scheduled.length;
+  document.getElementById('st-sent').textContent = history.length;
+  document.getElementById('bcSub').textContent = `${templates.length} templates · ${segments.length} clients tracked`;
+}
+
+let activeTab='templates';
+function bcTab(tab, el) {
+  document.querySelectorAll('.bc-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  activeTab=tab;
+  renderTab(tab);
+}
+
+function renderTab(tab) {
+  const el = document.getElementById('bcContent');
+  if(tab==='templates') renderTemplates(el);
+  else if(tab==='segments') renderSegments(el);
+  else if(tab==='rules') renderRules(el);
+  else if(tab==='schedule') renderSchedule(el);
+  else if(tab==='history') renderHistory(el);
+}
+
+// ─── Templates ───────────────────────────────────────
+function triggerLabel(t) {
+  const map={purchase:'🛒 On Purchase',payment:'💳 On Payment',followup_7:'📆 7 Din',followup_14:'📆 14 Din',followup_30:'📆 30 Din',manual:'✋ Manual'};
+  return map[t]||t;
+}
+function segLabel(s) {
+  const map={all:'Sab',regular:'Regular',electrician:'Electrician',epc:'EPC/Solar',shopkeeper:'Shopkeeper',dealer:'Dealer'};
+  return map[s]||s;
+}
+
+function renderTemplates(el) {
+  if(!templates.length) {
+    el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-3)">Koi template nahi — "New Template" se banao</div>';
+    return;
+  }
+  el.innerHTML = templates.map(t=>`
+    <div class="tpl-card">
+      <div class="tpl-header">
+        <div style="font-weight:600;font-size:14px;flex:1">${t.name}</div>
+        <span class="tpl-badge badge-${t.trigger_type}">${triggerLabel(t.trigger_type)}</span>
+        <span class="tpl-seg">${segLabel(t.segment)}</span>
+        <div style="width:8px;height:8px;border-radius:50%;background:${t.is_active?'var(--green)':'var(--red)'}"></div>
+      </div>
+      <div class="tpl-body" id="body-${t.id}">${escHtml(t.body)}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:6px;cursor:pointer" onclick="toggleBody('${t.id}')">▼ Poora dikhao</div>
+      <div class="tpl-actions">
+        <button class="btn btn-secondary btn-sm" onclick="editTpl('${t.id}')">✏️ Edit</button>
+        <button class="btn btn-secondary btn-sm" onclick="toggleActive('${t.id}',${t.is_active})">${t.is_active?'⏸ Pause':'▶ Activate'}</button>
+        <button class="btn btn-secondary btn-sm" style="color:var(--red)" onclick="deleteTpl('${t.id}')">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleBody(id) {
+  const el = document.getElementById('body-'+id);
+  el.classList.toggle('expanded');
+}
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function toggleActive(id, cur) {
+  await sbPatch('message_templates','id=eq.'+id,{is_active:!cur});
+  templates = await sbGet('message_templates','order=created_at.asc');
+  renderTab('templates');
+}
+async function deleteTpl(id) {
+  if(!confirm('Template delete karein?')) return;
+  await sbDelete('message_templates','id=eq.'+id);
+  templates = await sbGet('message_templates','order=created_at.asc');
+  document.getElementById('st-templates').textContent=templates.length;
+  renderTab('templates');
+}
+function editTpl(id) {
+  const t=templates.find(x=>x.id===id);
+  if(!t) return;
+  editingTplId=id;
+  document.getElementById('tplModalTitle').textContent='Edit Template';
+  document.getElementById('tplName').value=t.name;
+  document.getElementById('tplTrigger').value=t.trigger_type;
+  document.getElementById('tplSegment').value=t.segment;
+  document.getElementById('tplBody').value=t.body;
+  document.getElementById('tplModal').classList.remove('hidden');
+}
+
+// ─── Segments ────────────────────────────────────────
+function renderSegments(el) {
+  const segColors={regular:'seg-regular',electrician:'seg-electrician',epc:'seg-epc',shopkeeper:'seg-shopkeeper',dealer:'seg-dealer'};
+  const html=`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button class="btn btn-primary btn-sm" onclick="openSegModal()">+ Client Add Karo</button>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="seg-table">
+      <thead><tr>
+        <th>Client</th><th>Phone</th><th>Segment</th><th>Last Purchase</th><th>Follow-up Stage</th><th>Actions</th>
+      </tr></thead>
+      <tbody>
+        ${segments.length ? segments.map(s=>`
+          <tr>
+            <td><div style="font-weight:500">${s.client_name}</div><div style="font-size:11px;color:var(--text-3)">${s.notes||''}</div></td>
+            <td style="font-family:var(--font-mono);font-size:12px">${s.phone||'—'}</td>
+            <td><span class="seg-badge ${segColors[s.segment]||'seg-regular'}">${segLabel(s.segment)}</span></td>
+            <td style="font-size:12px">${s.last_purchase_date||'—'}</td>
+            <td>
+              <span style="font-size:12px;color:${s.followup_stage===0?'var(--text-3)':s.followup_stage===3?'var(--red)':'var(--yellow)'}">
+                ${s.followup_stage===0?'—':s.followup_stage===1?'7 din bheja':s.followup_stage===2?'14 din bheja':'30 din bheja'}
+              </span>
+            </td>
+            <td>
+              <button class="btn btn-secondary btn-sm" onclick="editSeg('${s.id}')">✏️</button>
+              <button class="btn btn-secondary btn-sm" style="color:var(--red)" onclick="deleteSeg('${s.id}')">🗑</button>
+            </td>
+          </tr>
+        `).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-3)">Koi client nahi — upar se add karo</td></tr>'}
+      </tbody>
+    </table>
+    </div>
+  `;
+  el.innerHTML=html;
+}
+
+function editSeg(id) {
+  const s=segments.find(x=>x.id===id);
+  if(!s) return;
+  editingSegId=id;
+  document.getElementById('segName').value=s.client_name;
+  document.getElementById('segPhone').value=s.phone||'';
+  document.getElementById('segType').value=s.segment;
+  document.getElementById('segNotes').value=s.notes||'';
+  document.getElementById('segModal').classList.remove('hidden');
+}
+async function deleteSeg(id) {
+  if(!confirm('Client hata dein?')) return;
+  await sbDelete('client_segments','id=eq.'+id);
+  segments=await sbGet('client_segments','order=client_name.asc');
+  document.getElementById('st-clients').textContent=segments.length;
+  renderTab('segments');
+}
+
+// ─── Rules ───────────────────────────────────────────
+function renderRules(el) {
+  const rules=[
+    {emoji:'🛒',trigger:'On Purchase',desc:'Client kuch khareed le',action:'Ledger + Purchase confirmation message',active:true},
+    {emoji:'💳',trigger:'On Payment',desc:'Client payment kare',action:'Updated ledger + Payment confirmation',active:true},
+    {emoji:'📆',trigger:'7 Din Inactive',desc:'Koi purchase nahi 7 din se',action:'Follow-up message 1 bhejo',active:true},
+    {emoji:'📆',trigger:'14 Din Inactive',desc:'Koi purchase nahi 14 din se',action:'Follow-up message 2 bhejo',active:true},
+    {emoji:'📆',trigger:'30 Din Inactive',desc:'Koi purchase nahi 30 din se',action:'Follow-up message 3 bhejo',active:true},
+  ];
+  el.innerHTML=`
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--text-2)">
+      ⚡ Yeh rules automatically kaam karte hain jab bot chal raha ho (Z840 par). Bot har 4 ghante mein inactive clients check karta hai.
+    </div>
+    ${rules.map(r=>`
+      <div class="rule-card">
+        <div class="rule-trigger">${r.emoji}</div>
+        <div class="rule-info">
+          <div class="rule-title">${r.trigger}</div>
+          <div class="rule-sub">${r.desc}</div>
+        </div>
+        <div class="rule-arrow">→</div>
+        <div style="flex:1">
+          <div style="font-size:13px;color:var(--text-1)">${r.action}</div>
+        </div>
+        <div style="width:8px;height:8px;border-radius:50%;background:${r.active?'var(--green)':'var(--red)'}"></div>
+      </div>
+    `).join('')}
+    <div style="margin-top:16px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+      <div style="font-weight:600;margin-bottom:10px">📝 Rule ka template change karo</div>
+      <p style="font-size:13px;color:var(--text-2)">Har trigger ke liye jo template active hai woh use hoga. Template tab mein ja ke trigger type select karo.</p>
+    </div>
+  `;
+}
+
+// ─── Schedule ────────────────────────────────────────
+function renderSchedule(el) {
+  el.innerHTML=`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button class="btn btn-primary btn-sm" onclick="openSendModal()">📤 Manual Schedule</button>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="sch-table">
+      <thead><tr><th>Client</th><th>Message</th><th>Trigger</th><th>Scheduled</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        ${scheduled.length ? scheduled.map(s=>`
+          <tr>
+            <td><div style="font-weight:500">${s.client_name}</div><div style="font-size:11px;color:var(--text-3)">${s.phone}</div></td>
+            <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.message_body}</td>
+            <td><span class="tpl-badge badge-${s.trigger_type}" style="font-size:10px">${s.trigger_type}</span></td>
+            <td style="font-size:12px">${new Date(s.scheduled_at).toLocaleString('en-PK')}</td>
+            <td><span class="status-${s.status}">${s.status}</span></td>
+            <td><button class="btn btn-secondary btn-sm" style="color:var(--red)" onclick="cancelSchedule('${s.id}')">✕</button></td>
+          </tr>
+        `).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-3)">Koi scheduled message nahi</td></tr>'}
+      </tbody>
+    </table>
+    </div>
+  `;
+}
+
+async function cancelSchedule(id) {
+  await sbPatch('scheduled_messages','id=eq.'+id,{status:'cancelled'});
+  scheduled=await sbGet('scheduled_messages','order=scheduled_at.asc&status=eq.pending');
+  document.getElementById('st-pending').textContent=scheduled.length;
+  renderTab('schedule');
+}
+
+// ─── History ─────────────────────────────────────────
+function renderHistory(el) {
+  el.innerHTML=`
+    <div style="overflow-x:auto">
+    <table class="sch-table">
+      <thead><tr><th>Client</th><th>Message</th><th>Trigger</th><th>Sent</th><th>Status</th></tr></thead>
+      <tbody>
+        ${history.length ? history.map(h=>`
+          <tr>
+            <td><div style="font-weight:500">${h.client_name||'—'}</div></td>
+            <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.message_body||'—'}</td>
+            <td><span class="tpl-badge badge-${h.trigger_type||'manual'}" style="font-size:10px">${h.trigger_type||'manual'}</span></td>
+            <td style="font-size:12px">${new Date(h.sent_at).toLocaleString('en-PK')}</td>
+            <td><span class="status-${h.status||'sent'}">${h.status||'sent'}</span></td>
+          </tr>
+        `).join('') : '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-3)">Aaj koi message nahi bheja gaya</td></tr>'}
+      </tbody>
+    </table>
+    </div>
+  `;
+}
+
+// ─── Template Modal ───────────────────────────────────
+function openTplModal() {
+  editingTplId=null;
+  document.getElementById('tplModalTitle').textContent='New Template';
+  document.getElementById('tplName').value='';
+  document.getElementById('tplTrigger').value='purchase';
+  document.getElementById('tplSegment').value='all';
+  document.getElementById('tplBody').value='';
+  document.getElementById('tplModal').classList.remove('hidden');
+}
+function closeTplModal(){ document.getElementById('tplModal').classList.add('hidden'); }
+function insertVar(v) {
+  const ta=document.getElementById('tplBody');
+  const s=ta.selectionStart, e=ta.selectionEnd;
+  ta.value=ta.value.slice(0,s)+v+ta.value.slice(e);
+  ta.selectionStart=ta.selectionEnd=s+v.length;
+  ta.focus();
+}
+async function saveTpl() {
+  const name=document.getElementById('tplName').value.trim();
+  const body=document.getElementById('tplBody').value.trim();
+  if(!name||!body){alert('Naam aur message zaroori hai');return;}
+  const data={name,trigger_type:document.getElementById('tplTrigger').value,segment:document.getElementById('tplSegment').value,body};
+  if(editingTplId) await sbPatch('message_templates','id=eq.'+editingTplId,data);
+  else await sbPost('message_templates',data);
+  templates=await sbGet('message_templates','order=created_at.asc');
+  document.getElementById('st-templates').textContent=templates.length;
+  closeTplModal();
+  renderTab('templates');
+}
+
+// ─── Segment Modal ─────────────────────────────────────
+function openSegModal() {
+  editingSegId=null;
+  document.getElementById('segName').value='';
+  document.getElementById('segPhone').value='';
+  document.getElementById('segType').value='regular';
+  document.getElementById('segNotes').value='';
+  document.getElementById('segModal').classList.remove('hidden');
+}
+function closeSegModal(){ document.getElementById('segModal').classList.add('hidden'); }
+async function saveSeg() {
+  const name=document.getElementById('segName').value.trim();
+  const phone=document.getElementById('segPhone').value.trim();
+  if(!name){alert('Client naam zaroori hai');return;}
+  const data={client_name:name,phone,segment:document.getElementById('segType').value,notes:document.getElementById('segNotes').value.trim(),updated_at:new Date().toISOString()};
+  if(editingSegId) await sbPatch('client_segments','id=eq.'+editingSegId,data);
+  else await sbPost('client_segments',data);
+  segments=await sbGet('client_segments','order=client_name.asc');
+  document.getElementById('st-clients').textContent=segments.length;
+  closeSegModal();
+  renderTab('segments');
+}
+
+// ─── Send Modal ─────────────────────────────────────────
+function openSendModal() {
+  document.getElementById('sendModal').classList.remove('hidden');
+  // Populate template dropdown
+  const sel=document.getElementById('sendTpl');
+  sel.innerHTML=templates.filter(t=>t.is_active).map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  loadSendClients();
+  previewSend();
+}
+function closeSendModal(){ document.getElementById('sendModal').classList.add('hidden'); }
+
+function loadSendClients() {
+  const seg=document.getElementById('sendSeg').value;
+  const filtered=seg==='all'?segments:segments.filter(s=>s.segment===seg);
+  const list=document.getElementById('sendClientList');
+  list.innerHTML=filtered.map(s=>`
+    <label class="client-check-item">
+      <input type="checkbox" class="send-check" data-name="${s.client_name}" data-phone="${s.phone||''}" checked>
+      <div>
+        <div style="font-weight:500">${s.client_name}</div>
+        <div style="font-size:11px;color:var(--text-3)">${s.phone||'No phone'} · ${segLabel(s.segment)}</div>
+      </div>
+    </label>
+  `).join('') || '<div style="padding:12px;color:var(--text-3);font-size:13px">Koi client nahi</div>';
+  updateSendCount();
+  document.querySelectorAll('.send-check').forEach(c=>c.addEventListener('change',updateSendCount));
+}
+function updateSendCount(){
+  document.getElementById('sendCount').textContent=document.querySelectorAll('.send-check:checked').length;
+}
+function previewSend() {
+  const tplId=document.getElementById('sendTpl').value;
+  const tpl=templates.find(t=>t.id===tplId);
+  if(!tpl){document.getElementById('sendPreview').textContent='—';return;}
+  const preview=tpl.body.replace(/{name}/g,'[Client Name]').replace(/{outstanding}/g,'PKR 45,000').replace(/{purchase_amount}/g,'PKR 12,500').replace(/{payment_amount}/g,'PKR 10,000').replace(/{date}/g,new Date().toLocaleDateString('en-PK')).replace(/{last_purchase}/g,'10 din pehle');
+  document.getElementById('sendPreview').textContent=preview;
+}
+
+async function sendMessages() {
+  const tplId=document.getElementById('sendTpl').value;
+  const tpl=templates.find(t=>t.id===tplId);
+  if(!tpl){alert('Template select karo');return;}
+  const checked=[...document.querySelectorAll('.send-check:checked')];
+  if(!checked.length){alert('Koi client select nahi');return;}
+
+  const btn=document.getElementById('sendBtn');
+  btn.textContent='Bhej raha hoon...';
+  btn.disabled=true;
+
+  const now=new Date().toISOString();
+  let ok=0;
+  for(const c of checked) {
+    const name=c.dataset.name, phone=c.dataset.phone;
+    if(!phone){continue;}
+    const msg=tpl.body.replace(/{name}/g,name).replace(/{date}/g,new Date().toLocaleDateString('en-PK'));
+    // Schedule immediately (bot will pick it up)
+    const res=await sbPost('scheduled_messages',{client_name:name,phone,message_body:msg,trigger_type:'manual',scheduled_at:now,status:'pending'});
+    if(res) ok++;
+  }
+
+  btn.textContent='📤 Bhejo';
+  btn.disabled=false;
+  closeSendModal();
+  alert(`${ok} clients ko queue mein add kar diya. Bot agle check mein bhej dega.`);
+  scheduled=await sbGet('scheduled_messages','order=scheduled_at.asc&status=eq.pending');
+  document.getElementById('st-pending').textContent=scheduled.length;
+}
+
+// ─── Init ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async()=>{
+  if(typeof renderSidebar==='function') renderSidebar('broadcast');
+  await loadAll();
+  renderTab('templates');
+});
+</script>
+</body>
+</html>

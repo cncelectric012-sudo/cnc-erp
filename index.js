@@ -1213,6 +1213,14 @@ Return ONLY the client name, nothing else. No explanation.`
         // ── Update Supabase ledger automatically ──────────────
         await updateSupabaseLedger(p.sender_name, p.amount, p.date, p.bank, p.txnId);
 
+        // ── WA Automation — payment confirmation ──────────────
+        const paySegInfo = await getClientSegment(p.sender_name);
+        if (paySegInfo && paySegInfo.phone) {
+            const sbC = await getClientFromSupabase(p.sender_name);
+            const outstanding = sbC ? (sbC.outstanding_amount || 0) : 0;
+            triggerPaymentAutomation(p.sender_name, paySegInfo.phone, p.amount, outstanding || 0).catch(()=>{});
+        }
+
         // Record salesperson for payment
         try {
             const payContact = await message.getContact();
@@ -1837,6 +1845,14 @@ Reply:
 
         console.log(`${aiDecision.decision}: ${inv.invoice_no} — ${discount}% | Doubt: ${aiDecision.doubt_alert}`);
 
+        // WA Automation — trigger purchase message if client has phone in segments
+        if (aiDecision.decision === 'APPROVE') {
+            const seg = await getClientSegment(inv.client_name);
+            if (seg && seg.phone) {
+                triggerPurchaseAutomation(inv.client_name, seg.phone, netAmt, ledgerOutstanding || 0).catch(()=>{});
+            }
+        }
+
     } catch (err) {
         console.error('❌ Invoice error:', err.message);
         await message.reply('❌ Invoice process nahi ho saka.');
@@ -1997,6 +2013,149 @@ async function sendDailyLedgerReports() {
     console.log(`✅ Daily report done — Sent: ${sent}, Failed: ${failed}`);
 }
 
+// ─── WhatsApp Automation Engine ──────────────────────────────
+
+async function getActiveTemplate(triggerType, segment) {
+    // Prefer segment-specific, fall back to 'all'
+    const rows = await supabaseGet(`/rest/v1/message_templates?is_active=eq.true&trigger_type=eq.${triggerType}&order=segment.asc`);
+    if (!Array.isArray(rows) || !rows.length) return null;
+    const exact = rows.find(r => r.segment === segment);
+    return exact || rows.find(r => r.segment === 'all') || null;
+}
+
+function fillTemplate(body, vars) {
+    return body
+        .replace(/{name}/g, vars.name || 'Sahab')
+        .replace(/{outstanding}/g, vars.outstanding ? `PKR ${Number(vars.outstanding).toLocaleString('en-PK')}` : '—')
+        .replace(/{purchase_amount}/g, vars.purchase_amount ? `PKR ${Number(vars.purchase_amount).toLocaleString('en-PK')}` : '—')
+        .replace(/{payment_amount}/g, vars.payment_amount ? `PKR ${Number(vars.payment_amount).toLocaleString('en-PK')}` : '—')
+        .replace(/{date}/g, new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }))
+        .replace(/{last_purchase}/g, vars.last_purchase || '—');
+}
+
+async function logMessage(clientName, phone, body, triggerType, status) {
+    if (!SUPABASE_URL_RAW || !SUPABASE_KEY_RAW) return;
+    const b = JSON.stringify({ client_name: clientName, phone, message_body: body, trigger_type: triggerType, status, sent_at: new Date().toISOString() });
+    const url = new URL(SUPABASE_URL_RAW);
+    const opts = { hostname: url.hostname, path: '/rest/v1/message_log', method: 'POST', headers: { 'apikey': SUPABASE_KEY_RAW, 'Authorization': 'Bearer ' + SUPABASE_KEY_RAW, 'Content-Type': 'application/json', 'Prefer': 'return=minimal', 'Content-Length': Buffer.byteLength(b) } };
+    const req = require('https').request(opts, () => {}); req.on('error', () => {}); req.write(b); req.end();
+}
+
+async function getClientSegment(clientName) {
+    const rows = await supabaseGet(`/rest/v1/client_segments?client_name=eq.${encodeURIComponent(clientName)}&limit=1`);
+    return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
+
+async function updateClientPurchaseDate(clientName) {
+    if (!SUPABASE_URL_RAW || !SUPABASE_KEY_RAW) return;
+    const today = new Date().toISOString().slice(0, 10);
+    await supabasePatch(`/rest/v1/client_segments?client_name=eq.${encodeURIComponent(clientName)}`, { last_purchase_date: today, followup_stage: 0, updated_at: new Date().toISOString() });
+}
+
+async function sendWaMessage(phone, body) {
+    const cleaned = String(phone).replace(/[^0-9]/g, '');
+    const waId = (cleaned.startsWith('0') ? '92' + cleaned.slice(1) : cleaned) + '@c.us';
+    await client.sendMessage(waId, body);
+}
+
+async function triggerPurchaseAutomation(clientName, phone, purchaseAmount, outstanding) {
+    if (!phone) return;
+    const seg = await getClientSegment(clientName);
+    const segment = seg ? seg.segment : 'regular';
+    const tpl = await getActiveTemplate('purchase', segment);
+    if (!tpl) return;
+    const body = fillTemplate(tpl.body, { name: clientName, outstanding, purchase_amount: purchaseAmount });
+    try {
+        await sendWaMessage(phone, body);
+        await logMessage(clientName, phone, body, 'purchase', 'sent');
+        await updateClientPurchaseDate(clientName);
+        console.log(`✅ WA Automation: purchase message sent to ${clientName}`);
+    } catch (e) {
+        await logMessage(clientName, phone, body, 'purchase', 'failed');
+        console.error(`❌ WA Automation purchase send failed (${clientName}):`, e.message);
+    }
+}
+
+async function triggerPaymentAutomation(clientName, phone, paymentAmount, outstanding) {
+    if (!phone) return;
+    const seg = await getClientSegment(clientName);
+    const segment = seg ? seg.segment : 'regular';
+    const tpl = await getActiveTemplate('payment', segment);
+    if (!tpl) return;
+    const body = fillTemplate(tpl.body, { name: clientName, outstanding, payment_amount: paymentAmount });
+    try {
+        await sendWaMessage(phone, body);
+        await logMessage(clientName, phone, body, 'payment', 'sent');
+        console.log(`✅ WA Automation: payment message sent to ${clientName}`);
+    } catch (e) {
+        await logMessage(clientName, phone, body, 'payment', 'failed');
+        console.error(`❌ WA Automation payment send failed (${clientName}):`, e.message);
+    }
+}
+
+async function processScheduledMessages() {
+    const now = new Date().toISOString();
+    const msgs = await supabaseGet(`/rest/v1/scheduled_messages?status=eq.pending&scheduled_at=lte.${now}&order=scheduled_at.asc&limit=20`);
+    if (!Array.isArray(msgs) || !msgs.length) return;
+    console.log(`📤 Processing ${msgs.length} scheduled messages...`);
+    for (const m of msgs) {
+        if (!m.phone) {
+            await supabasePatch(`/rest/v1/scheduled_messages?id=eq.${m.id}`, { status: 'failed', error_msg: 'No phone number', sent_at: new Date().toISOString() });
+            continue;
+        }
+        try {
+            await sendWaMessage(m.phone, m.message_body);
+            await supabasePatch(`/rest/v1/scheduled_messages?id=eq.${m.id}`, { status: 'sent', sent_at: new Date().toISOString() });
+            await logMessage(m.client_name, m.phone, m.message_body, m.trigger_type || 'manual', 'sent');
+            await new Promise(r => setTimeout(r, 2000));
+        } catch (e) {
+            await supabasePatch(`/rest/v1/scheduled_messages?id=eq.${m.id}`, { status: 'failed', error_msg: e.message, sent_at: new Date().toISOString() });
+            await logMessage(m.client_name, m.phone, m.message_body, m.trigger_type || 'manual', 'failed');
+        }
+    }
+}
+
+async function checkInactiveClients() {
+    const clients = await supabaseGet('/rest/v1/client_segments?is_active=eq.true&phone=not.is.null&order=client_name.asc');
+    if (!Array.isArray(clients) || !clients.length) return;
+    const now = Date.now();
+    for (const c of clients) {
+        if (!c.phone || !c.last_purchase_date) continue;
+        const daysSince = Math.floor((now - new Date(c.last_purchase_date).getTime()) / 86400000);
+        let nextTrigger = null;
+        if (daysSince >= 30 && c.followup_stage < 3) nextTrigger = { type: 'followup_30', stage: 3 };
+        else if (daysSince >= 14 && c.followup_stage < 2) nextTrigger = { type: 'followup_14', stage: 2 };
+        else if (daysSince >= 7 && c.followup_stage < 1) nextTrigger = { type: 'followup_7', stage: 1 };
+        if (!nextTrigger) continue;
+        const tpl = await getActiveTemplate(nextTrigger.type, c.segment);
+        if (!tpl) continue;
+        const body = fillTemplate(tpl.body, { name: c.client_name, last_purchase: c.last_purchase_date });
+        try {
+            await sendWaMessage(c.phone, body);
+            await logMessage(c.client_name, c.phone, body, nextTrigger.type, 'sent');
+            await supabasePatch(`/rest/v1/client_segments?id=eq.${c.id}`, { followup_stage: nextTrigger.stage, last_message_sent: new Date().toISOString(), updated_at: new Date().toISOString() });
+            console.log(`✅ WA Automation: ${nextTrigger.type} sent to ${c.client_name} (${daysSince} days inactive)`);
+            await new Promise(r => setTimeout(r, 2000));
+        } catch (e) {
+            console.error(`❌ WA Automation followup failed (${c.client_name}):`, e.message);
+        }
+    }
+}
+
+function scheduleAutomation() {
+    // Process scheduled queue every 5 minutes
+    setInterval(async () => {
+        try { await processScheduledMessages(); } catch (e) { console.error('❌ Scheduled msg error:', e.message); }
+    }, 5 * 60 * 1000);
+
+    // Check inactive clients every 4 hours
+    setInterval(async () => {
+        try { await checkInactiveClients(); } catch (e) { console.error('❌ Inactive check error:', e.message); }
+    }, 4 * 60 * 60 * 1000);
+
+    console.log('⚡ WA Automation engine started');
+}
+
 function scheduleDailyReport() {
     const hour   = parseInt(process.env.DAILY_REPORT_HOUR   || '8');
     const minute = parseInt(process.env.DAILY_REPORT_MINUTE || '0');
@@ -2044,6 +2203,9 @@ async function start() {
 
     // Schedule daily ledger reports at 8 AM
     scheduleDailyReport();
+
+    // WhatsApp Automation engine
+    scheduleAutomation();
 
     console.log('🚀 Starting CNC WhatsApp Bot...');
     client.initialize();
