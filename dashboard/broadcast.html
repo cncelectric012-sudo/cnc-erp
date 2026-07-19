@@ -155,6 +155,10 @@
       </select>
     </div>
     <div class="form-row">
+      <label class="form-label">Send Time (Roz kis waqt jayega?)</label>
+      <input type="time" class="form-input" id="tplTime" value="20:00">
+    </div>
+    <div class="form-row">
       <label class="form-label">Message Body</label>
       <textarea class="form-textarea" id="tplBody" placeholder="Assalam o Alaikum {name} Sahab..."></textarea>
       <div class="vars-hint">
@@ -333,6 +337,13 @@ function renderTemplates(el) {
         <div style="font-weight:600;font-size:14px;flex:1">${t.name}</div>
         <span class="tpl-badge badge-${t.trigger_type}">${triggerLabel(t.trigger_type)}</span>
         <span class="tpl-seg">${segLabel(t.segment)}</span>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-2);cursor:pointer" title="Send time">
+          🕐
+          <input type="time" value="${t.send_time||'20:00'}"
+            style="border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:12px;background:var(--surface);color:var(--text-1);cursor:pointer"
+            onchange="updateSendTime('${t.id}',this.value)"
+            onclick="event.stopPropagation()">
+        </label>
         <div style="width:8px;height:8px;border-radius:50%;background:${t.is_active?'var(--green)':'var(--red)'}"></div>
       </div>
       <div class="tpl-body" id="body-${t.id}">${escHtml(t.body)}</div>
@@ -344,6 +355,11 @@ function renderTemplates(el) {
       </div>
     </div>
   `).join('');
+}
+
+async function updateSendTime(id, time) {
+  await sbPatch('message_templates','id=eq.'+id,{send_time:time});
+  templates = await sbGet('message_templates','order=created_at.asc');
 }
 
 function toggleBody(id) {
@@ -372,6 +388,7 @@ function editTpl(id) {
   document.getElementById('tplName').value=t.name;
   document.getElementById('tplTrigger').value=t.trigger_type;
   document.getElementById('tplSegment').value=t.segment;
+  document.getElementById('tplTime').value=t.send_time||'20:00';
   document.getElementById('tplBody').value=t.body;
   document.getElementById('tplModal').classList.remove('hidden');
 }
@@ -527,6 +544,7 @@ function openTplModal() {
   document.getElementById('tplName').value='';
   document.getElementById('tplTrigger').value='purchase';
   document.getElementById('tplSegment').value='all';
+  document.getElementById('tplTime').value='20:00';
   document.getElementById('tplBody').value='';
   document.getElementById('tplModal').classList.remove('hidden');
 }
@@ -542,7 +560,7 @@ async function saveTpl() {
   const name=document.getElementById('tplName').value.trim();
   const body=document.getElementById('tplBody').value.trim();
   if(!name||!body){alert('Naam aur message zaroori hai');return;}
-  const data={name,trigger_type:document.getElementById('tplTrigger').value,segment:document.getElementById('tplSegment').value,body};
+  const data={name,trigger_type:document.getElementById('tplTrigger').value,segment:document.getElementById('tplSegment').value,send_time:document.getElementById('tplTime').value||'20:00',body};
   if(editingTplId) await sbPatch('message_templates','id=eq.'+editingTplId,data);
   else await sbPost('message_templates',data);
   templates=await sbGet('message_templates','order=created_at.asc');
