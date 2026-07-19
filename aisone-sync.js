@@ -109,7 +109,7 @@ async function syncClients() {
   const toInsert = [], toUpdate = [];
 
   for (const r of accounts) {
-    const [erpId, customerName, , phone, outStr, creditStr] = r;
+    const [erpId, customerName, , phone, outStr, creditStr, segment] = r;
     const outstanding = parseFloat(outStr) || 0;
     const payload = {
       name: customerName,
@@ -117,6 +117,7 @@ async function syncClients() {
       outstanding_amount: Math.abs(outstanding),
       outstanding_type: outstanding >= 0 ? 'Dr' : 'Cr',
       credit_limit: parseFloat(creditStr) || 0,
+      branch: segment || 'CO',
       record_source: 'erp_live',
       erp_id: erpId,
       status: 'Active',
@@ -142,7 +143,7 @@ async function syncClients() {
       outstanding_amount: p.outstanding_amount,
       outstanding_type: p.outstanding_type,
       credit_limit: p.credit_limit,
-      name: p.name, phone: p.phone,
+      name: p.name, phone: p.phone, branch: p.branch,
     });
     if (r.ok) updated++;
     else errors++;

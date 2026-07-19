@@ -143,9 +143,10 @@
   color: var(--text-3);
 }
 
-/* Branch badge colors */
-.badge-cnc  { background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; }
-.badge-cst  { background:#EFF6FF; color:#2563EB; border:1px solid #BFDBFE; }
+/* Segment badge colors */
+.badge-co   { background:#EFF6FF; color:#2563EB; border:1px solid #BFDBFE; }
+.badge-khi  { background:#F0FDF4; color:#16A34A; border:1px solid #BBF7D0; }
+.badge-cokhi{ background:#FDF4FF; color:#9333EA; border:1px solid #E9D5FF; }
 .badge-cspl { background:#F0FDF4; color:#16A34A; border:1px solid #BBF7D0; }
 
 /* ── Export Bar ── */
@@ -271,9 +272,9 @@
             <option value="">All Cities</option>
           </select>
           <select class="input" style="width:130px" id="s-branch" onchange="applyFilters()">
-            <option value="">All Branches</option>
-            <option value="cnc">CNC</option>
-            <option value="cst">CS Traders</option>
+            <option value="">All Segments</option>
+            <option value="CO">CO</option>
+            <option value="KHI">KHI</option>
             <option value="cspl">Cog. Solutions</option>
           </select>
           <select class="input" style="width:110px" id="s-type" onchange="applyFilters()">
@@ -324,7 +325,7 @@
                 <th style="width:36px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="cursor:pointer"/></th>
                 <th>#</th>
                 <th>Client Name</th>
-                <th>Branch</th>
+                <th>Segment</th>
                 <th>Sales Rep</th>
                 <th class="num">Outstanding</th>
                 <th>Type</th>
@@ -350,7 +351,7 @@
         <div class="table-scroll">
           <table>
             <thead><tr>
-              <th>#</th><th>Client Name</th><th>Branch</th><th>Sales Rep</th>
+              <th>#</th><th>Client Name</th><th>Segment</th><th>Sales Rep</th>
               <th class="num">Outstanding</th><th>Risk</th><th>Phone</th><th></th>
             </tr></thead>
             <tbody id="lOverdueBody"></tbody>
@@ -363,7 +364,7 @@
         <div class="table-scroll">
           <table>
             <thead><tr>
-              <th>#</th><th>Client Name</th><th>Branch</th><th>Sales Rep</th>
+              <th>#</th><th>Client Name</th><th>Segment</th><th>Sales Rep</th>
               <th class="num">Outstanding</th><th>Risk</th><th>Phone</th><th></th>
             </tr></thead>
             <tbody id="lBlacklistedBody"></tbody>
@@ -595,7 +596,7 @@ function lRenderOverdue() {
   const body = document.getElementById('lOverdueBody');
   if (!rows.length) { body.innerHTML=`<tr><td colspan="8" style="padding:40px;text-align:center;color:var(--text-3)">No overdue clients</td></tr>`; return; }
   body.innerHTML = rows.map((c,i)=>{
-    const branch = getBranch(c.id);
+    const branch = getBranch(c.id, c);
     const phone = c.phone||c.whatsapp||'';
     const waNum = phone?'92'+phone.replace(/^0/,'').replace(/[^0-9]/g,''):'';
     const safeId = String(c.id||'').replace(/'/g,"\\'");
@@ -618,7 +619,7 @@ function lRenderBlacklisted() {
   const body = document.getElementById('lBlacklistedBody');
   if (!rows.length) { body.innerHTML=`<tr><td colspan="8" style="padding:40px;text-align:center;color:var(--text-3)">No blacklisted clients</td></tr>`; return; }
   body.innerHTML = rows.map((c,i)=>{
-    const branch = getBranch(c.id);
+    const branch = getBranch(c.id, c);
     const phone = c.phone||c.whatsapp||'';
     const safeId = String(c.id||'').replace(/'/g,"\\'");
     return `<tr onclick="openModal('${safeId}')" style="cursor:pointer">
@@ -653,10 +654,8 @@ function applyFilters() {
     if (sp   && c.salesperson !== sp) return false;
     if (city && c.city !== city) return false;
     if (branch) {
-      const id = (c.id||'').toLowerCase();
-      if (branch==='cnc'  && !id.includes('_cnc'))  return false;
-      if (branch==='cst'  && !id.includes('_cst'))  return false;
-      if (branch==='cspl' && !id.includes('_cspl')) return false;
+      const seg = (c.branch||'').toUpperCase();
+      if (!seg.includes(branch.toUpperCase())) return false;
     }
     const status  = document.getElementById('s-status')?.value||'';
     const missing = document.getElementById('s-missing')?.value||'';
@@ -713,10 +712,14 @@ function updateKPIs() {
   document.getElementById('ledgerCount').textContent    = `${filtered.length} clients`;
 }
 
-// Branch from ID
-function getBranch(id) {
+// Segment badge
+function getBranch(id, client) {
+  const seg = ((client&&client.branch)||'').toUpperCase();
+  if (seg==='CO,KHI'||seg==='KHI,CO') return {label:'CO · KHI', cls:'badge-cokhi'};
+  if (seg==='KHI')  return {label:'KHI', cls:'badge-khi'};
+  if (seg==='CO')   return {label:'CO',  cls:'badge-co'};
   const s = (id||'').toLowerCase();
-  if (s.includes('_cnc_ledger')||s.endsWith('_cnc'))  return {label:'CNC',cls:'badge-cnc'};
+  if (s.includes('_cnc_ledger')||s.endsWith('_cnc'))  return {label:'CO', cls:'badge-co'};
   if (s.includes('_cst_ledger')||s.endsWith('_cst'))  return {label:'CS Traders',cls:'badge-cst'};
   if (s.includes('_cspl_ledger')||s.endsWith('_cspl'))return {label:'Cog. Solutions',cls:'badge-cspl'};
   return null;
@@ -753,7 +756,7 @@ function renderGrid() {
       const safeId = String(c.id||'').replace(/'/g,"\\'");
       const phone  = c.phone||c.whatsapp||'';
       const waNum  = phone?'92'+phone.replace(/^0/,'').replace(/[^0-9]/g,''):'';
-      const branch = getBranch(c.id);
+      const branch = getBranch(c.id, c);
 
       return `<tr onclick="openModal('${safeId}')" style="cursor:pointer">
         <td onclick="event.stopPropagation()">
