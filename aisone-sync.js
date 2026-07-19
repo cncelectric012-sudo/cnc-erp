@@ -109,10 +109,10 @@ async function syncClients() {
   const toInsert = [], toUpdate = [];
 
   for (const r of accounts) {
-    const [erpId, name, phone, outStr, creditStr] = r;
+    const [erpId, customerName, , phone, outStr, creditStr] = r;
     const outstanding = parseFloat(outStr) || 0;
     const payload = {
-      name,
+      name: customerName,
       phone: phone || null,
       outstanding_amount: Math.abs(outstanding),
       outstanding_type: outstanding >= 0 ? 'Dr' : 'Cr',
