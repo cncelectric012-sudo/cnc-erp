@@ -21,17 +21,18 @@ const SB_HEADERS = {
 // ── Run sqlcmd and return parsed rows ────────────────────────
 function runSQL() {
   return new Promise((resolve) => {
-    const cmd = `sqlcmd -S "${SQL_SERVER}" -d "${SQL_DB}" -i "${SQL_FILE}" -s "|" -h -1 -W`;
-    exec(cmd, { timeout: 60000 }, (err, stdout, stderr) => {
+    const cmd = `sqlcmd -S ".\\AISONESQL22" -d "Cognitive solutions private limited" -i "${SQL_FILE}" -s "~" -h-1 -W`;
+    exec(cmd, { timeout: 60000, shell: 'cmd.exe' }, (err, stdout, stderr) => {
       if (err) {
         console.error('[AisoneSync] SQL error:', stderr || err.message);
         return resolve([]);
       }
+      console.log('[AisoneSync] Raw SQL output (first 300 chars):', stdout.substring(0, 300));
       const lines = stdout
         .trim()
         .split(/\r?\n/)
-        .filter(l => l.trim() && !l.match(/^[-| ]+$/) && !l.match(/^\d+ rows affected/i));
-      const rows = lines.map(l => l.split('|').map(v => v.trim()));
+        .filter(l => l.trim() && !l.match(/^[-~\s]+$/) && !l.match(/^\d+ rows affected/i) && !l.match(/^Changed database/i));
+      const rows = lines.map(l => l.split('~').map(v => v.trim()));
       resolve(rows);
     });
   });
@@ -63,7 +64,7 @@ async function syncClients() {
   }
 
   // rows: [AutoID, CompanyName, Phone, Outstanding, CreditLimit]
-  const accounts = rows.filter(r => r.length >= 4 && /^\d+$/.test(r[0]));
+  const accounts = rows.filter(r => r.length >= 4 && r[1] && r[1].length > 0);
   console.log(`[AisoneSync] ${accounts.length} accounts from ERP`);
 
   let inserted = 0, updated = 0, errors = 0;
