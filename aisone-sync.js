@@ -52,10 +52,22 @@ async function sbFetch(path, method, body) {
   return r;
 }
 
+// ── Auto-update from git ─────────────────────────────────────
+function gitPull() {
+  return new Promise((resolve) => {
+    exec('git pull origin main', { cwd: __dirname, timeout: 30000, shell: 'cmd.exe' }, (err, stdout) => {
+      if (err) { console.error('[AisoneSync] git pull failed:', err.message); }
+      else if (!stdout.includes('Already up to date')) { console.log('[AisoneSync] Updated from git:', stdout.trim()); }
+      resolve();
+    });
+  });
+}
+
 // ── Main sync ────────────────────────────────────────────────
 async function syncClients() {
   const ts = new Date().toLocaleTimeString('en-PK');
   console.log(`[AisoneSync] ${ts} — starting sync...`);
+  await gitPull();
 
   const rows = await runSQL();
   if (!rows.length) {
