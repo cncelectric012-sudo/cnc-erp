@@ -275,6 +275,7 @@
             <option value="">All Segments</option>
             <option value="CO">CO</option>
             <option value="KHI">KHI</option>
+            <option value="CO,KHI">CO · KHI</option>
           </select>
           <select class="input" style="width:110px" id="s-type" onchange="applyFilters()">
             <option value="">Dr / Cr: All</option>
@@ -653,8 +654,8 @@ function applyFilters() {
     if (sp   && c.salesperson !== sp) return false;
     if (city && c.city !== city) return false;
     if (branch) {
-      const seg = (c.branch||'').toUpperCase();
-      if (!seg.includes(branch.toUpperCase())) return false;
+      const seg = (c.branch||'').toUpperCase().replace('KHI,CO','CO,KHI');
+      if (seg !== branch.toUpperCase()) return false;
     }
     const status  = document.getElementById('s-status')?.value||'';
     const missing = document.getElementById('s-missing')?.value||'';
