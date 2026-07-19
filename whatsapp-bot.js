@@ -129,7 +129,9 @@ async function broadcastToAll(sock, getMsg, label) {
       await sock.sendMessage(jid, { text: msg });
       console.log(`[Bot] ✓ ${c.name} (${phone})`);
       sent++;
-      await new Promise(r => setTimeout(r, 2000));
+      // 4-7 seconds random delay — human-like behaviour, spam se bachao
+      const delay = 4000 + Math.floor(Math.random() * 3000);
+      await new Promise(r => setTimeout(r, delay));
     } catch (e) {
       console.error(`[Bot] ✗ ${c.name} — ${e.message}`);
       errors++;
