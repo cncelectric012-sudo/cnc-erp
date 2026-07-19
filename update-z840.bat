@@ -1,0 +1,9 @@
+@echo off
+cd /d C:\CNC-ERP\cnc-erp-main
+echo Pulling latest code...
+git pull origin main
+echo Restarting sync service...
+pm2 restart aisone-sync
+echo Showing logs...
+pm2 logs aisone-sync --lines 60
+pause
