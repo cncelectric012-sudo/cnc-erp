@@ -136,25 +136,16 @@ async function syncClients() {
     } catch(e) { errors++; }
   }
 
-  // Batch update existing clients (chunks of 500 using upsert)
-  for (let i = 0; i < toUpdate.length; i += 500) {
-    try {
-      await sbFetch('/clients?record_source=eq.erp_live&on_conflict=erp_id', 'POST', toUpdate.slice(i, i + 500));
-      updated += Math.min(500, toUpdate.length - i);
-    } catch(e) {
-      // Fallback: update one by one for this chunk
-      for (const p of toUpdate.slice(i, i + 500)) {
-        try {
-          await sbFetch(`/clients?erp_id=eq.${p.erp_id}&record_source=eq.erp_live`, 'PATCH', {
-            outstanding_amount: p.outstanding_amount,
-            outstanding_type: p.outstanding_type,
-            credit_limit: p.credit_limit,
-            name: p.name, phone: p.phone,
-          });
-          updated++;
-        } catch(e2) { errors++; }
-      }
-    }
+  // Update existing clients one by one via PATCH
+  for (const p of toUpdate) {
+    const r = await sbFetch(`/clients?erp_id=eq.${p.erp_id}&record_source=eq.erp_live`, 'PATCH', {
+      outstanding_amount: p.outstanding_amount,
+      outstanding_type: p.outstanding_type,
+      credit_limit: p.credit_limit,
+      name: p.name, phone: p.phone,
+    });
+    if (r.ok) updated++;
+    else errors++;
   }
 
   console.log(`[AisoneSync] ✓ Clients — inserted:${inserted} updated:${updated} errors:${errors}`);
