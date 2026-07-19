@@ -122,14 +122,14 @@
           <div class="stat-sub">All registered</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Sales Reps</div>
-          <div class="stat-val" id="st-sp">0</div>
-          <div class="stat-sub">Active salespeople</div>
+          <div class="stat-label">With Phone</div>
+          <div class="stat-val" id="st-sp" style="color:var(--brand)">0</div>
+          <div class="stat-sub">Phone number available</div>
         </div>
-        <div class="stat-card" style="cursor:pointer" onclick="switchTab('top',document.getElementById('tab-top'))">
-          <div class="stat-label">Top Clients</div>
+        <div class="stat-card">
+          <div class="stat-label">With NTN</div>
           <div class="stat-val" id="st-top">0</div>
-          <div class="stat-sub">By outstanding</div>
+          <div class="stat-sub">Tax registered</div>
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="switchTab('blacklisted',document.getElementById('tab-blacklisted'))">
           <div class="stat-label">Blacklisted</div>
@@ -201,12 +201,10 @@
                 <th style="width:36px"><input type="checkbox" id="cSelectAll" onchange="cToggleAll(this)" style="cursor:pointer"/></th>
                 <th>#</th>
                 <th>Client Name</th>
-                <th>City / Branch</th>
+                <th>City</th>
                 <th>Phone</th>
-                <th>Sales Rep</th>
-                <th class="num">Outstanding</th>
+                <th>NTN / STRN</th>
                 <th>Status</th>
-                <th>Terms</th>
                 <th>Date Added</th>
                 <th></th>
               </tr>
@@ -494,15 +492,14 @@ function showSkeleton() {
   document.getElementById('clientBody').innerHTML = Array(6).fill(`
     <tr class="skeleton-row">
       <td><div class="skeleton skeleton-line" style="width:20px"></div></td>
+      <td><div class="skeleton skeleton-line" style="width:16px"></div></td>
       <td><div class="skeleton skeleton-line" style="width:140px;margin-bottom:4px"></div><div class="skeleton skeleton-line" style="width:80px;height:10px"></div></td>
       <td><div class="skeleton skeleton-line" style="width:70px"></div></td>
       <td><div class="skeleton skeleton-line" style="width:100px"></div></td>
       <td><div class="skeleton skeleton-line" style="width:80px"></div></td>
-      <td><div class="skeleton skeleton-line" style="width:90px;margin-left:auto"></div></td>
-      <td><div class="skeleton skeleton-line" style="width:60px"></div></td>
-      <td><div class="skeleton skeleton-line" style="width:50px"></div></td>
       <td><div class="skeleton skeleton-line" style="width:60px"></div></td>
       <td><div class="skeleton skeleton-line" style="width:70px"></div></td>
+      <td><div class="skeleton skeleton-line" style="width:24px"></div></td>
     </tr>`).join('');
 }
 
@@ -542,7 +539,7 @@ async function loadClients(keepFilters=false) {
   document.getElementById('topbarSub').textContent = 'Loading...';
   try {
     // First 200 fast
-    const first = await sbFetch('clients', 'limit=200&offset=0&order=name.asc&record_source=eq.client');
+    const first = await sbFetch('clients', 'limit=200&offset=0&order=name.asc&record_source=in.(client,erp_import)');
     allClients = first || [];
     populateFilters();
     if(savedState) restoreFilterState(savedState);
@@ -553,7 +550,7 @@ async function loadClients(keepFilters=false) {
     if(first.length === 200) {
       let offset = 200;
       while(true){
-        const batch = await sbFetch('clients', `limit=500&offset=${offset}&order=name.asc&record_source=eq.client`);
+        const batch = await sbFetch('clients', `limit=500&offset=${offset}&order=name.asc&record_source=in.(client,erp_import)`);
         if(!batch || !batch.length) break;
         allClients = allClients.concat(batch);
         if(batch.length < 500) break;
@@ -572,12 +569,12 @@ async function loadClients(keepFilters=false) {
 }
 
 function updateStats(){
-  const sps         = new Set(allClients.map(c=>c.salesperson).filter(Boolean));
-  const topClients  = allClients.filter(c=>(c.outstanding_amount||0)>0).length;
+  const withPhone   = allClients.filter(c=>c.phone||c.whatsapp).length;
+  const withNtn     = allClients.filter(c=>c.ntn).length;
   const blacklisted = allClients.filter(c=>c.status==='blacklisted').length;
   document.getElementById('st-total').textContent       = allClients.length;
-  document.getElementById('st-sp').textContent          = sps.size;
-  document.getElementById('st-top').textContent         = topClients;
+  document.getElementById('st-sp').textContent          = withPhone;
+  document.getElementById('st-top').textContent         = withNtn;
   document.getElementById('st-blacklisted').textContent = blacklisted;
 }
 
@@ -644,18 +641,12 @@ function applyFilters(){
 
   document.getElementById('filteredCount').textContent = `${filtered.length} of ${allClients.length}`;
 
-  // Update stats — net outstanding (Dr - Cr)
-  const sps    = new Set(filtered.map(c=>c.salesperson).filter(Boolean));
-  const withOs = filtered.filter(c=>(c.outstanding_amount||0)>0 && (c.outstanding_type||'Dr')==='Dr').length;
-  const totalOs = filtered.reduce((s,c)=>{
-    const amt = c.outstanding_amount||0;
-    return s + ((c.outstanding_type||'Dr')==='Dr' ? amt : -amt);
-  }, 0);
-  const topCnt  = filtered.filter(c=>(c.outstanding_amount||0)>0).length;
-  const blCnt   = filtered.filter(c=>c.status==='blacklisted').length;
+  const withPhone = filtered.filter(c=>c.phone||c.whatsapp).length;
+  const withNtn   = filtered.filter(c=>c.ntn).length;
+  const blCnt     = filtered.filter(c=>c.status==='blacklisted').length;
   document.getElementById('st-total').textContent       = filtered.length;
-  document.getElementById('st-sp').textContent          = sps.size;
-  document.getElementById('st-top').textContent         = topCnt;
+  document.getElementById('st-sp').textContent          = withPhone;
+  document.getElementById('st-top').textContent         = withNtn;
   document.getElementById('st-blacklisted').textContent = blCnt;
 
   renderCurrentTab();
@@ -708,7 +699,7 @@ document.addEventListener('click', e=>{
 function renderTable(){
   const body = document.getElementById('clientBody');
   if(!filtered.length){
-    body.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No clients found</div><div class="empty-desc">Add your first client or import from CSV/Excel</div></div></td></tr>`;
+    body.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No clients found</div><div class="empty-desc">Import karo ya naya client add karo</div></div></td></tr>`;
     return;
   }
   body.innerHTML = filtered.map((c,i)=>{
@@ -730,12 +721,12 @@ function renderTable(){
       <td>
         ${phone?`<a href="tel:${phone}" style="font-family:var(--font-mono);font-size:12px;color:inherit;text-decoration:none">${phone}</a>`:'—'}
       </td>
-      <td>${c.salesperson?`<span class="badge-sp">${c.salesperson}</span>`:'—'}</td>
-      <td class="num strong" style="color:${(c.outstanding_amount||0)>0?'var(--red)':'var(--green)'}">
-        ${(c.outstanding_amount||0)>0?'PKR '+fmt(c.outstanding_amount):'Clear'}
+      <td style="font-size:11px;color:var(--text-3)">
+        ${c.ntn?`<div>NTN: ${c.ntn}</div>`:''}
+        ${c.strn?`<div>STR: ${c.strn}</div>`:''}
+        ${!c.ntn&&!c.strn?'—':''}
       </td>
       <td>${statusBadge(c.status)}</td>
-      <td style="font-size:11px;color:var(--text-3)">${terms}</td>
       <td style="font-size:11px;color:var(--text-3);white-space:nowrap">${c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—'}</td>
       <td>
         <div class="action-drop">
@@ -1157,9 +1148,10 @@ async function saveClient(e){
     whatsapp:         document.getElementById('f-whatsapp').value.trim(),
     blacklist_reason: document.getElementById('f-blacklist-reason').value.trim(),
     source:           editingId ? undefined : 'manual',
+    record_source:    editingId ? undefined : 'client',
     last_updated:     new Date().toISOString()
   };
-  if(!editingId) record.source = 'manual';
+  if(!editingId) { record.source = 'manual'; record.record_source = 'client'; }
   Object.keys(record).forEach(k=>{ if(record[k]===undefined) delete record[k]; });
 
   try {
@@ -1240,7 +1232,7 @@ function doExport(data, filename){
 }
 // ── Delete All Clients ───────────────────────────────────────
 async function getServerClientCount() {
-  const r = await fetch(`${API}/clients?select=id&record_source=eq.client`, { headers: { ...HEADERS, 'Prefer': 'count=exact' }, method: 'HEAD' });
+  const r = await fetch(`${API}/clients?select=id&record_source=in.(client,erp_import)`, { headers: { ...HEADERS, 'Prefer': 'count=exact' }, method: 'HEAD' });
   const range = r.headers.get('content-range');
   if (!range) return null;
   const total = range.split('/')[1];
@@ -1258,7 +1250,7 @@ async function deleteAllClients() {
   if (!confirm(`CONFIRM: ${count} clients permanently delete ho jaenge. Pakka?`)) return;
 
   btn.textContent = 'Deleting...'; btn.disabled = true;
-  const r = await fetch(`${API}/clients?record_source=eq.client`, { method: 'DELETE', headers: { ...HEADERS, 'Prefer': 'return=minimal' } });
+  const r = await fetch(`${API}/clients?record_source=in.(client,erp_import)`, { method: 'DELETE', headers: { ...HEADERS, 'Prefer': 'return=minimal' } });
   btn.textContent = 'Actions ▾'; btn.disabled = false;
 
   if (r.ok) {
