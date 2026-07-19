@@ -1,13 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Read(///192.168.1.90/CNC-Bot/**)",
-      "Edit(///192.168.1.90/CNC-Bot/**)",
-      "Write(///192.168.1.90/CNC-Bot/**)",
-      "Bash(ls //192.168.1.90/CNC-Bot/*)",
-      "Bash(ls -la //192.168.1.90/CNC-Bot/*)",
-      "Bash(npm install *)",
-      "Bash(node -e *)"
+      "Bash(*)",
+      "PowerShell(*)",
+      "Read(**)",
+      "Edit(**)",
+      "Write(**)",
+      "mcp__4f5f7ea9-0da1-4fb1-902c-d988f3470d7a__*",
+      "mcp__c9e1041e-5090-4b7a-8d75-8ab55a4d71cd__*",
+      "mcp__claude-in-chrome__*",
+      "mcp__Claude_Browser__*",
+      "mcp__visualize__*",
+      "mcp__ccd_session__*",
+      "mcp__meta-ads-cnc__*",
+      "mcp__scheduled-tasks__*",
+      "mcp__mcp-registry__*"
     ]
   }
 }
