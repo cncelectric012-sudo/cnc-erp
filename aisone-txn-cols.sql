@@ -1,5 +1,11 @@
--- Check TBU_AccountAging columns
-SELECT COLUMN_NAME, DATA_TYPE
+-- Check TBU_SaleInvoice columns
+SELECT 'SaleInvoice' AS TableName, COLUMN_NAME, DATA_TYPE
 FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_NAME = 'TBU_AccountAging'
+WHERE TABLE_NAME = 'TBU_SaleInvoice'
+ORDER BY ORDINAL_POSITION
+
+-- Check TBU_MultipleReceivingVouchers columns
+SELECT 'ReceivingVouchers' AS TableName, COLUMN_NAME, DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'TBU_MultipleReceivingVouchers'
 ORDER BY ORDINAL_POSITION
