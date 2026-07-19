@@ -14,4 +14,5 @@ SELECT
     ISNULL(a.CreditLimit, 0) AS CreditLimit
 FROM TBU_Accounts a
 WHERE a.CompanyName IS NOT NULL AND LEN(LTRIM(RTRIM(a.CompanyName))) > 0
+  AND a.CustomerTypeDID IS NOT NULL
 ORDER BY a.CompanyName

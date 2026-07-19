@@ -9,6 +9,7 @@ SELECT
 FROM TBU_SaleInvoice si
 WHERE si.AccountDID IS NOT NULL AND si.VStatus <> 2
 AND si.VDate >= DATEADD(YEAR, -3, GETDATE())
+AND si.AccountDID IN (SELECT PKGUID FROM TBU_Accounts WHERE CustomerTypeDID IS NOT NULL)
 
 UNION ALL
 
@@ -23,6 +24,7 @@ SELECT
 FROM TBU_CashReceiveVoucher crv
 WHERE crv.AccountDID IS NOT NULL AND crv.VStatus <> 2
 AND crv.VDate >= DATEADD(YEAR, -3, GETDATE())
+AND crv.AccountDID IN (SELECT PKGUID FROM TBU_Accounts WHERE CustomerTypeDID IS NOT NULL)
 
 UNION ALL
 
@@ -37,6 +39,7 @@ SELECT
 FROM TBU_BankDepositVoucher bdv
 WHERE bdv.AccountDID IS NOT NULL AND bdv.VStatus <> 2
 AND bdv.VDate >= DATEADD(YEAR, -3, GETDATE())
+AND bdv.AccountDID IN (SELECT PKGUID FROM TBU_Accounts WHERE CustomerTypeDID IS NOT NULL)
 
 UNION ALL
 
@@ -51,5 +54,6 @@ SELECT
 FROM TBU_MultipleReceivingVouchersDetail mrvd
 WHERE mrvd.AccountDID IS NOT NULL AND mrvd.VStatus <> 2
 AND mrvd.TransDate >= DATEADD(YEAR, -3, GETDATE())
+AND mrvd.AccountDID IN (SELECT PKGUID FROM TBU_Accounts WHERE CustomerTypeDID IS NOT NULL)
 
 ORDER BY erp_account_id, txn_date
