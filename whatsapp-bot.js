@@ -12,6 +12,13 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const SB_HEADERS = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
 const AUTH_FOLDER = path.join(__dirname, 'wa-auth'); // session yahan save hogi
 
+// Report jo in 3 logon ko jayegi har send ke baad
+const REPORT_NUMBERS = [
+  { name: 'Muddasir Waheed Malik', jid: '923228064444@s.whatsapp.net' },
+  { name: 'Malik Awais',           jid: '923004755563@s.whatsapp.net' },
+  { name: 'Bilal Arif',            jid: '923020011194@s.whatsapp.net' },
+];
+
 // ── Supabase fetch ────────────────────────────────────────────
 async function sbGet(urlPath) {
   const r = await fetch(`${SUPABASE_URL}${urlPath}`, { headers: SB_HEADERS });
@@ -119,6 +126,31 @@ async function sendDailyMessages(sock) {
   }
 
   console.log(`[Bot] ✓ Done — Bheje:${sent} Skip:${skipped} Errors:${errors}`);
+
+  // ── 3 logon ko report bhejo ──────────────────────────
+  const now = new Date().toLocaleString('en-PK', { timeZone: 'Asia/Karachi' });
+  const report =
+`📊 *CNC ERP — Daily Message Report*
+━━━━━━━━━━━━━━━━━━
+📅 Tarikh: ${now}
+📋 Template: *${cfg.active_template === 'custom' ? 'Custom Message' : 'Daily Ledger'}*
+━━━━━━━━━━━━━━━━━━
+✅ Bheje gaye:  *${sent}*
+⏭️ Skip (no phone): *${skipped}*
+❌ Errors:      *${errors}*
+📦 Total clients: *${sent + skipped + errors}*
+━━━━━━━━━━━━━━━━━━
+_Ye report automatically generate hui hai._`;
+
+  for (const r of REPORT_NUMBERS) {
+    try {
+      await sock.sendMessage(r.jid, { text: report });
+      console.log(`[Bot] Report bheja: ${r.name}`);
+      await new Promise(res => setTimeout(res, 1500));
+    } catch (e) {
+      console.error(`[Bot] Report fail: ${r.name} — ${e.message}`);
+    }
+  }
 }
 
 // ── Schedule 8 PM daily ───────────────────────────────────────
