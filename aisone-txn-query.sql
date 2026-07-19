@@ -1,59 +1,29 @@
--- Sales Invoices (kab kitna buy kiya)
 SELECT
-    CAST(si.AccountDID AS VARCHAR(50)) AS erp_account_id,
-    CONVERT(VARCHAR(10), si.VDate, 23) AS txn_date,
-    'Invoice' AS txn_type,
-    ISNULL(si.CGrandTotal, 0) AS amount,
-    CAST(si.VNo AS VARCHAR(20)) AS voucher_no,
-    ISNULL(si.Remarks, '') AS description
-FROM TBU_SaleInvoice si
-WHERE si.AccountDID IS NOT NULL AND si.VStatus <> 2
-AND si.VDate >= DATEADD(YEAR, -3, GETDATE())
-AND si.AccountDID IN (SELECT PKGUID FROM TBU_Accounts WHERE CustomerTypeDID IS NOT NULL)
-
-UNION ALL
-
--- Cash Receipts (cash payment received)
-SELECT
-    CAST(crv.AccountDID AS VARCHAR(50)) AS erp_account_id,
-    CONVERT(VARCHAR(10), crv.VDate, 23) AS txn_date,
-    'Payment' AS txn_type,
-    ISNULL(crv.CAmount, 0) AS amount,
-    CAST(crv.VNo AS VARCHAR(20)) AS voucher_no,
-    ISNULL(crv.Remarks, '') AS description
-FROM TBU_CashReceiveVoucher crv
-WHERE crv.AccountDID IS NOT NULL AND crv.VStatus <> 2
-AND crv.VDate >= DATEADD(YEAR, -3, GETDATE())
-AND crv.AccountDID IN (SELECT PKGUID FROM TBU_Accounts WHERE CustomerTypeDID IS NOT NULL)
-
-UNION ALL
-
--- Bank Deposits (cheque/bank payment received)
-SELECT
-    CAST(bdv.AccountDID AS VARCHAR(50)) AS erp_account_id,
-    CONVERT(VARCHAR(10), bdv.VDate, 23) AS txn_date,
-    'Payment' AS txn_type,
-    ISNULL(bdv.CAmount, 0) AS amount,
-    CAST(bdv.VNo AS VARCHAR(20)) AS voucher_no,
-    ISNULL(bdv.Remarks, ISNULL(bdv.ChequeNo, '')) AS description
-FROM TBU_BankDepositVoucher bdv
-WHERE bdv.AccountDID IS NOT NULL AND bdv.VStatus <> 2
-AND bdv.VDate >= DATEADD(YEAR, -3, GETDATE())
-AND bdv.AccountDID IN (SELECT PKGUID FROM TBU_Accounts WHERE CustomerTypeDID IS NOT NULL)
-
-UNION ALL
-
--- Multiple Receiving Voucher Details (bulk receipts)
-SELECT
-    CAST(mrvd.AccountDID AS VARCHAR(50)) AS erp_account_id,
-    CONVERT(VARCHAR(10), mrvd.TransDate, 23) AS txn_date,
-    'Payment' AS txn_type,
-    ISNULL(mrvd.CAmount, 0) AS amount,
-    CAST(mrvd.TransNo AS VARCHAR(20)) AS voucher_no,
-    ISNULL(mrvd.Remarks, '') AS description
-FROM TBU_MultipleReceivingVouchersDetail mrvd
-WHERE mrvd.AccountDID IS NOT NULL AND mrvd.VStatus <> 2
-AND mrvd.TransDate >= DATEADD(YEAR, -3, GETDATE())
-AND mrvd.AccountDID IN (SELECT PKGUID FROM TBU_Accounts WHERE CustomerTypeDID IS NOT NULL)
-
-ORDER BY erp_account_id, txn_date
+    CAST(l.AccountDID AS VARCHAR(50)) AS erp_account_id,
+    CONVERT(VARCHAR(10), l.VDate, 23) AS txn_date,
+    CASE
+        WHEN l.VoucherNo LIKE 'SI-%'  THEN 'Invoice'
+        WHEN l.VoucherNo LIKE 'SR-%'  THEN 'Return'
+        WHEN l.VoucherNo LIKE 'AOB-%' THEN 'Opening Balance'
+        WHEN l.VoucherNo LIKE 'JV-%'  THEN 'Journal Voucher'
+        WHEN l.VoucherNo LIKE 'BD-%'  THEN 'Payment'
+        WHEN l.VoucherNo LIKE 'CR-%'  THEN 'Payment'
+        ELSE 'Adjustment'
+    END AS txn_type,
+    ISNULL(l.CDebit, 0) AS debit,
+    ISNULL(l.CCredit, 0) AS credit,
+    l.VoucherNo AS voucher_no,
+    ISNULL(l.Remarks, '') AS description
+FROM TBI_AccountLedger l
+JOIN TBU_Accounts a ON l.AccountDID = a.PKGUID
+WHERE a.AccountCode LIKE '1-1-03-02%'
+  AND a.CompanyName IS NOT NULL AND LEN(LTRIM(RTRIM(a.CompanyName))) > 0
+  AND EXISTS (
+    SELECT 1 FROM TBU_AccountsSegment asg
+    WHERE asg.VMDID = a.PKGUID
+    AND asg.SegmentDID IN (
+      '20502C3C-F380-43B7-B76B-46FCB2742771',
+      '6C135D33-5959-4306-A7B3-23E6C83F72A8'
+    )
+  )
+ORDER BY l.AccountDID, l.VDate, l.AutoID

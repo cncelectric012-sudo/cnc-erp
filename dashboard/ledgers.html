@@ -784,13 +784,15 @@ function renderGrid() {
 // ── Modal ──────────────────────────────────────────────────────
 async function fetchErpTransactions(erpId) {
   try {
-    const r = await fetch(`${LAPI}/erp_transactions?erp_account_id=eq.${encodeURIComponent(erpId)}&order=txn_date.asc&limit=2000`, { headers: LHDR });
+    const r = await fetch(`${LAPI}/erp_transactions?erp_account_id=eq.${encodeURIComponent(erpId)}&order=txn_date.asc&limit=5000`, { headers: LHDR });
     if (!r.ok) return [];
     const rows = await r.json();
     return rows.map(t => ({
       date: t.txn_date || '',
       type: t.txn_type || 'Transaction',
-      amount: parseFloat(t.amount) || 0,
+      debit:  parseFloat(t.debit)  || 0,
+      credit: parseFloat(t.credit) || 0,
+      amount: parseFloat(t.debit || 0) - parseFloat(t.credit || 0),
       voucher: t.voucher_no || '',
       description: t.description || '',
     }));
@@ -1014,29 +1016,38 @@ function renderAging(c) {
   ${!txns.length?'<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">No invoice transactions for aging analysis</div></div>':''}`;
 }
 
+function txnIcon(type) {
+  if (type === 'Invoice')          return { icon: '📄', cls: 'tag-invoice',  label: 'Invoice' };
+  if (type === 'Payment')          return { icon: '💰', cls: 'tag-payment',  label: 'Payment' };
+  if (type === 'Return')           return { icon: '↩️', cls: 'tag-gray',     label: 'Return' };
+  if (type === 'Opening Balance')  return { icon: '🏁', cls: 'tag-gray',     label: 'Opening Bal' };
+  if (type === 'Journal Voucher')  return { icon: '📋', cls: 'tag-gray',     label: 'JV' };
+  return                                  { icon: '⚙️', cls: 'tag-gray',     label: type };
+}
+
 function renderTxnTable(c, filter) {
   let txns = (c._transactions || c.transactions||[]).slice().sort((a,b)=>sortDate(a.date)-sortDate(b.date));
   if (filter==='invoices') txns = txns.filter(t=>t.type==='Invoice');
   if (filter==='payments') txns = txns.filter(t=>t.type==='Payment'||t.type==='Receipt');
 
-  // Compute running balance
+  // Running balance: debit increases balance, credit decreases
   let bal = 0;
   const rows = txns.map((t,i) => {
-    const amt  = num(t.amount);
-    const isInv = t.type==='Invoice';
-    const isPay = t.type==='Payment'||t.type==='Receipt';
-    if (isInv) bal += amt;
-    if (isPay) bal -= amt;
-    const balDisplay = bal;
+    const dr = num(t.debit  != null ? t.debit  : (t.type==='Invoice' ? t.amount : 0));
+    const cr = num(t.credit != null ? t.credit : (t.type==='Payment'||t.type==='Receipt' ? t.amount : 0));
+    bal += dr - cr;
+    const { icon, cls, label } = txnIcon(t.type);
+    const balColor = bal > 0 ? 'var(--red)' : bal < 0 ? 'var(--green)' : 'var(--text-2)';
+    const balStr   = bal > 0 ? 'PKR '+fmt(bal) : bal < 0 ? '-PKR '+fmt(Math.abs(bal)) : '0';
     return `
-    <tr class="${isPay?'txn-row-payment':''}">
+    <tr class="${cr>0&&dr===0?'txn-row-payment':''}">
       <td style="color:var(--text-3)">${i+1}</td>
       <td>${t.date||'—'}</td>
-      <td><span class="tag ${isPay?'tag-payment':'tag-invoice'}">${isPay?'💰 Payment':'📄 Invoice'}</span></td>
-      <td style="font-weight:600">${t.voucher||'—'}</td>
-      <td style="text-align:right">${isInv?'PKR '+fmt(amt):'—'}</td>
-      <td style="text-align:right;color:var(--green)">${isPay?'PKR '+fmt(amt):'—'}</td>
-      <td style="text-align:right;font-weight:600;color:${balDisplay>0?'var(--red)':'var(--green)'}">${balDisplay>0?'PKR '+fmt(balDisplay):balDisplay<0?'-PKR '+fmt(Math.abs(balDisplay)):'0'}</td>
+      <td><span class="tag ${cls}">${icon} ${label}</span></td>
+      <td style="font-weight:600;font-size:12px">${t.voucher||'—'}</td>
+      <td style="text-align:right;color:var(--red)">${dr>0?'PKR '+fmt(dr):'—'}</td>
+      <td style="text-align:right;color:var(--green)">${cr>0?'PKR '+fmt(cr):'—'}</td>
+      <td style="text-align:right;font-weight:600;color:${balColor}">${balStr}</td>
     </tr>`;
   });
 

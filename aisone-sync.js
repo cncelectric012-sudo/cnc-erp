@@ -178,9 +178,11 @@ async function syncTransactions() {
     erp_account_id: r[0],
     txn_date: r[1] || null,
     txn_type: r[2] || 'Transaction',
-    amount: parseFloat(r[3]) || 0,
-    voucher_no: r[4] || null,
-    description: r[5] || null,
+    debit: parseFloat(r[3]) || 0,
+    credit: parseFloat(r[4]) || 0,
+    amount: (parseFloat(r[3]) || 0) - (parseFloat(r[4]) || 0),
+    voucher_no: r[5] || null,
+    description: r[6] || null,
   }));
 
   // Insert in chunks of 500
