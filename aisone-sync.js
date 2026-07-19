@@ -84,7 +84,7 @@ async function discoverTableStructure() {
   }
 }
 
-// ── Sync client accounts ──────────────────────────────────────
+// ── Sync client accounts (batch mode) ────────────────────────
 async function syncClients() {
   const ts = new Date().toLocaleTimeString('en-PK');
   console.log(`[AisoneSync] ${ts} — starting sync...`);
@@ -99,44 +99,61 @@ async function syncClients() {
   const accounts = rows.filter(r => r.length >= 4 && r[1] && r[1].length > 0);
   console.log(`[AisoneSync] ${accounts.length} accounts from ERP`);
 
+  // Fetch all existing erp_live clients in one call
+  const existRes = await sbFetch('/clients?record_source=eq.erp_live&select=id,erp_id&limit=2000', 'GET');
+  const existing = await existRes.json();
+  const existMap = {};
+  if (Array.isArray(existing)) existing.forEach(e => { existMap[e.erp_id] = e.id; });
+
   let inserted = 0, updated = 0, errors = 0;
+  const toInsert = [], toUpdate = [];
 
   for (const r of accounts) {
     const [erpId, name, phone, outStr, creditStr] = r;
     const outstanding = parseFloat(outStr) || 0;
-    const creditLimit = parseFloat(creditStr) || 0;
-
     const payload = {
       name,
       phone: phone || null,
       outstanding_amount: Math.abs(outstanding),
       outstanding_type: outstanding >= 0 ? 'Dr' : 'Cr',
-      credit_limit: creditLimit,
+      credit_limit: parseFloat(creditStr) || 0,
       record_source: 'erp_live',
       erp_id: erpId,
       status: 'Active',
     };
+    if (existMap[erpId]) {
+      toUpdate.push(payload);
+    } else {
+      toInsert.push({ ...payload, id: randomUUID() });
+    }
+  }
 
+  // Batch insert new clients (chunks of 500)
+  for (let i = 0; i < toInsert.length; i += 500) {
     try {
-      const checkRes = await sbFetch(`/clients?erp_id=eq.${erpId}&record_source=eq.erp_live&select=id`, 'GET');
-      const existing = await checkRes.json();
+      await sbFetch('/clients', 'POST', toInsert.slice(i, i + 500));
+      inserted += Math.min(500, toInsert.length - i);
+    } catch(e) { errors++; }
+  }
 
-      if (Array.isArray(existing) && existing.length > 0) {
-        await sbFetch(`/clients?erp_id=eq.${erpId}&record_source=eq.erp_live`, 'PATCH', {
-          outstanding_amount: payload.outstanding_amount,
-          outstanding_type: payload.outstanding_type,
-          credit_limit: payload.credit_limit,
-          name: payload.name,
-          phone: payload.phone,
-        });
-        updated++;
-      } else {
-        await sbFetch('/clients', 'POST', { ...payload, id: randomUUID() });
-        inserted++;
+  // Batch update existing clients (chunks of 500 using upsert)
+  for (let i = 0; i < toUpdate.length; i += 500) {
+    try {
+      await sbFetch('/clients?record_source=eq.erp_live&on_conflict=erp_id', 'POST', toUpdate.slice(i, i + 500));
+      updated += Math.min(500, toUpdate.length - i);
+    } catch(e) {
+      // Fallback: update one by one for this chunk
+      for (const p of toUpdate.slice(i, i + 500)) {
+        try {
+          await sbFetch(`/clients?erp_id=eq.${p.erp_id}&record_source=eq.erp_live`, 'PATCH', {
+            outstanding_amount: p.outstanding_amount,
+            outstanding_type: p.outstanding_type,
+            credit_limit: p.credit_limit,
+            name: p.name, phone: p.phone,
+          });
+          updated++;
+        } catch(e2) { errors++; }
       }
-    } catch (e) {
-      console.error(`[AisoneSync] Error on ${name}:`, e.message);
-      errors++;
     }
   }
 
