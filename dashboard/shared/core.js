@@ -190,7 +190,7 @@ function renderSidebar(activePage) {
       perm:'users.manage',
       items:[
         item('ai','🤖','AI Settings','users.manage'),
-        item('ai','💬','WhatsApp Bot','users.manage'),
+        item('bot-controls','💬','WhatsApp Bot','users.manage'),
       ]
     },
   ];
@@ -200,9 +200,9 @@ function renderSidebar(activePage) {
     users:'g1',
     clients:'g2', 'new-client':'g2', ledgers:'g2', 'ledger-import':'g2', 'ledger-export':'g2',
     approvals:'g4',
-    decision:'g5', policy:'g5', controls:'g5', 'bot-controls':'g5',
+    decision:'g5', policy:'g5', controls:'g5',
     paygate:'g6', bank:'g6',
-    ai:'g8'
+    ai:'g8', 'bot-controls':'g8'
   };
   const openGroup = pageToGroup[activePage] || '';
 
