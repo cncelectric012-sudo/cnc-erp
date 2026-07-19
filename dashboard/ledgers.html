@@ -521,7 +521,7 @@ async function loadClients() {
     let all = [], from = 0;
 
     while (true) {
-      const url = `${LAPI}/clients?record_source=eq.ledger&limit=500&offset=${from}&order=outstanding_amount.desc`;
+      const url = `${LAPI}/clients?record_source=in.(ledger,erp_live)&limit=500&offset=${from}&order=outstanding_amount.desc`;
       setMsg(`Fetching rows ${from}–${from+500}...`);
       const r = await fetch(url, { headers: LHDR });
       if (!r.ok) {
@@ -782,7 +782,22 @@ function renderGrid() {
 }
 
 // ── Modal ──────────────────────────────────────────────────────
-function openModal(clientId) {
+async function fetchErpTransactions(erpId) {
+  try {
+    const r = await fetch(`${LAPI}/erp_transactions?erp_account_id=eq.${encodeURIComponent(erpId)}&order=txn_date.asc&limit=2000`, { headers: LHDR });
+    if (!r.ok) return [];
+    const rows = await r.json();
+    return rows.map(t => ({
+      date: t.txn_date || '',
+      type: t.txn_type || 'Transaction',
+      amount: parseFloat(t.amount) || 0,
+      voucher: t.voucher_no || '',
+      description: t.description || '',
+    }));
+  } catch(e) { return []; }
+}
+
+async function openModal(clientId) {
   const c = allClients.find(x=>x.id===clientId);
   if (!c) return;
   currentClient = c;
@@ -846,11 +861,21 @@ function openModal(clientId) {
 
   // Aging div reset
   document.getElementById('m-aging').style.display='none';
-  renderTxnTable(c, 'all');
   document.getElementById('m-txn-wrap').style.display='block';
   document.getElementById('m-timeline').style.display='none';
   document.getElementById('clientModal').classList.remove('hidden');
   document.body.style.overflow='hidden';
+
+  // For ERP clients: fetch transactions from Supabase
+  if (c.record_source === 'erp_live' && c.erp_id) {
+    document.getElementById('m-txn-body').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-3)">Loading transactions...</td></tr>';
+    fetchErpTransactions(c.erp_id).then(txns => {
+      c._transactions = txns;
+      renderTxnTable(c, currentTab === 'all' ? 'all' : currentTab);
+    });
+  } else {
+    renderTxnTable(c, 'all');
+  }
 }
 
 function closeModal() {
@@ -990,7 +1015,7 @@ function renderAging(c) {
 }
 
 function renderTxnTable(c, filter) {
-  let txns = (c.transactions||[]).slice().sort((a,b)=>sortDate(a.date)-sortDate(b.date));
+  let txns = (c._transactions || c.transactions||[]).slice().sort((a,b)=>sortDate(a.date)-sortDate(b.date));
   if (filter==='invoices') txns = txns.filter(t=>t.type==='Invoice');
   if (filter==='payments') txns = txns.filter(t=>t.type==='Payment'||t.type==='Receipt');
 
@@ -1027,7 +1052,7 @@ function sortDate(s) {
 }
 
 function renderTimeline(c) {
-  const txns = (c.transactions||[]).slice().sort((a,b)=>sortDate(a.date)-sortDate(b.date));
+  const txns = (c._transactions || c.transactions||[]).slice().sort((a,b)=>sortDate(a.date)-sortDate(b.date));
   if (!txns.length) {
     document.getElementById('m-timeline').innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">No transactions</div></div>';
     return;
@@ -1280,7 +1305,7 @@ async function bulkDelete() {
 
 // ── Delete All Ledgers ────────────────────────────────────────
 async function getLedgerCount() {
-  const r = await fetch(`${LAPI}/clients?select=id&record_source=eq.ledger`, { headers: { ...LHDR, 'Prefer': 'count=exact' }, method: 'HEAD' });
+  const r = await fetch(`${LAPI}/clients?select=id&record_source=in.(ledger,erp_live)`, { headers: { ...LHDR, 'Prefer': 'count=exact' }, method: 'HEAD' });
   const range = r.headers.get('content-range');
   if (!range) return null;
   const total = range.split('/')[1];
@@ -1294,13 +1319,12 @@ async function deleteAllLedgers(btn) {
   if (btn) { btn.textContent = btn.dataset.origText; btn.disabled = false; }
   const count = serverCount ?? allClients.length;
   if (!count) { showToast('Koi ledger nahi hai', '⚠️'); return; }
-  if (!confirm(`Saare ${count} ledger records delete karein?\n\n(Client data safe rahega — sirf ledgers delete honge)\n\nNote: Delete ke baad naya data import kar sakte hain.`)) return;
-  if (!confirm(`CONFIRM: ${count} ledger records permanently delete ho jaenge. Pakka?`)) return;
+  if (!confirm(`Sirf manually imported ledger records delete honge.\n\nERP (Aisone) clients auto-sync hain aur delete nahi honge.\n\nConfirm?`)) return;
 
   if (btn) { btn.textContent = 'Deleting...'; btn.disabled = true; }
   const r = await fetch(`${LAPI}/clients?record_source=eq.ledger`, { method: 'DELETE', headers: { ...LHDR, 'Prefer': 'return=minimal' } });
   if (btn) { btn.textContent = btn.dataset.origText; btn.disabled = false; }
-  if (r.ok) { showToast(`Saare ${count} ledger records deleted`, '🗑️'); }
+  if (r.ok) { showToast(`Manually imported ledger records deleted`, '🗑️'); }
   else { showToast('Delete failed: ' + await r.text(), '❌'); }
   allClients = []; filtered = [];
   updateKPIs(); renderGrid();

@@ -1,0 +1,13 @@
+-- Discover transaction-related tables in Aisone ERP
+SELECT TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_TYPE = 'BASE TABLE'
+AND (TABLE_NAME LIKE '%Voucher%'
+  OR TABLE_NAME LIKE '%Invoice%'
+  OR TABLE_NAME LIKE '%Receipt%'
+  OR TABLE_NAME LIKE '%Payment%'
+  OR TABLE_NAME LIKE '%Trans%'
+  OR TABLE_NAME LIKE '%Ledger%'
+  OR TABLE_NAME LIKE '%Journal%'
+  OR TABLE_NAME LIKE '%Sales%')
+ORDER BY TABLE_NAME
