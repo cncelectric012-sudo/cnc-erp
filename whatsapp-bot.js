@@ -9,8 +9,15 @@ const SUPABASE_URL = 'https://knvaaxywlfpomlatpiua.supabase.co/rest/v1';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmFheHl3bGZwb21sYXRwaXVhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkzMjI4NSwiZXhwIjoyMDkzNTA4Mjg1fQ.vsCZIT5ER1DVBPvRGt8Ai-cYtUD0rosyxNEBi5T2NCo';
 const SB_HEADERS = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
 
-// Chrome path — Z840 pe installed Chrome
-const CHROME_PATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+// Chrome path — multiple locations try karta hai
+const fs = require('fs');
+const CHROME_PATHS = [
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Users\\SERVER\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Users\\Administrator\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe',
+];
+const CHROME_PATH = CHROME_PATHS.find(p => { try { return fs.existsSync(p); } catch(e) { return false; } });
 
 // ── Supabase fetch ────────────────────────────────────────────
 async function sbGet(path) {
@@ -150,9 +157,9 @@ function scheduleEightPM(waClient) {
 const waClient = new Client({
   authStrategy: new LocalAuth({ clientId: 'cnc-erp' }),
   puppeteer: {
-    executablePath: CHROME_PATH,
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    executablePath: CHROME_PATH || undefined,
+    headless: false, // Chrome window khulega — AnyDesk se QR scan karo
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
   },
 });
 
