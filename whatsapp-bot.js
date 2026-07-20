@@ -104,21 +104,27 @@ async function broadcastToAll(getParams, templateName, label) {
   const convMap = await loadConvMap();
 
   let sent = 0, skipped = 0, notWA = 0, errors = 0;
-  const inboxSaves = []; // { phone, convId, body }
+  const logBatch    = []; // broadcast log rows
+  const inboxSaves  = []; // wa_messages rows for clients who have replied
 
   for (const c of clients) {
     const phone = normalizePhone(c.phone);
-    if (!phone) { skipped++; continue; }
+    if (!phone) {
+      skipped++;
+      logBatch.push({ phone: c.phone || '', contact_name: c.name, label, template: templateName, status: 'skipped' });
+      continue;
+    }
 
     try {
       const params = typeof getParams === 'function' ? getParams(c) : getParams;
       await sendTemplate(phone, templateName, params);
       console.log(`[Bot] ✓ ${c.name} (${phone})`);
       sent++;
+      logBatch.push({ phone, contact_name: c.name, label, template: templateName, status: 'sent' });
 
-      // If this client has a conversation in the inbox, queue message for saving
+      // If this client has replied before, save to inbox messages too
       if (convMap[phone]) {
-        inboxSaves.push({ phone, conversation_id: convMap[phone], body: `[template: ${label}]` });
+        inboxSaves.push({ conversation_id: convMap[phone], phone, direction: 'out', body: `[template: ${label}]`, status: 'sent' });
       }
 
       await new Promise(r => setTimeout(r, 1000 + Math.floor(Math.random() * 1000)));
@@ -126,20 +132,26 @@ async function broadcastToAll(getParams, templateName, label) {
       const msg = e.message || '';
       if (msg.includes('131026') || msg.includes('not a valid WhatsApp')) {
         notWA++;
+        logBatch.push({ phone, contact_name: c.name, label, template: templateName, status: 'no_wa' });
       } else {
         console.error(`[Bot] ✗ ${c.name} — ${msg}`);
         errors++;
+        logBatch.push({ phone, contact_name: c.name, label, template: templateName, status: 'failed' });
       }
+    }
+
+    // Save log in batches of 100 to avoid large payloads
+    if (logBatch.length >= 100) {
+      await sbPost('/wa_broadcast_log', logBatch.splice(0, 100));
     }
   }
 
-  // Bulk-save outgoing messages to inbox for clients who have conversations
+  // Save remaining log rows
+  if (logBatch.length > 0) await sbPost('/wa_broadcast_log', logBatch);
+
+  // Save inbox messages for clients who have conversations
   if (inboxSaves.length > 0) {
-    const rows = inboxSaves.map(s => ({
-      conversation_id: s.conversation_id, phone: s.phone,
-      direction: 'out', body: s.body, status: 'sent'
-    }));
-    await sbPost('/wa_messages', rows);
+    await sbPost('/wa_messages', inboxSaves);
     console.log(`[Bot] Inbox mein ${inboxSaves.length} messages save hue`);
   }
 

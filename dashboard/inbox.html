@@ -92,6 +92,29 @@ body { font-family: 'Segoe UI', sans-serif; background:#f0f2f5; height:100vh; di
 /* Loading */
 .loading { text-align:center; padding:20px; color:#667781; font-size:13px; }
 
+/* Tabs */
+.tabs { display:flex; background:#f0f2f5; border-bottom:1px solid #e9edef; flex-shrink:0; }
+.tab-btn { flex:1; padding:12px; border:none; background:none; cursor:pointer; font-size:13px; font-family:inherit; color:#667781; border-bottom:2px solid transparent; transition:all 0.2s; }
+.tab-btn.active { color:#128c7e; border-bottom-color:#128c7e; font-weight:600; }
+.tab-btn:hover { background:#e9edef; }
+
+/* Sent log */
+.sent-log { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.log-filters { padding:10px 12px; background:#f0f2f5; display:flex; gap:8px; flex-shrink:0; }
+.log-filters input, .log-filters select { padding:7px 12px; border:none; border-radius:16px; background:white; font-size:13px; font-family:inherit; outline:none; }
+.log-filters input { flex:1; }
+.log-table-wrap { flex:1; overflow-y:auto; }
+.log-table { width:100%; border-collapse:collapse; font-size:13px; }
+.log-table th { background:#f0f2f5; padding:10px 12px; text-align:left; font-weight:600; color:#667781; position:sticky; top:0; }
+.log-table td { padding:9px 12px; border-bottom:1px solid #f0f2f5; color:#111b21; vertical-align:middle; }
+.log-table tr:hover td { background:#f5f6f6; }
+.status-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+.status-sent    { background:#d4edda; color:#155724; }
+.status-failed  { background:#f8d7da; color:#721c24; }
+.status-no_wa   { background:#fff3cd; color:#856404; }
+.status-skipped { background:#e9edef; color:#667781; }
+.log-summary { padding:10px 16px; background:#f0f2f5; font-size:12px; color:#667781; border-top:1px solid #e9edef; flex-shrink:0; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width:6px; }
 ::-webkit-scrollbar-track { background:transparent; }
@@ -109,11 +132,45 @@ body { font-family: 'Segoe UI', sans-serif; background:#f0f2f5; height:100vh; di
 <div class="app">
   <!-- Sidebar -->
   <div class="sidebar">
-    <div class="search-box">
-      <input type="text" id="searchInput" placeholder="Search or start new chat" oninput="filterConvs(this.value)">
+    <div class="tabs">
+      <button class="tab-btn active" id="tabConv" onclick="switchTab('conv')">💬 Conversations</button>
+      <button class="tab-btn" id="tabSent" onclick="switchTab('sent')">📤 Sent Log</button>
     </div>
-    <div class="conv-list" id="convList">
-      <div class="loading">Loading conversations...</div>
+
+    <!-- Conversations panel -->
+    <div id="panelConv" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search conversations" oninput="filterConvs(this.value)">
+      </div>
+      <div class="conv-list" id="convList">
+        <div class="loading">Loading conversations...</div>
+      </div>
+    </div>
+
+    <!-- Sent Log panel -->
+    <div id="panelSent" style="display:none;flex-direction:column;flex:1;overflow:hidden;" class="sent-log">
+      <div class="log-filters">
+        <input type="text" id="logSearch" placeholder="Search client or number..." oninput="filterLog()">
+        <select id="logStatus" onchange="filterLog()">
+          <option value="">All Status</option>
+          <option value="sent">✓ Sent</option>
+          <option value="failed">✗ Failed</option>
+          <option value="no_wa">No WhatsApp</option>
+          <option value="skipped">Skipped</option>
+        </select>
+      </div>
+      <div class="log-table-wrap">
+        <table class="log-table">
+          <thead><tr>
+            <th>Client</th>
+            <th>Message</th>
+            <th>Time</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody id="logBody"><tr><td colspan="4" style="text-align:center;padding:24px;color:#667781">Loading...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="log-summary" id="logSummary"></div>
     </div>
   </div>
 
@@ -412,6 +469,81 @@ function fmtTime(iso) {
   if (diff === 1) return 'Yesterday';
   if (diff < 7) return d.toLocaleDateString('en-PK',{weekday:'short'});
   return d.toLocaleDateString('en-PK',{day:'2-digit',month:'2-digit'});
+}
+
+// ── Tab switching ─────────────────────────────────────────────
+let activeTab = 'conv';
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tabConv').classList.toggle('active', tab === 'conv');
+  document.getElementById('tabSent').classList.toggle('active', tab === 'sent');
+  document.getElementById('panelConv').style.display = tab === 'conv' ? 'flex' : 'none';
+  document.getElementById('panelSent').style.display = tab === 'sent' ? 'flex' : 'none';
+  if (tab === 'sent') loadLog();
+}
+
+// ── Sent Log ──────────────────────────────────────────────────
+let allLog = [];
+
+async function loadLog() {
+  const tbody = document.getElementById('logBody');
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:#667781">Loading...</td></tr>';
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/wa_broadcast_log?order=sent_at.desc&limit=2000`, { headers: SB_HDR });
+    allLog = await r.json();
+    if (!Array.isArray(allLog)) allLog = [];
+    renderLog(allLog);
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:24px;color:#dc3545">Error: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+function filterLog() {
+  const q = (document.getElementById('logSearch').value || '').toLowerCase();
+  const s = document.getElementById('logStatus').value;
+  const filtered = allLog.filter(r =>
+    (!q || (r.contact_name||'').toLowerCase().includes(q) || (r.phone||'').includes(q) || (r.label||'').toLowerCase().includes(q)) &&
+    (!s || r.status === s)
+  );
+  renderLog(filtered);
+}
+
+function renderLog(rows) {
+  const tbody = document.getElementById('logBody');
+  const summary = document.getElementById('logSummary');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:#667781">Koi record nahi</td></tr>';
+    summary.textContent = '';
+    return;
+  }
+
+  const counts = { sent: 0, failed: 0, no_wa: 0, skipped: 0 };
+  rows.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
+
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td><div style="font-weight:500">${esc(r.contact_name || '—')}</div><div style="font-size:11px;color:#667781">${esc(r.phone)}</div></td>
+      <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(r.label||'')}">
+        <div>${esc(r.label || r.template || '—')}</div>
+        <div style="font-size:11px;color:#667781">${esc(r.template||'')}</div>
+      </td>
+      <td style="white-space:nowrap;font-size:12px">${fmtDateTime(r.sent_at)}</td>
+      <td><span class="status-badge status-${r.status}">${statusLabel(r.status)}</span></td>
+    </tr>
+  `).join('');
+
+  summary.textContent = `Total: ${rows.length} — ✓ Sent: ${counts.sent} · ✗ Failed: ${counts.failed} · No WA: ${counts.no_wa} · Skipped: ${counts.skipped}`;
+}
+
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-PK', { day:'2-digit', month:'short' }) + ' ' +
+         d.toLocaleTimeString('en-PK', { hour:'2-digit', minute:'2-digit' });
+}
+
+function statusLabel(s) {
+  return s === 'sent' ? '✓ Sent' : s === 'failed' ? '✗ Failed' : s === 'no_wa' ? 'No WA' : 'Skipped';
 }
 
 // ── Init ──────────────────────────────────────────────────────
