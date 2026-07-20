@@ -235,15 +235,16 @@ function renderMessages(msgs) {
 
 function renderMsgBody(m) {
   const body = m.body || '';
-  // Detect media by body prefix pattern: [image: url], [video: url], [audio: url], [document: name|url]
   const imgMatch  = body.match(/^\[image: (.+)\]$/);
   const vidMatch  = body.match(/^\[video: (.+)\]$/);
   const audMatch  = body.match(/^\[audio: (.+)\]$/);
   const docMatch  = body.match(/^\[document: (.+)\|(.+)\]$/);
+  const tmplMatch = body.match(/^\[template: (.+)\]$/);
   if (imgMatch)  return `<img src="${imgMatch[1]}" alt="image" onclick="openImage('${imgMatch[1]}')">`;
   if (vidMatch)  return `<video src="${vidMatch[1]}" controls></video>`;
   if (audMatch)  return `<audio src="${audMatch[1]}" controls></audio>`;
   if (docMatch)  return `<a class="doc-link" href="${docMatch[2]}" target="_blank" rel="noopener"><span>📄</span><span>${esc(docMatch[1])}</span></a>`;
+  if (tmplMatch) return `<span style="color:#667781;font-style:italic">📤 ${esc(tmplMatch[1])}</span>`;
   return esc(body);
 }
 

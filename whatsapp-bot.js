@@ -36,10 +36,28 @@ function normalizePhone(raw) {
   return p;
 }
 
-// ── Supabase GET ──────────────────────────────────────────────
+// ── Supabase GET / POST ───────────────────────────────────────
 async function sbGet(urlPath) {
   const r = await fetch(`${SUPABASE_URL}${urlPath}`, { headers: SB_HEADERS });
   return r.json();
+}
+
+async function sbPost(urlPath, body) {
+  const r = await fetch(`${SUPABASE_URL}${urlPath}`, {
+    method: 'POST',
+    headers: { ...SB_HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: JSON.stringify(body)
+  });
+  return r;
+}
+
+// ── Fetch existing conversations (phone → id) ─────────────────
+async function loadConvMap() {
+  const rows = await sbGet('/wa_conversations?select=id,phone');
+  if (!Array.isArray(rows)) return {};
+  const map = {};
+  rows.forEach(r => { map[r.phone] = r.id; });
+  return map;
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -82,7 +100,11 @@ async function broadcastToAll(getParams, templateName, label) {
   if (!Array.isArray(clients)) { console.error('[Bot] Clients fetch fail'); return; }
   console.log(`[Bot] ${clients.length} clients — bhejne shuru (${label})...`);
 
+  // Load existing conversation map (phone → conversation_id)
+  const convMap = await loadConvMap();
+
   let sent = 0, skipped = 0, notWA = 0, errors = 0;
+  const inboxSaves = []; // { phone, convId, body }
 
   for (const c of clients) {
     const phone = normalizePhone(c.phone);
@@ -93,7 +115,12 @@ async function broadcastToAll(getParams, templateName, label) {
       await sendTemplate(phone, templateName, params);
       console.log(`[Bot] ✓ ${c.name} (${phone})`);
       sent++;
-      // 1-2 sec delay — Meta API khud rate limit handle karta hai
+
+      // If this client has a conversation in the inbox, queue message for saving
+      if (convMap[phone]) {
+        inboxSaves.push({ phone, conversation_id: convMap[phone], body: `[template: ${label}]` });
+      }
+
       await new Promise(r => setTimeout(r, 1000 + Math.floor(Math.random() * 1000)));
     } catch (e) {
       const msg = e.message || '';
@@ -104,6 +131,16 @@ async function broadcastToAll(getParams, templateName, label) {
         errors++;
       }
     }
+  }
+
+  // Bulk-save outgoing messages to inbox for clients who have conversations
+  if (inboxSaves.length > 0) {
+    const rows = inboxSaves.map(s => ({
+      conversation_id: s.conversation_id, phone: s.phone,
+      direction: 'out', body: s.body, status: 'sent'
+    }));
+    await sbPost('/wa_messages', rows);
+    console.log(`[Bot] Inbox mein ${inboxSaves.length} messages save hue`);
   }
 
   console.log(`[Bot] Done — ✓${sent} skip:${skipped} noWA:${notWA} err:${errors}`);
