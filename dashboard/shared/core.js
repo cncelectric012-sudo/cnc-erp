@@ -191,6 +191,7 @@ function renderSidebar(activePage) {
         item('ai','🤖','AI Settings','users.manage'),
         item('bot-controls','💬','WhatsApp Bot','users.manage'),
         item('broadcast','📲','WA Automation','users.manage'),
+        item('inbox','💬','WhatsApp Inbox','users.manage'),
       ]
     },
   ];

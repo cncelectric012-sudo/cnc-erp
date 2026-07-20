@@ -26,6 +26,7 @@
     'users.html':           'users.view',
     'cnc_data_manager.html':'dashboard.view',
     'ai.html':              'users.manage',
+    'inbox.html':           'users.manage',
   };
 
   // Priority order for first-page redirect after login
