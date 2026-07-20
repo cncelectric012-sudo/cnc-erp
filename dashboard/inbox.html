@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp Inbox — CNC ERP</title>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/core.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI', sans-serif; background:#f0f2f5; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+
+/* Top bar */
+.topbar { background:#075e54; color:white; padding:12px 20px; display:flex; align-items:center; gap:12px; flex-shrink:0; }
+.topbar h1 { font-size:18px; font-weight:600; }
+.topbar .subtitle { font-size:12px; opacity:0.8; margin-left:auto; }
+.back-btn { color:white; text-decoration:none; font-size:13px; background:rgba(255,255,255,0.15); padding:6px 12px; border-radius:20px; }
+
+/* Layout */
+.app { display:flex; flex:1; overflow:hidden; }
+
+/* Left sidebar */
+.sidebar { width:360px; background:white; display:flex; flex-direction:column; border-right:1px solid #e9edef; flex-shrink:0; }
+.search-box { padding:8px 12px; background:#f0f2f5; }
+.search-box input { width:100%; padding:8px 14px; border:none; border-radius:20px; background:white; font-size:14px; outline:none; }
+.conv-list { flex:1; overflow-y:auto; }
+.conv-item { display:flex; align-items:center; gap:12px; padding:12px 16px; cursor:pointer; border-bottom:1px solid #f0f2f5; transition:background 0.1s; }
+.conv-item:hover { background:#f5f6f6; }
+.conv-item.active { background:#f0f2f5; }
+.conv-avatar { width:48px; height:48px; border-radius:50%; background:#128c7e; display:flex; align-items:center; justify-content:center; color:white; font-size:18px; font-weight:600; flex-shrink:0; }
+.conv-info { flex:1; min-width:0; }
+.conv-name { font-size:15px; font-weight:500; color:#111b21; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.conv-last { font-size:13px; color:#667781; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+.conv-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
+.conv-time { font-size:11px; color:#667781; }
+.conv-unread { background:#25d366; color:white; border-radius:50%; width:20px; height:20px; font-size:11px; display:flex; align-items:center; justify-content:center; font-weight:600; }
+.conv-unread.hidden { display:none; }
+
+/* Empty sidebar */
+.empty-conv { padding:40px 20px; text-align:center; color:#667781; font-size:14px; }
+
+/* Right chat area */
+.chat-area { flex:1; display:flex; flex-direction:column; background:#efeae2; }
+.chat-placeholder { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#667781; background:#f0f2f5; }
+.chat-placeholder .icon { font-size:64px; margin-bottom:16px; }
+.chat-placeholder h2 { font-size:22px; color:#41525d; margin-bottom:8px; }
+.chat-placeholder p { font-size:14px; }
+
+/* Chat header */
+.chat-header { background:#f0f2f5; padding:10px 16px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #e9edef; flex-shrink:0; }
+.chat-header .avatar { width:40px; height:40px; border-radius:50%; background:#128c7e; display:flex; align-items:center; justify-content:center; color:white; font-size:16px; font-weight:600; }
+.chat-header .info .name { font-size:15px; font-weight:600; color:#111b21; }
+.chat-header .info .phone { font-size:12px; color:#667781; }
+
+/* Messages */
+.messages { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:4px; }
+.msg { max-width:65%; padding:7px 12px 6px; border-radius:8px; font-size:14px; line-height:1.4; position:relative; }
+.msg.in { background:white; border-radius:0 8px 8px 8px; align-self:flex-start; color:#111b21; }
+.msg.out { background:#dcf8c6; border-radius:8px 0 8px 8px; align-self:flex-end; color:#111b21; }
+.msg .time { font-size:11px; color:#667781; margin-top:3px; text-align:right; }
+.msg.out .time::after { content:' ✓✓'; color:#53bdeb; }
+.date-divider { text-align:center; margin:12px 0; }
+.date-divider span { background:rgba(255,255,255,0.75); padding:4px 12px; border-radius:12px; font-size:12px; color:#54656f; }
+
+/* Input area */
+.input-area { background:#f0f2f5; padding:10px 16px; display:flex; align-items:flex-end; gap:10px; flex-shrink:0; }
+.input-area textarea { flex:1; padding:10px 14px; border:none; border-radius:24px; background:white; font-size:14px; font-family:inherit; resize:none; outline:none; max-height:120px; min-height:42px; line-height:1.4; }
+.send-btn { width:46px; height:46px; border-radius:50%; background:#128c7e; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:white; font-size:20px; flex-shrink:0; transition:background 0.2s; }
+.send-btn:hover { background:#075e54; }
+.send-btn:disabled { background:#b2bec3; cursor:not-allowed; }
+
+/* Loading */
+.loading { text-align:center; padding:20px; color:#667781; font-size:13px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:#ccc; border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html" class="back-btn">← Back</a>
+  <h1>💬 WhatsApp Inbox</h1>
+  <span class="subtitle">+92 321 6749443</span>
+</div>
+
+<div class="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search or start new chat" oninput="filterConvs(this.value)">
+    </div>
+    <div class="conv-list" id="convList">
+      <div class="loading">Loading conversations...</div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="chat-area" id="chatArea">
+    <div class="chat-placeholder">
+      <div class="icon">💬</div>
+      <h2>CNC ERP WhatsApp Inbox</h2>
+      <p>Left se koi conversation select karo</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://knvaaxywlfpomlatpiua.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmFheHl3bGZwb21sYXRwaXVhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzkzMjI4NSwiZXhwIjoyMDkzNTA4Mjg1fQ.vsCZIT5ER1DVBPvRGt8Ai-cYtUD0rosyxNEBi5T2NCo';
+const SB_HDR = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+const SEND_FN = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
+
+let allConvs = [];
+let activeConv = null;
+let msgChannel = null;
+
+// ── Fetch conversations ───────────────────────────────────────
+async function loadConvs() {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/wa_conversations?order=last_message_at.desc&limit=200`, { headers: SB_HDR });
+  allConvs = await r.json();
+  renderConvList(allConvs);
+}
+
+function renderConvList(convs) {
+  const el = document.getElementById('convList');
+  if (!convs.length) { el.innerHTML = '<div class="empty-conv">Koi conversation nahi<br><small>Jab clients reply karenge yahan dikhenge</small></div>'; return; }
+  el.innerHTML = convs.map(c => `
+    <div class="conv-item ${activeConv?.id === c.id ? 'active' : ''}" onclick="openConv('${c.id}')">
+      <div class="conv-avatar">${(c.contact_name||c.phone)[0].toUpperCase()}</div>
+      <div class="conv-info">
+        <div class="conv-name">${esc(c.contact_name || c.phone)}</div>
+        <div class="conv-last">${esc(c.last_message || '')}</div>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-time">${fmtTime(c.last_message_at)}</div>
+        <div class="conv-unread ${!c.unread_count ? 'hidden' : ''}">${c.unread_count||''}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterConvs(q) {
+  if (!q) return renderConvList(allConvs);
+  const f = allConvs.filter(c => (c.contact_name||'').toLowerCase().includes(q.toLowerCase()) || c.phone.includes(q));
+  renderConvList(f);
+}
+
+// ── Open conversation ─────────────────────────────────────────
+async function openConv(id) {
+  activeConv = allConvs.find(c => c.id === id);
+  if (!activeConv) return;
+
+  // Mark as read
+  await fetch(`${SUPABASE_URL}/rest/v1/wa_conversations?id=eq.${id}`, {
+    method: 'PATCH', headers: { ...SB_HDR, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ unread_count: 0 })
+  });
+  activeConv.unread_count = 0;
+  renderConvList(allConvs);
+
+  // Render chat
+  document.getElementById('chatArea').innerHTML = `
+    <div class="chat-header">
+      <div class="avatar">${(activeConv.contact_name||activeConv.phone)[0].toUpperCase()}</div>
+      <div class="info">
+        <div class="name">${esc(activeConv.contact_name || activeConv.phone)}</div>
+        <div class="phone">${activeConv.phone}</div>
+      </div>
+    </div>
+    <div class="messages" id="msgList"><div class="loading">Loading...</div></div>
+    <div class="input-area">
+      <textarea id="msgInput" placeholder="Type a message" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" onclick="sendMsg()" id="sendBtn">➤</button>
+    </div>
+  `;
+
+  await loadMessages(id);
+  subscribeMessages(id);
+  document.getElementById('msgInput').focus();
+}
+
+async function loadMessages(convId) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/wa_messages?conversation_id=eq.${convId}&order=created_at.asc&limit=200`, { headers: SB_HDR });
+  const msgs = await r.json();
+  renderMessages(msgs);
+}
+
+function renderMessages(msgs) {
+  const el = document.getElementById('msgList');
+  if (!el) return;
+  if (!msgs.length) { el.innerHTML = '<div class="loading">Koi message nahi abhi tak</div>'; return; }
+
+  let html = '', lastDate = '';
+  for (const m of msgs) {
+    const d = new Date(m.created_at).toLocaleDateString('en-PK');
+    if (d !== lastDate) {
+      html += `<div class="date-divider"><span>${d}</span></div>`;
+      lastDate = d;
+    }
+    html += `<div class="msg ${m.direction}">
+      ${esc(m.body||'')}
+      <div class="time">${new Date(m.created_at).toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>`;
+  }
+  el.innerHTML = html;
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── Realtime subscribe ────────────────────────────────────────
+function subscribeMessages(convId) {
+  if (msgChannel) { msgChannel.close(); }
+  // Poll every 5 seconds for new messages
+  msgChannel = setInterval(() => {
+    if (activeConv?.id === convId) loadMessages(convId);
+  }, 5000);
+}
+
+// ── Send message ──────────────────────────────────────────────
+async function sendMsg() {
+  const input = document.getElementById('msgInput');
+  const btn = document.getElementById('sendBtn');
+  const msg = input.value.trim();
+  if (!msg || !activeConv) return;
+
+  input.value = '';
+  input.style.height = '';
+  btn.disabled = true;
+
+  try {
+    const r = await fetch(SEND_FN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: activeConv.phone, message: msg, conversation_id: activeConv.id })
+    });
+    const data = await r.json();
+    if (!r.ok) { alert('Send fail: ' + (data.error || 'Unknown error')); input.value = msg; }
+    else { await loadMessages(activeConv.id); await loadConvs(); }
+  } catch (e) {
+    alert('Error: ' + e.message);
+    input.value = msg;
+  }
+  btn.disabled = false;
+  input.focus();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+
+function fmtTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit'});
+  const diff = Math.floor((now-d)/86400000);
+  if (diff === 1) return 'Yesterday';
+  if (diff < 7) return d.toLocaleDateString('en-PK',{weekday:'short'});
+  return d.toLocaleDateString('en-PK',{day:'2-digit',month:'2-digit'});
+}
+
+// ── Init ──────────────────────────────────────────────────────
+loadConvs();
+setInterval(loadConvs, 15000); // refresh conv list every 15 sec
+</script>
+</body>
+</html>
