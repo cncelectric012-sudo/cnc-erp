@@ -48,22 +48,14 @@ function today() { return new Date().toISOString().slice(0, 10); }
 
 // ── Meta API: Template message bhejo ─────────────────────────
 async function sendTemplate(phone, templateName, bodyParams) {
+  const tmpl = { name: templateName, language: { code: 'en' } };
+  if (bodyParams && bodyParams.length > 0) {
+    tmpl.components = [{ type: 'body', parameters: bodyParams.map(t => ({ type: 'text', text: String(t) })) }];
+  }
   const res = await fetch(WA_URL, {
     method: 'POST',
     headers: WA_HEADERS,
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: phone,
-      type: 'template',
-      template: {
-        name: templateName,
-        language: { code: 'en' },
-        components: [{
-          type: 'body',
-          parameters: bodyParams.map(t => ({ type: 'text', text: String(t) }))
-        }]
-      }
-    })
+    body: JSON.stringify({ messaging_product: 'whatsapp', to: phone, type: 'template', template: tmpl })
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error?.message || JSON.stringify(data));
@@ -150,7 +142,11 @@ function watchTrigger() {
       const data = JSON.parse(fs.readFileSync(TRIGGER_FILE, 'utf8'));
       fs.unlinkSync(TRIGGER_FILE);
       console.log(`[Bot] Trigger mila: ${data.label}`);
-      await broadcastToAll([data.message], 'custom_announcement', data.label);
+      if (data.template) {
+        await broadcastToAll([], data.template, data.label);
+      } else {
+        await broadcastToAll([data.message], 'custom_announcement', data.label);
+      }
     } catch (e) {
       console.error('[Bot] Trigger error:', e.message);
     }

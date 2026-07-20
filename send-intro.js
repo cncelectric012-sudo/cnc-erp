@@ -30,9 +30,9 @@ Cognitive Solutions Pvt Limited
 کوگنیٹو سولوشنز پرائیویٹ لمیٹڈ`;
 
 fs.writeFileSync(TRIGGER_FILE, JSON.stringify({
-  message: INTRO_MESSAGE,
+  template: 'intro_welcome',
   label: 'Intro / Welcome Message',
 }), 'utf8');
 
-console.log('✓ Trigger file likhi — main bot 30 seconds mein sab ko message bhejega.');
+console.log('✓ Trigger file likhi — main bot 30 seconds mein intro message bhejega.');
 console.log('  (whatsapp-bot.js PM2 mein online hona chahiye)');
