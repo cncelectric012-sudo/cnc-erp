@@ -63,11 +63,31 @@ body { font-family: 'Segoe UI', sans-serif; background:#f0f2f5; height:100vh; di
 .date-divider span { background:rgba(255,255,255,0.75); padding:4px 12px; border-radius:12px; font-size:12px; color:#54656f; }
 
 /* Input area */
-.input-area { background:#f0f2f5; padding:10px 16px; display:flex; align-items:flex-end; gap:10px; flex-shrink:0; }
+.input-area { background:#f0f2f5; padding:10px 16px; display:flex; flex-direction:column; gap:8px; flex-shrink:0; }
+.input-row { display:flex; align-items:flex-end; gap:8px; }
 .input-area textarea { flex:1; padding:10px 14px; border:none; border-radius:24px; background:white; font-size:14px; font-family:inherit; resize:none; outline:none; max-height:120px; min-height:42px; line-height:1.4; }
+.media-btn { width:42px; height:42px; border-radius:50%; background:white; border:none; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.2s; }
+.media-btn:hover { background:#e9edef; }
+.media-btn.recording { background:#ff4444; animation:pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
 .send-btn { width:46px; height:46px; border-radius:50%; background:#128c7e; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:white; font-size:20px; flex-shrink:0; transition:background 0.2s; }
 .send-btn:hover { background:#075e54; }
 .send-btn:disabled { background:#b2bec3; cursor:not-allowed; }
+
+/* Media preview */
+.media-preview { background:white; border-radius:12px; padding:10px 14px; display:flex; align-items:center; gap:10px; }
+.media-preview img { max-height:80px; border-radius:8px; }
+.media-preview .media-info { flex:1; font-size:13px; color:#111b21; }
+.media-preview .media-info small { color:#667781; }
+.media-preview .remove-btn { background:none; border:none; cursor:pointer; font-size:18px; color:#667781; }
+.media-preview audio { max-width:200px; height:36px; }
+
+/* Message media */
+.msg img { max-width:220px; border-radius:6px; display:block; margin-bottom:4px; cursor:pointer; }
+.msg video { max-width:220px; border-radius:6px; display:block; margin-bottom:4px; }
+.msg audio { max-width:220px; height:36px; display:block; margin-bottom:4px; }
+.msg .doc-link { display:flex; align-items:center; gap:8px; text-decoration:none; color:#111b21; padding:4px 0; }
+.msg .doc-link span { font-size:13px; }
 
 /* Loading */
 .loading { text-align:center; padding:20px; color:#667781; font-size:13px; }
@@ -172,8 +192,14 @@ async function openConv(id) {
     </div>
     <div class="messages" id="msgList"><div class="loading">Loading...</div></div>
     <div class="input-area">
-      <textarea id="msgInput" placeholder="Type a message" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-      <button class="send-btn" onclick="sendMsg()" id="sendBtn">➤</button>
+      <div id="mediaPreviewArea"></div>
+      <div class="input-row">
+        <button class="media-btn" id="attachBtn" title="Attach file" onclick="document.getElementById('fileInput').click()">📎</button>
+        <button class="media-btn" id="voiceBtn" title="Record voice" onmousedown="startRecording()" onmouseup="stopRecording()" ontouchstart="startRecording()" ontouchend="stopRecording()">🎤</button>
+        <textarea id="msgInput" placeholder="Type a message" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" onclick="sendMsg()" id="sendBtn">➤</button>
+      </div>
+      <input type="file" id="fileInput" style="display:none" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" onchange="handleFileSelect(this)">
     </div>
   `;
 
@@ -200,13 +226,25 @@ function renderMessages(msgs) {
       html += `<div class="date-divider"><span>${d}</span></div>`;
       lastDate = d;
     }
-    html += `<div class="msg ${m.direction}">
-      ${esc(m.body||'')}
-      <div class="time">${new Date(m.created_at).toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit'})}</div>
-    </div>`;
+    const time = new Date(m.created_at).toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit'});
+    html += `<div class="msg ${m.direction}">${renderMsgBody(m)}<div class="time">${time}</div></div>`;
   }
   el.innerHTML = html;
   el.scrollTop = el.scrollHeight;
+}
+
+function renderMsgBody(m) {
+  const body = m.body || '';
+  // Detect media by body prefix pattern: [image: url], [video: url], [audio: url], [document: name|url]
+  const imgMatch  = body.match(/^\[image: (.+)\]$/);
+  const vidMatch  = body.match(/^\[video: (.+)\]$/);
+  const audMatch  = body.match(/^\[audio: (.+)\]$/);
+  const docMatch  = body.match(/^\[document: (.+)\|(.+)\]$/);
+  if (imgMatch)  return `<img src="${imgMatch[1]}" alt="image" onclick="openImage('${imgMatch[1]}')">`;
+  if (vidMatch)  return `<video src="${vidMatch[1]}" controls></video>`;
+  if (audMatch)  return `<audio src="${audMatch[1]}" controls></audio>`;
+  if (docMatch)  return `<a class="doc-link" href="${docMatch[2]}" target="_blank" rel="noopener"><span>📄</span><span>${esc(docMatch[1])}</span></a>`;
+  return esc(body);
 }
 
 // ── Realtime subscribe ────────────────────────────────────────
@@ -218,29 +256,135 @@ function subscribeMessages(convId) {
   }, 5000);
 }
 
+// ── Media state ───────────────────────────────────────────────
+let pendingMedia = null; // { file, url, type, filename }
+let mediaRecorder = null, audioChunks = [];
+
+// ── File attach ───────────────────────────────────────────────
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  pendingMedia = { file, filename: file.name, type: getMediaType(file) };
+  showMediaPreview();
+}
+
+function getMediaType(file) {
+  if (file.type.startsWith('image/')) return 'image';
+  if (file.type.startsWith('video/')) return 'video';
+  if (file.type.startsWith('audio/')) return 'audio';
+  return 'document';
+}
+
+function showMediaPreview() {
+  const area = document.getElementById('mediaPreviewArea');
+  if (!area || !pendingMedia) return;
+  const { file, filename, type } = pendingMedia;
+  const objUrl = URL.createObjectURL(file);
+  let preview = '';
+  if (type === 'image') preview = `<img src="${objUrl}">`;
+  else if (type === 'audio') preview = `<audio src="${objUrl}" controls></audio>`;
+  else preview = `<span>📄 ${esc(filename)}</span>`;
+  area.innerHTML = `
+    <div class="media-preview">
+      ${preview}
+      <div class="media-info"><div>${esc(filename)}</div><small>${(file.size/1024).toFixed(0)} KB · ${type}</small></div>
+      <button class="remove-btn" onclick="clearMedia()">✕</button>
+    </div>`;
+}
+
+function clearMedia() {
+  pendingMedia = null;
+  const area = document.getElementById('mediaPreviewArea');
+  if (area) area.innerHTML = '';
+}
+
+// ── Voice recording ───────────────────────────────────────────
+async function startRecording() {
+  if (mediaRecorder) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type: 'audio/ogg; codecs=opus' });
+      const file = new File([blob], `voice-${Date.now()}.ogg`, { type: 'audio/ogg' });
+      pendingMedia = { file, filename: file.name, type: 'audio' };
+      showMediaPreview();
+      stream.getTracks().forEach(t => t.stop());
+    };
+    mediaRecorder.start();
+    const btn = document.getElementById('voiceBtn');
+    if (btn) { btn.classList.add('recording'); btn.textContent = '⏹'; }
+  } catch (e) {
+    alert('Microphone access denied: ' + e.message);
+  }
+}
+
+function stopRecording() {
+  if (!mediaRecorder) return;
+  mediaRecorder.stop();
+  mediaRecorder = null;
+  const btn = document.getElementById('voiceBtn');
+  if (btn) { btn.classList.remove('recording'); btn.textContent = '🎤'; }
+}
+
+// ── Upload to Supabase Storage ────────────────────────────────
+async function uploadMedia(file, type) {
+  const ext = file.name.split('.').pop();
+  const path = `${type}/${Date.now()}.${ext}`;
+  const r = await fetch(`${SUPABASE_URL}/storage/v1/object/wa-media/${path}`, {
+    method: 'POST',
+    headers: { ...SB_HDR, 'Content-Type': file.type, 'x-upsert': 'true' },
+    body: file
+  });
+  if (!r.ok) { const e = await r.text(); throw new Error('Upload failed: ' + e); }
+  return `${SUPABASE_URL}/storage/v1/object/public/wa-media/${path}`;
+}
+
 // ── Send message ──────────────────────────────────────────────
 async function sendMsg() {
   const input = document.getElementById('msgInput');
   const btn = document.getElementById('sendBtn');
   const msg = input.value.trim();
-  if (!msg || !activeConv) return;
+  if (!msg && !pendingMedia || !activeConv) return;
 
   input.value = '';
   input.style.height = '';
   btn.disabled = true;
 
   try {
-    const r = await fetch(SEND_FN, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: activeConv.phone, message: msg, conversation_id: activeConv.id })
-    });
-    const data = await r.json();
-    if (!r.ok) { alert('Send fail: ' + (data.error || 'Unknown error')); input.value = msg; }
-    else { await loadMessages(activeConv.id); await loadConvs(); }
+    if (pendingMedia) {
+      const { file, type, filename } = pendingMedia;
+      clearMedia();
+      const mediaUrl = await uploadMedia(file, type);
+      // Store body as parseable marker for renderMsgBody
+      let msgBody;
+      if (type === 'document') msgBody = `[document: ${filename}|${mediaUrl}]`;
+      else msgBody = `[${type}: ${mediaUrl}]`;
+
+      const r = await fetch(SEND_FN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: activeConv.phone, message: msgBody, conversation_id: activeConv.id, media_url: mediaUrl, media_type: type, filename })
+      });
+      const data = await r.json();
+      if (!r.ok) alert('Send fail: ' + (data.error || 'Unknown'));
+    } else {
+      const r = await fetch(SEND_FN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: activeConv.phone, message: msg, conversation_id: activeConv.id })
+      });
+      const data = await r.json();
+      if (!r.ok) { alert('Send fail: ' + (data.error || 'Unknown error')); input.value = msg; }
+    }
+    await loadMessages(activeConv.id);
+    await loadConvs();
   } catch (e) {
     alert('Error: ' + e.message);
-    input.value = msg;
+    if (msg) input.value = msg;
   }
   btn.disabled = false;
   input.focus();
